@@ -1,0 +1,229 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://danseo.invalid/card-draft-2.json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "draft-2"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "type": {
+          "const": "paper"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string",
+              "pattern": "^https?://[^\\s]+$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text_path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [],
+          "anyOf": [
+            {
+              "properties": {
+                "url": {}
+              },
+              "required": [
+                "url"
+              ]
+            },
+            {
+              "properties": {
+                "path": {}
+              },
+              "required": [
+                "path"
+              ]
+            }
+          ]
+        },
+        "review": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "draft",
+                "source-checked",
+                "needs-recheck"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "status"
+          ]
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+              },
+              "statement": {
+                "type": "string",
+                "minLength": 1
+              },
+              "locators": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "pdf-page-range"
+                        },
+                        "start": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "end": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "start",
+                        "end"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "enum": [
+                            "section",
+                            "table",
+                            "figure",
+                            "printed-page"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "value"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "id",
+              "statement",
+              "locators"
+            ]
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "type",
+        "id",
+        "source",
+        "review"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "draft-2"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "type": {
+          "const": "application"
+        },
+        "project_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "claim_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "properties": {
+              "paper_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+              },
+              "claim_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+              }
+            },
+            "required": [
+              "paper_id",
+              "claim_id"
+            ]
+          }
+        },
+        "decision": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "proposed",
+                "accepted"
+              ]
+            },
+            "action": {
+              "enum": [
+                "apply",
+                "adapt",
+                "test",
+                "defer"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "type",
+        "id",
+        "project_id",
+        "claim_refs",
+        "decision"
+      ]
+    }
+  ]
+}

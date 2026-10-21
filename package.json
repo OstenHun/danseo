@@ -1,0 +1,53 @@
+{
+  "name": "danseo",
+  "version": "0.1.0-dev.1",
+  "private": true,
+  "type": "module",
+  "description": "Local paper evidence validation and agent context bundles",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "papers",
+    "evidence",
+    "cli",
+    "agent-skills"
+  ],
+  "engines": {
+    "node": "^22.0.0 || ^24.0.0"
+  },
+  "bin": {
+    "danseo": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "skills/danseo",
+    "examples/minimal",
+    "docs",
+    "evals",
+    "TASKS.md",
+    "AGENTS.md",
+    "README.en.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+    "third-party-licenses",
+    "assets/brand",
+    "!**/.gitkeep"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
+    "test:package": "node scripts/package-smoke.mjs",
+    "danseo": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}
