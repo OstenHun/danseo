@@ -8,6 +8,7 @@ import { runTopic } from './core/topic.js';
 const help = `Danseo — local evidence CLI
 Usage: danseo <validate|list|show|export> --workspace <directory> [options]
        danseo topic <init|search|select|unselect|show|sources|collect|unavailable|decide> --dir <topic-folder> [options]
+       danseo topic <analysis-open|analysis-save|analysis-list|comparison-input> --dir <topic-folder> [options]
   validate                         Check schema, IDs, references and project paths
   list [--project <id>]             List records
   show --paper <id>                 Original Paper (or --application <id>)

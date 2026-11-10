@@ -5,6 +5,8 @@
 ## 사용하기
 
 - [CLI](CLI.md): 실제 명령, workspace 설정, 오류와 출력.
+- [논문별 분석과 재개](PAPER_ANALYSIS.md): 같은 문서에서 후속 질문, 다른 주제에서 Paper 재사용, 현재 주장만 비교 입력으로 전달.
+- [주장별 검토](CLAIM_REVIEWS.md): 고정 입력·결과·PDF 해시와 원문 지지 판정의 연결.
 - [English setup](CLI.en.md): source installation, private workspaces, agent setup and source-access failures.
 - [Skill](../skills/danseo/SKILL.md): agent의 자료 읽기와 원문 복귀 절차.
 - [Agent 호환성](AGENT_COMPATIBILITY.md): 확인한 연결과 남은 검사.

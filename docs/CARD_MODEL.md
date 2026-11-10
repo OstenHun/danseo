@@ -8,6 +8,8 @@
 
 ## 첫 버전 최소안
 
+논문별 분석에서는 주장에 선택적인 `conditions`와 `limits` 문자열을 붙여 조건·한계를 보존한다. [주장별 원문 검토](CLAIM_REVIEWS.md)는 문장·조건·한계·원문 위치 전체의 현재성을 확인하며, [주제별 답](PAPER_ANALYSIS.md)은 공통 Paper를 참조한다. Paper만 보관하는 workspace는 빈 `projects`를 허용한다.
+
 현재 CLI의 draft-2 필드는 [공개 schema](../schemas/card.schema.json)와 [합성 예제](../examples/minimal/workspace.json)로 확인한다. 아래의 초기 확장 모델·검토안은 구현된 필드와 구분한다. 안정 버전이나 외부 소비자가 생기면 변경·마이그레이션 절차를 다시 정한다.
 
 | 단위 | 처음 등록할 때 | 실제 근거로 사용할 때 | 본문에 남길 것 |

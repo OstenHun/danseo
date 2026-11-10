@@ -181,6 +181,10 @@ const allowed: Record<string, string[]> = {
   sources: [], collect: ['id','round','pdf','existing','url','kind','edition','proof','page'],
   unavailable: ['id','round','reason','url'], decide: ['id','round','sha','answer']
 };
+/** Stage-3 boundary: re-read selections, consent, PDF bytes and edition markings. */
+export async function sourceCollection(root: string) {
+  return report(root, await readBook(root, join(root, 'sources.json')), await selectedTopic(root));
+}
 export async function runCollection([action = '', ...args]: string[]) {
   if (args.includes('--help') || args.includes('-h')) { console.log(help); return; }
   const { values: v } = parseArgs({ args, options });

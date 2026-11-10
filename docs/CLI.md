@@ -4,6 +4,8 @@
 
 [English setup](CLI.en.md)
 
+선택한 원문에서 논문별 답을 쓰거나 이어 읽을 때는 [논문 한 편 분석하고 이어 읽기](PAPER_ANALYSIS.md)를 따른다. `topic analysis-open/save/list`가 Paper와 주제별 문서를 연결하고 `comparison-input`이 현재 원문 지지 주장만 4단계 입력으로 준비한다.
+
 ## 주제 채팅에서 논문 찾기
 
 준비된 도구의 `skills/danseo/SKILL.md`와 개인 주제 폴더를 검색 가능한 채팅 에이전트에 알려준다. “이 폴더에서 연구 질문에 맞는 논문을 찾아줘”, “1번과 3번 담아줘”, “조건을 좁혀 더 찾아줘”처럼 요청한다. 새 채팅에서는 같은 폴더를 지정해 “내가 고른 논문과 출처를 보여줘”라고 한다. 주제 기록은 `topic.json` 한 파일에 들어가며 Paper 카드와 `workspace.json`이 없어도 시작할 수 있다.

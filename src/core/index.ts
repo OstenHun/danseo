@@ -7,12 +7,12 @@ import { parseDocument } from 'yaml';
 export class DanseoError extends Error {
   constructor(public code: string, message: string, public exitCode = 2) { super(message); }
 }
-type Claim = { id: string; statement: string; locators: { type: string; start?: number; end?: number; value?: string }[] };
-type Paper = { type: 'paper'; id: string; source: { version?: string; url?: string; text_path?: string }; review: { status: string }; claims?: Claim[] };
+type Claim = { id: string; statement: string; conditions?: string; limits?: string; locators: { type: string; start?: number; end?: number; value?: string }[] };
+type Paper = { type: 'paper'; id: string; source: { version?: string; url?: string; path?: string; text_path?: string }; review: { status: string }; claims?: Claim[] };
 type Application = { type: 'application'; id: string; project_id: string; claim_refs: { paper_id: string; claim_id: string }[]; decision: { status: string } };
 export type Card = { data: Paper | Application; raw: string; path: string; title: string; sha256: string };
 type Project = { id: string; root: string; question_source: string; question_section?: string };
-export type Workspace = { path: string; cards: Card[]; projects: Project[]; warnings: string[] };
+export type Workspace = { path: string; cards: Card[]; projects: Project[]; warnings: string[]; claim_reviews?: { input: string; result: string; result_sha256: string }[] };
 const ajv = new Ajv({ allErrors: true, strict: true });
 const cardSchema = ajv.compile(JSON.parse(await readFile(new URL('../../schemas/card.schema.json', import.meta.url), 'utf8')));
 const workspaceSchema = ajv.compile(JSON.parse(await readFile(new URL('../../schemas/workspace.schema.json', import.meta.url), 'utf8')));
@@ -132,7 +132,7 @@ export async function loadWorkspace(directory: string): Promise<Workspace> {
   try { config = JSON.parse(configText.replace(/^\uFEFF/, '')); }
   catch { throw new DanseoError('CONFIG_JSON', 'workspace.json을 JSON으로 읽을 수 없습니다.'); }
   if (!workspaceSchema(config)) throw new DanseoError('WORKSPACE_SCHEMA', ajv.errorsText(workspaceSchema.errors));
-  const manifest = config as { records: string[]; projects: Project[] };
+  const manifest = config as { records: string[]; projects: Project[]; claim_reviews?: Workspace['claim_reviews'] };
   const projects: Project[] = [];
   for (const project of manifest.projects) {
     if (projects.some(p => p.id === project.id)) throw new DanseoError('DUPLICATE_PROJECT', project.id);
@@ -170,7 +170,7 @@ export async function loadWorkspace(directory: string): Promise<Workspace> {
   }
   const warnings = cards.filter(c => c.data.type === 'paper' && c.data.review.status !== 'source-checked')
     .map(c => `${c.data.id}: ${(c.data as Paper).review.status} — 원문 검토 완료가 아닙니다.`);
-  return { path, cards, projects, warnings };
+  return { path, cards, projects, warnings, claim_reviews: manifest.claim_reviews };
 }
 
 export function listCards(ws: Workspace, projectId?: string) {
