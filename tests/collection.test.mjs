@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,7 +11,7 @@ const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 
 // One real text page with an xref table; a renamed text file cannot exercise PDF parsing.
 function pdf(title, author, edition) {
-  const content = `BT /F 12 Tf 20 730 Td (${title}) Tj 0 -20 Td (${author}) Tj 0 -20 Td (${edition}) Tj ET`;
+  const content = `BT /F 12 Tf 20 730 Td (${title}) Tj 0 -20 Td (${author}) Tj ${[edition].flat().map(line => `0 -20 Td (${line}) Tj`).join(' ')} ET`;
   const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F 4 0 R >> >> /Contents 5 0 R >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', `<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
@@ -74,7 +74,7 @@ test('local HTTP download, reuse and later supply preserve the selected round an
   const existing = join(dir,'already-owned.pdf');
   writeFileSync(existing, pdf('Paper B','Alice Reader','Journal 2024'));
   const previous = collect('2',undefined,['--existing',existing]).ready;
-  assert.equal(previous[1].file.path, existing);
+  assert.equal(previous[1].file.path, realpathSync(existing));
   assert.deepEqual(collect('2',undefined,['--existing',existing]).ready, previous);
   await download('/C');
   const missing = collect('3',undefined,['--pdf',path,'--url',url+'/C']).rows[2];
@@ -139,4 +139,53 @@ test('mismatched identity, unknown edition, interrupted and missing files stay r
   writeFileSync(join(dir,'sources.json'),'{}');
   assert.notEqual(run('unavailable','--id','1','--round','1','--reason','retry').status,0);
   assert.equal(readFileSync(join(dir,'sources.json'),'utf8'),'{}');
+});
+
+test('published files need matching full identity and an edition without a draft marking', t => {
+  const {batch,ok,path,collect}=fixture(t);
+  const examples=[
+    {selected: paper('A'), title:'Paper A: A Replication'},
+    {selected: {...paper('B'), authors:'Ann Lee'}, author:'Joann Leeman'},
+    {selected: {...paper('C'), edition:'Version 1.0'}, actual:'Version 10'},
+    {selected: {...paper('D'), edition:'Draft v1'}},
+    {selected: paper('E'), mark:'Author accepted manuscript Journal 2024'}
+  ];
+  batch(examples.map(x=>x.selected)); ok('select','--ids','1,2,3,4,5');
+  for (const [i,x] of examples.entries()) {
+    const edition=x.actual ?? x.selected.edition;
+    writeFileSync(path,pdf(x.title ?? x.selected.title,x.author ?? x.selected.authors,x.mark ?? edition));
+    const result=collect(String(i+1),edition);
+    assert.equal(result.ready.length,0);
+    assert.ok(result.rows[i].failure.reason);
+  }
+});
+
+test('edition reuse keeps the original path, and retry repairs changed managed data without erasing it', t => {
+  const {batch,ok,path,collect,copies}=fixture(t);
+  batch([paper('A')]); ok('select','--ids','1');
+  const original=pdf('Paper A','Alice Reader','Journal 2024');
+  writeFileSync(path,original);
+  const file=collect('1').ready[0].file;
+  writeFileSync(path,Buffer.concat([original,Buffer.from('\n')]));
+  assert.deepEqual(collect('1').ready[0].file,file);
+  assert.equal(copies().length,1);
+  writeFileSync(file.path,'externally edited');
+  assert.deepEqual(ok('sources').ready,[]);
+  writeFileSync(path,original);
+  const repaired=collect('1').ready[0].file;
+  assert.equal(repaired.sha256,file.sha256);
+  assert.notEqual(repaired.path,file.path);
+  assert.equal(readFileSync(file.path,'utf8'),'externally edited');
+  assert.deepEqual(ok('sources').ready[0].file,repaired);
+});
+
+test('standalone repository stamps, title containing Abstract and punctuated bylines', t => {
+  const {batch,ok,path,collect}=fixture(t);
+  const first={...paper('A'),title:'Abstract Interpretation',authors:"Amy O'Connor"};
+  const second={...paper('2203.14465'),source:'https://arxiv.org/abs/2203.14465v2'};
+  batch([first,second]); ok('select','--ids','1,2');
+  writeFileSync(path,pdf(first.title,first.authors,['Journal 2024','Abstract','Based on arXiv:2203.14465v2']));
+  assert.equal(collect('1').ready.length,1);
+  writeFileSync(path,pdf(second.title,second.authors,'arXiv:2305.20050v1'));
+  assert.ok(collect('2','arXiv:2305.20050v1',[],'draft').rows[1].failure.reason);
 });

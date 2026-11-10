@@ -7,7 +7,7 @@
 ## PTP-010 — 선택한 논문의 원문 수집
 
 - `topic sources`에서 선택 당시 서지정보·이유와 PDF 실제 판본을 이어 읽는다. `collect`는 공개 다운로드·직접 제공 파일을 저장하거나 같은 판본의 기존 파일을 연결한다. `decide`가 초고별 응답을 보존한다. [사용법](docs/CLI.md#고른-논문의-원문-모으기)
-- 자동 검사는 합성 PDF·로컬 HTTP 응답으로 선택 회차, 오류·재시도, 초고 결정, 새 프로세스 재개를 확인한다. 실제 공개 원문 검증 환경과 한계는 PR 본문에 기록한다.
+- 자동 검사는 합성 PDF·로컬 HTTP 응답으로 선택 회차, 오류·재시도, 초고 결정, 새 프로세스 재개를 확인한다. Windows / Node 24에서 `npm test`, `npm run check:docs`, `npm run test:package`와 기존 합성 카드 검증을 실행했다. 실제 공개 PDF와 재개 전후 결과, 최신 CI 및 한계는 [초안 PR #2](https://github.com/OstenHun/danseo/pull/2)에 기록한다.
 
 ## PTP-009 — 주제 채팅의 논문 탐색과 선택 / PR verification
 

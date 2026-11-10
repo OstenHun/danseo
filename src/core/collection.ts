@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { open, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Ajv } from 'ajv';
@@ -45,7 +45,7 @@ function filePath(root: string, file: FileRecord) {
     if (!isAbsolute(file.path)) invalid('기존 원문 경로가 손상되었습니다.');
     return file.path;
   }
-  if (file.path !== managedName(file.sha256)) invalid('주제 원문 경로가 손상되었습니다.');
+  if (file.path !== managedName(file.sha256) && !new RegExp('^source-' + file.sha256 + '-[a-f0-9-]{36}\\.pdf$').test(file.path)) invalid('주제 원문 경로가 손상되었습니다.');
   return join(root, file.path);
 }
 async function readBook(root: string, path: string): Promise<Book> {
@@ -73,11 +73,11 @@ async function saveBook(root: string, path: string, book: Book) {
     await rename(temp, path);
   } finally { await rm(temp, { force: true }); }
 }
-async function currentFile(root: string, file: FileRecord) {
-  const path = filePath(root, file);
-  try { return await realpath(path) === path && sha256(await pdfBytes(path)) === file.sha256; }
+async function matchesHash(path: string, hash: string) {
+  try { return await realpath(path) === path && sha256(await pdfBytes(path)) === hash; }
   catch { return false; }
 }
+const currentFile = (root: string, file: FileRecord) => matchesHash(filePath(root, file), file.sha256);
 const findRow = (book: Book, paper: SelectedPaper) => book.rows.find(row => row.key === paper.key && row.round === paper.round);
 
 async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof selectedTopic>>) {
@@ -100,41 +100,65 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
 }
 
 type Input = { path: string; existing: boolean; url?: string };
-async function collect(root: string, row: Row, paper: SelectedPaper, input: Input, evidence: Edition) {
+async function collect(root: string, book: Book, row: Row, paper: SelectedPaper, input: Input, evidence: Edition) {
   const inputPath = await realpath(input.path);
   const bytes = await pdfBytes(inputPath);
   const hash = sha256(bytes);
-  const prior = row.files.find(f => f.sha256 === hash);
-  if (prior && (prior.edition !== evidence.edition || prior.draft !== evidence.draft)) {
+  const previous = row.files.find(f => f.sha256 === hash);
+  if (previous && (previous.edition !== evidence.edition || previous.draft !== evidence.draft)) {
     throw Error('같은 파일에 서로 다른 판본 또는 초고 구분이 지정되었습니다.');
   }
-  const keepPrior = prior && await currentFile(root, prior);
-  const storedPath = keepPrior ? filePath(root, prior) : input.existing ? inputPath : join(root, managedName(hash));
-  let created = false;
-  try {
-    if (!input.existing && !keepPrior && !await exists(storedPath)) {
-      // Only remove a partial file if this writer created it.
-      const handle = await open(storedPath, 'wx', 0o600);
-      created = true;
-      try { await handle.writeFile(bytes); } finally { await handle.close(); }
+  // Compare the candidate before reusing another copy of the same edition.
+  await verifyPdf(bytes, paper, evidence);
+  const related = [row, ...book.rows.filter(r => r !== row && r.key === row.key)];
+  for (const candidate of related.flatMap(r => r.files)) {
+    if (candidate.edition !== evidence.edition || candidate.draft !== evidence.draft || !await currentFile(root, candidate)) continue;
+    const retained = await pdfBytes(filePath(root, candidate));
+    if (sha256(retained) !== candidate.sha256) throw Error('기존 원문이 변경되었습니다.');
+    await verifyPdf(retained, paper, candidate);
+    if (!row.files.includes(candidate)) {
+      const local = row.files.find(f => f.sha256 === candidate.sha256);
+      const reused = { ...candidate, decision: candidate.draft ? local?.decision ?? 'pending' : null };
+      if (local) row.files[row.files.indexOf(local)] = reused;
+      else row.files.push(reused);
     }
-    if (await realpath(storedPath) !== storedPath) throw Error('원문 경로가 변경되었습니다.');
-    const saved = await pdfBytes(storedPath);
+    delete row.failure;
+    return;
+  }
+  let name = managedName(hash);
+  let path = input.existing ? inputPath : join(root,name);
+  let created: string | undefined;
+  try {
+    if (!input.existing) {
+      if (await exists(path)) {
+        // Preserve any changed or interrupted copy and publish the verified bytes separately.
+        if (!await matchesHash(path, hash)) {
+          name = `source-${hash}-${randomUUID()}.pdf`;
+          path = join(root,name);
+        }
+      }
+      if (!await exists(path)) {
+        const temp = join(root, `.topic-${randomUUID()}.tmp`);
+        try {
+          await writeFile(temp, bytes, { flag: 'wx', mode: 0o600 });
+          await rename(temp,path);
+          created = path;
+        } finally { await rm(temp, { force: true }); }
+      }
+    }
+    if (await realpath(path) !== path) throw Error('원문 경로가 변경되었습니다.');
+    const saved = await pdfBytes(path);
     if (sha256(saved) !== hash) throw Error('저장 위치의 파일 내용이 다릅니다. 기존 파일을 확인하세요.');
     await verifyPdf(saved, paper, evidence);
-    const file: FileRecord = keepPrior ? prior : { ...evidence,
-      path: input.existing ? inputPath : managedName(hash), sha256: hash,
+    const file: FileRecord = { ...evidence, path: input.existing ? inputPath : name, sha256: hash,
       origin: input.existing ? 'existing' : input.url ? 'public' : 'provided',
-      source: input.url ?? inputPath, decision: evidence.draft ? prior?.decision ?? 'pending' : null
+      source: input.url ?? inputPath, decision: evidence.draft ? previous?.decision ?? 'pending' : null
     };
-    if (prior) row.files[row.files.indexOf(prior)] = file;
+    if (previous) row.files[row.files.indexOf(previous)] = file;
     else row.files.push(file);
     delete row.failure;
-    return created ? storedPath : undefined;
-  } catch (error) {
-    if (created) await rm(storedPath, { force: true });
-    throw error;
-  }
+    return created;
+  } catch (error) { if (created) await rm(created, { force: true }); throw error; }
 }
 
 const options = Object.fromEntries(['dir', 'id', 'round', 'pdf', 'existing', 'url', 'kind', 'edition', 'proof', 'page', 'reason', 'sha', 'answer']
@@ -178,7 +202,7 @@ export async function runCollection([action = '', ...args]: string[]) {
             !['published','draft'].includes(v.kind ?? '')) invalid(help);
         const source = v.existing ?? v.pdf!;
         try {
-          created = await collect(root, row, paper, { path: source, existing: !!v.existing, url: v.url },
+          created = await collect(root, book, row, paper, { path: source, existing: !!v.existing, url: v.url },
             { edition: v.edition, proof: v.proof, page, draft: v.kind === 'draft' });
         } catch (error) {
           row.failure = { source: v.url ?? source, reason: (error as Error).message };
