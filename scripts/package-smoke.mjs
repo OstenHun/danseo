@@ -1,6 +1,7 @@
+import { pdf } from '../tests/helpers/source-pdf.mjs';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -29,7 +30,7 @@ assert.match(cli('export', '--workspace', workspace, '--project', 'demo', '--app
 console.log(`Installed ${pack.filename}: help, synthetic validation and export passed (${process.version}/${process.platform}).`);
 
 // Exercise the installed CLI from a consumer outside the source tree.
-const topicDir = path.join(consumer, 'topic');
+const topicDir = path.join(consumer, '한글 주제 폴더');
 const topic = (...args) => JSON.parse(cli('topic', ...args, '--dir', topicDir));
 const candidate = key => ({ key, title: `Synthetic ${key}`, authors: 'Example', year: 2025,
   source: `https://example.org/${key}`, edition: 'v1', reason: `Reason ${key}`, scope: 'abstract' });
@@ -50,3 +51,14 @@ assert.equal(resumed.searches.length, 2);
 assert.deepEqual(topic('sources').rows.map(row => row.paper), resumed.selected);
 assert.deepEqual(topic('sources').ready, []);
 console.log('Installed topic: select, additional search and fresh-process resume passed.');
+
+const provided = path.join(consumer, '직접 제공한 논문.pdf');
+writeFileSync(provided, pdf('Synthetic a', 'Example', 'v1'));
+const collect = () => topic('collect', '--id','1','--round','1','--kind','published','--pdf',provided,'--edition','v1','--proof','v1');
+const saved = collect().ready[0];
+assert.ok(saved);
+assert.deepEqual(readFileSync(saved.file.path),readFileSync(provided));
+assert.deepEqual(topic('sources').ready,[saved]);
+assert.deepEqual(collect().ready,[saved]);
+assert.equal(readdirSync(topicDir).filter(file => file.endsWith('.pdf')).length,1);
+console.log(`Installed CLI PDF verified: Korean + space paths, fresh-process reopen, same digest/path and one copy (${process.version}/${process.platform}).`);

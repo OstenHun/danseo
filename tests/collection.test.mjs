@@ -1,30 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, statSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
+import { pdf } from './helpers/source-pdf.mjs';
+
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 
-// One real text page with an xref table; a renamed text file cannot exercise PDF parsing.
-function pdf(title, author, edition) {
-  const content = `BT /F 12 Tf 20 730 Td (${title}) Tj 0 -20 Td (${author}) Tj ${[edition].flat().map(line => `0 -20 Td (${line}) Tj`).join(' ')} ET`;
-  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F 4 0 R >> >> /Contents 5 0 R >>',
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>', `<< /Length ${content.length} >>\nstream\n${content}\nendstream`];
-  let data = '%PDF-1.4\n';
-  const offsets = [];
-  for (const [i, obj] of objects.entries()) { offsets.push(data.length); data += `${i + 1} 0 obj\n${obj}\nendobj\n`; }
-  const xref = data.length;
-  data += 'xref\n0 6\n0000000000 65535 f \n' + offsets.map(n => String(n).padStart(10,'0') + ' 00000 n \n').join('');
-  return Buffer.from(data + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
-}
-
 function fixture(t) {
-  const dir = mkdtempSync(join(tmpdir(), 'danseo-collection-'));
+  const dir = mkdtempSync(join(tmpdir(), '단서 원문 collection-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(...args) {
     return spawnSync(process.execPath, [cli, 'topic', ...args, '--dir', dir], { encoding: 'utf8' });
@@ -74,7 +62,9 @@ test('local HTTP download, reuse and later supply preserve the selected round an
   const existing = join(dir,'already-owned.pdf');
   writeFileSync(existing, pdf('Paper B','Alice Reader','Journal 2024'));
   const previous = collect('2',undefined,['--existing',existing]).ready;
-  assert.equal(previous[1].file.path, realpathSync(existing));
+  const linked = statSync(previous[1].file.path, { bigint: true });
+  const original = statSync(existing, { bigint: true });
+  assert.deepEqual([linked.dev, linked.ino], [original.dev, original.ino]);
   assert.deepEqual(collect('2',undefined,['--existing',existing]).ready, previous);
   await download('/C');
   const missing = collect('3',undefined,['--pdf',path,'--url',url+'/C']).rows[2];
@@ -188,4 +178,39 @@ test('standalone repository stamps, title containing Abstract and punctuated byl
   assert.equal(collect('1').ready.length,1);
   writeFileSync(path,pdf(second.title,second.authors,'arXiv:2305.20050v1'));
   assert.ok(collect('2','arXiv:2305.20050v1',[],'draft').rows[1].failure.reason);
+});
+
+test('published headers and footer draft markings are checked independently of the paper title', t => {
+  const {batch,ok,path,collect,dir}=fixture(t);
+  const a={...paper('A'),title:'How Lawyers Draft Contracts'};
+  batch([a]); ok('select','--ids','1');
+  writeFileSync(path,pdf(['Proceedings of X',a.title],a.authors,['Journal 2024','Abstract','Based on','arXiv:2203.14465v2']));
+  const published=collect('1');
+  assert.equal(published.ready.length,1);
+  writeFileSync(path,pdf(a.title,a.authors,['Journal 2024','Abstract','Findings','Author accepted manuscript']));
+  assert.ok(collect('1').rows[0].failure);
+  const draft=collect('1','Author accepted manuscript',[],'draft').rows[0].files[1];
+  // An earlier build could record a cropped publication quote from these exact bytes.
+  const ledger=join(dir,'sources.json');
+  const data=JSON.parse(readFileSync(ledger,'utf8'));
+  Object.assign(data.rows[0].files[1],{edition:'Journal 2024',proof:'Journal 2024',draft:false,decision:null});
+  writeFileSync(ledger,JSON.stringify(data));
+  assert.equal(ok('sources').rows[0].files[1].status,'needs-recheck');
+  const corrected=collect('1','Author accepted manuscript',[],'draft').rows[0].files[1];
+  assert.equal(corrected.sha256,draft.sha256);
+  assert.equal(corrected.decision,'pending');
+  assert.deepEqual(collect('1','AUTHOR ACCEPTED MANUSCRIPT',[],'draft').rows[0].files[1],corrected);
+});
+
+test('revised metadata in another selection round can replace an unsuitable cached edition', t => {
+  const {batch,ok,path,collect}=fixture(t);
+  const a=paper('A');
+  batch([a]); ok('select','--ids','1');
+  writeFileSync(path,pdf(a.title,a.authors,'Journal 2024'));
+  assert.equal(collect('1').ready.length,1);
+  const revised={...a,authors:'Revised Byline'};
+  batch([revised]); ok('unselect','--ids','1'); ok('select','--ids','1','--round','2');
+  writeFileSync(path,pdf(a.title,revised.authors,'Journal 2024'));
+  const newEdition=ok('collect','--id','1','--round','2','--pdf',path,'--kind','published','--edition','JOURNAL 2024','--proof','Journal 2024');
+  assert.equal(newEdition.ready[0].paper.authors,revised.authors);
 });

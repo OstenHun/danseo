@@ -6,7 +6,7 @@ import { Ajv } from 'ajv';
 import { DanseoError } from './index.js';
 import { exists, workspaceLock, writableFile } from './storage.js';
 import { selectedTopic, type SelectedPaper } from './topic.js';
-import { pdfBytes, sha256, verifyPdf, type Edition } from './source-pdf.js';
+import { editionKey, pdfBytes, sha256, verifyPdf, type Edition } from './source-pdf.js';
 
 type Origin = 'public' | 'provided' | 'existing';
 type FileRecord = Edition & {
@@ -78,6 +78,16 @@ async function matchesHash(path: string, hash: string) {
   catch { return false; }
 }
 const currentFile = (root: string, file: FileRecord) => matchesHash(filePath(root, file), file.sha256);
+async function stillVerified(root: string, paper: SelectedPaper, file: FileRecord) {
+  const path = filePath(root, file);
+  try {
+    if (await realpath(path) !== path) return false;
+    const bytes = await pdfBytes(path);
+    if (sha256(bytes) !== file.sha256) return false;
+    await verifyPdf(bytes, paper, file);
+    return true;
+  } catch { return false; }
+}
 const findRow = (book: Book, paper: SelectedPaper) => book.rows.find(row => row.key === paper.key && row.round === paper.round);
 
 async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof selectedTopic>>) {
@@ -86,13 +96,13 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
     const row = findRow(book, paper);
     const files = [];
     for (const file of row?.files ?? []) {
-      const status = await currentFile(root, file)
+      const status = await stillVerified(root, paper, file)
         ? file.decision ?? 'ready' : 'needs-recheck';
       files.push({ ...file, path: filePath(root, file), status });
     }
     const ready = files.findLast(f => f.status === 'ready') ?? files.findLast(f => f.status === 'accepted');
     const next = ready ? '분석 가능' : files.some(f => f.status === 'pending') ? '이 초고로 분석할까요?'
-      : files.some(f => f.status === 'needs-recheck') ? '파일이 사라지거나 바뀌었습니다. 원문을 다시 등록하세요.'
+      : files.some(f => f.status === 'needs-recheck') ? '원문 파일이나 판본 근거를 다시 확인하고 등록하세요.'
       : '출판본 PDF를 제공하거나 이 논문만 다시 시도하세요.';
     rows.push({ paper, files, failure: row?.failure, next, ready });
   }
@@ -105,17 +115,21 @@ async function collect(root: string, book: Book, row: Row, paper: SelectedPaper,
   const bytes = await pdfBytes(inputPath);
   const hash = sha256(bytes);
   const previous = row.files.find(f => f.sha256 === hash);
-  if (previous && (previous.edition !== evidence.edition || previous.draft !== evidence.draft)) {
-    throw Error('같은 파일에 서로 다른 판본 또는 초고 구분이 지정되었습니다.');
+  const sameEdition = (f: FileRecord) => editionKey(f.edition) === editionKey(evidence.edition);
+  const correctingToDraft = previous && !previous.draft && evidence.draft;
+  if (previous && !correctingToDraft && (!sameEdition(previous) || (previous.draft && !evidence.draft))) {
+    throw Error('같은 파일에 서로 다른 판본 또는 출판본 구분이 지정되었습니다.');
   }
   // Compare the candidate before reusing another copy of the same edition.
   await verifyPdf(bytes, paper, evidence);
+  if (correctingToDraft && await currentFile(root, previous)) {
+    Object.assign(previous, evidence, { decision: 'pending' });
+    delete row.failure;
+    return;
+  }
   const related = [row, ...book.rows.filter(r => r !== row && r.key === row.key)];
   for (const candidate of related.flatMap(r => r.files)) {
-    if (candidate.edition !== evidence.edition || candidate.draft !== evidence.draft || !await currentFile(root, candidate)) continue;
-    const retained = await pdfBytes(filePath(root, candidate));
-    if (sha256(retained) !== candidate.sha256) throw Error('기존 원문이 변경되었습니다.');
-    await verifyPdf(retained, paper, candidate);
+    if (!sameEdition(candidate) || candidate.draft !== evidence.draft || !await stillVerified(root, paper, candidate)) continue;
     if (!row.files.includes(candidate)) {
       const local = row.files.find(f => f.sha256 === candidate.sha256);
       const reused = { ...candidate, decision: candidate.draft ? local?.decision ?? 'pending' : null };
@@ -194,7 +208,7 @@ export async function runCollection([action = '', ...args]: string[]) {
       } else if (action === 'decide') {
         const file = row.files.find(f => f.draft && f.sha256 === v.sha);
         if (!file || !['accept', 'decline'].includes(v.answer ?? '')) invalid('표시한 초고의 해시와 응답을 확인하세요.');
-        if (!await currentFile(root, file)) invalid('초고 파일이 바뀌었습니다. 다시 확인하세요.');
+        if (!await stillVerified(root, paper, file)) invalid('초고 파일과 판본을 다시 확인하세요.');
         file.decision = v.answer === 'accept' ? 'accepted' : 'declined';
       } else {
         const page = Number(v.page ?? 1);

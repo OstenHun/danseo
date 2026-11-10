@@ -15,6 +15,8 @@ const words = (text: string) => text.normalize('NFKC').toLowerCase()
   .replace(/['’]/gu, '').match(/[\p{L}\p{N}]+/gu) ?? [];
 const compact = (text: string) => words(text).join('');
 
+export const editionKey = (label: string) => words(label).join(' ');
+
 export type Edition = { edition: string; proof: string; page: number; draft: boolean };
 
 // A verified arXiv ID can disambiguate a catalogue title with an omitted subtitle.
@@ -37,13 +39,19 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     const pageRuns = async (number: number) => {
       const page = await pdf.getPage(number);
       const content = await page.getTextContent();
-      return content.items.flatMap(item => 'str' in item && item.str.trim() ? [item.str] : []);
+      return content.items.flatMap(item => 'str' in item && item.str.trim() ? [item] : []);
     };
-    const runs = await pageRuns(1);
+    const cover = await pageRuns(1);
+    const runs = cover.map(item => item.str);
     const first = runs.join(' ');
     // A repository stamp is a standalone cover marking, not a citation inside an abstract.
     const stampPattern = /^\s*arxiv\s*:\s*((?:\d{4}\.\d{4,5}|[a-z.-]+\/\d{7})v\d+)(?:\s+\[[\w.-]+\])?(?:\s+\d{1,2}\s+[a-z]+\s+\d{4})?\s*$/i;
-    const stamp = runs.map(run => run.match(stampPattern)?.[1]).find(Boolean)?.toLowerCase();
+    const stamp = cover.flatMap(item => {
+      const match = item.str.match(stampPattern);
+      const rotated = Math.abs(item.transform[1]) > Math.abs(item.transform[0]);
+      const dated = /\[.+\]\s+\d{1,2}\s+[a-z]+\s+\d{4}\s*$/i.test(item.str);
+      return match && (rotated || dated) ? [match[1]!.toLowerCase()] : [];
+    })[0];
     const idPattern = /^(?:arxiv:\s*)?((?:\d{4}\.\d{4,5}|[a-z.-]+\/\d{7}))(?:v\d+)?$/i;
     const url = new URL(paper.source);
     const urlId = /^(?:[\w-]+\.)?arxiv\.org$/i.test(url.hostname)
@@ -60,10 +68,16 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       return front.search(new RegExp('(?<![\\p{L}\\p{N}])' + tokens.join('[^\\p{L}\\p{N}]*') + '(?![\\p{L}\\p{N}])', 'iu'));
     });
     if (!byline.length || byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
-    if (!matchesTitle(paper, front.slice(0, Math.min(...byline)), sameArxiv)) {
+    const titleBlock = front.slice(0, Math.min(...byline));
+    let withoutHeader = titleBlock;
+    for (const run of runs) {
+      if (!/^(?:proceedings of\b|doi\s*:|https?:\/\/doi\.org\/)/i.test(run.trim())) break;
+      withoutHeader = withoutHeader.trimStart().slice(run.length).trimStart();
+    }
+    if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
       throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
     }
-    const text = evidence.page === 1 ? first : (await pageRuns(evidence.page)).join(' ');
+    const text = evidence.page === 1 ? first : (await pageRuns(evidence.page)).map(item => item.str).join(' ');
     const quote = words(evidence.proof).join(' ');
     if (!quote || !(' ' + words(text).join(' ') + ' ').includes(' ' + quote + ' ')) {
       throw Error('지정한 쪽에서 판본 근거를 찾지 못했습니다.');
@@ -80,7 +94,15 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       if (/^arxiv:/i.test(evidence.edition)) throw Error('첫 쪽에서 해당 arXiv 판본 표기를 확인할 수 없습니다.');
       const marked = ' ' + words(evidence.proof).join(' ') + ' ';
       if (!edition || !marked.includes(' ' + words(evidence.edition).join(' ') + ' ')) throw Error('판본 이름이 해당 쪽의 근거 표기에 포함되어야 합니다.');
-      if (!evidence.draft && (edition !== words(paper.edition).join(' ') || /\b(?:draft|pre[ -]?print|accepted manuscript|author manuscript|submitted manuscript|under review)\b|초고|투고본|심사본|arxiv/i.test([front, evidence.edition, evidence.proof].join(' ')))) {
+      // Proof may quote a venue also printed on an author manuscript. Check cover markings
+      // outside the paper title, including footer markings after the abstract.
+      const afterTitle = first.normalize('NFKC').replace(/['’]/gu, '').slice(Math.min(...byline));
+      const manuscript = /\b(?:author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review|pre[ -]?print)\b|초고|투고본|심사본/i;
+      const draftLabel = /\bdraft\b/i;
+      const draft = manuscript.test(afterTitle) || manuscript.test(evidence.proof) ||
+        draftLabel.test(evidence.edition + ' ' + evidence.proof) ||
+        runs.some(run => /^(?:(?:working|author|preliminary|first|final)\s+)?draft(?:\s+(?:v(?:ersion)?\s*)?\d[\d.]*)?\s*$/i.test(run.trim()));
+      if (!evidence.draft && (edition !== editionKey(paper.edition) || draft)) {
         throw Error('선택한 판본과 다릅니다. 대체 초고이면 초고로 등록하세요.');
       }
     }
