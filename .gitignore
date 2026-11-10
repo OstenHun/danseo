@@ -29,3 +29,7 @@ Thumbs.db
 *.har
 .idea/
 .vscode/
+
+# Topic writer locks and interrupted temporary saves
+*.danseo-lock
+.topic-*.tmp

@@ -3,8 +3,11 @@ import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { loadWorkspace, listCards, getCard, buildBundle, renderBundle, writeNewFile, DanseoError } from './core/index.js';
 
+import { runTopic } from './core/topic.js';
+
 const help = `Danseo — local evidence CLI
 Usage: danseo <validate|list|show|export> --workspace <directory> [options]
+       danseo topic <init|search|select|unselect|show> --dir <topic-folder> [options]
   validate                         Check schema, IDs, references and project paths
   list [--project <id>]             List records
   show --paper <id>                 Original Paper (or --application <id>)
@@ -14,9 +17,10 @@ Usage: danseo <validate|list|show|export> --workspace <directory> [options]
 Workspace: workspace.json names records, projects and question_section (exact ATX title).
 Export embeds the selected question section and optional source.text_path page text.
 Exit: 0 success; 2 invalid input/evidence; 3 file access failure.
-No LLM, network requests, recursive imports or source edits.\n`;
+No LLM, network requests or recursive imports. Only topic actions update topic records.\n`;
 
 async function main() {
+  if (process.argv[2] === 'topic') return runTopic(process.argv.slice(3));
   const { values: v, positionals } = parseArgs({ strict: true, allowPositionals: true, options: {
     workspace: { type: 'string' }, project: { type: 'string' }, paper: { type: 'string' }, application: { type: 'string' },
     format: { type: 'string' }, out: { type: 'string' }, json: { type: 'boolean' },
