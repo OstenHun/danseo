@@ -96,12 +96,21 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       if (!edition || !marked.includes(' ' + words(evidence.edition).join(' ') + ' ')) throw Error('판본 이름이 해당 쪽의 근거 표기에 포함되어야 합니다.');
       // Proof may quote a venue also printed on an author manuscript. Check cover markings
       // outside the paper title, including footer markings after the abstract.
-      const afterTitle = first.normalize('NFKC').replace(/['’]/gu, '').slice(Math.min(...byline));
-      const manuscript = /\b(?:author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review|pre[ -]?print)\b|초고|투고본|심사본/i;
-      const draftLabel = /\bdraft\b/i;
-      const draft = manuscript.test(afterTitle) || manuscript.test(evidence.proof) ||
-        draftLabel.test(evidence.edition + ' ' + evidence.proof) ||
-        runs.some(run => /^(?:(?:working|author|preliminary|first|final)\s+)?draft(?:\s+(?:v(?:ersion)?\s*)?\d[\d.]*)?\s*$/i.test(run.trim()));
+      const header = matchesTitle(paper, titleBlock, sameArxiv) ? '' : titleBlock.slice(0, titleBlock.length - withoutHeader.length);
+      const label = /\b(?:draft|pre[ -]?print|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b|초고|투고본|심사본/i;
+      const explicitStatus = /^(?:this (?:paper|article|version) is (?:an? )?(?:draft|pre[ -]?print)|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b/i;
+      const versionLabel = /^(?:(?:working|preliminary|first|final)\s+)?(?:draft|pre[ -]?print|초고|투고본|심사본)(?:$|\s+v(?:ersion)?\s*\d|\s*[-:—(])/i;
+      // Only status labels and standalone markings describe this document. Running
+      // prose in the abstract can discuss a different preprint.
+      const lines: string[] = [];
+      for (const [index, item] of cover.entries()) {
+        const prior = cover[index - 1];
+        if (prior && !prior.hasEOL && Math.abs(item.transform[5] - prior.transform[5]) < 1) {
+          lines[lines.length - 1] += ' ' + item.str;
+        } else lines.push(item.str);
+      }
+      const draft = label.test([header, evidence.edition, evidence.proof].join(' ')) ||
+        lines.some(line => !titleBlock.includes(line) && (explicitStatus.test(line.trim()) || versionLabel.test(line.trim())));
       if (!evidence.draft && (edition !== editionKey(paper.edition) || draft)) {
         throw Error('선택한 판본과 다릅니다. 대체 초고이면 초고로 등록하세요.');
       }

@@ -184,9 +184,11 @@ test('published headers and footer draft markings are checked independently of t
   const {batch,ok,path,collect,dir}=fixture(t);
   const a={...paper('A'),title:'How Lawyers Draft Contracts'};
   batch([a]); ok('select','--ids','1');
-  writeFileSync(path,pdf(['Proceedings of X',a.title],a.authors,['Journal 2024','Abstract','Based on','arXiv:2203.14465v2']));
+  writeFileSync(path,pdf(['Proceedings of X',a.title],a.authors,['Journal 2024','Abstract','We compare a preprint with the final article','Based on','arXiv:2203.14465v2']));
   const published=collect('1');
   assert.equal(published.ready.length,1);
+  writeFileSync(path,pdf(['Proceedings of X - Author accepted manuscript',a.title],a.authors,'Journal 2024'));
+  assert.ok(collect('1').rows[0].failure);
   writeFileSync(path,pdf(a.title,a.authors,['Journal 2024','Abstract','Findings','Author accepted manuscript']));
   assert.ok(collect('1').rows[0].failure);
   const draft=collect('1','Author accepted manuscript',[],'draft').rows[0].files[1];
