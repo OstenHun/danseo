@@ -30,6 +30,30 @@ node ./dist/cli.js topic show --dir ./workspaces/topics/example
 
 `show`의 `searches`에는 회차별 후보가, `selected`에는 선택한 전체 목록이 있다. 출처나 판본이 여러 개인 논문을 새로 고를 때는 본 회차를 `--round`로 지정한다. 이미 담은 번호를 다시 담으면 최초 선택의 판본·출처·메모를 유지한다. 바꾸려면 `unselect --ids`로 해제한 뒤 원하는 회차에서 다시 고른다. 처음 사용하는 채팅 에이전트에는 [Danseo 스킬](../skills/danseo/SKILL.md)을 지정한다.
 
+## 고른 논문의 원문 모으기
+
+같은 개인 주제 폴더로 “고른 논문 원문을 모아줘”라고 요청한다. 에이전트는 `topic sources`에서 선택 당시 출처와 회차를 읽고, 이미 열 수 있는 파일과 아직 필요한 파일을 확인한다. 공개 PDF는 에이전트의 다운로드 도구로 받는다. 사용자가 알려준 기존 파일은 그 위치에서 열고, 새로 받은 파일은 주제 폴더에 보관한다.
+
+아래 예시의 `$topic`은 개인 주제 폴더다. 제목·저자는 선택 회차에서 가져온다. 에이전트는 원문 표지의 제목과 저자, 판본 표기와 출처 페이지를 대조한 후 실제 표기를 입력한다.
+
+```powershell
+node ./dist/cli.js topic sources --dir $topic
+node ./dist/cli.js topic collect --dir $topic --id 1 --round 1 --pdf ./download.pdf --url https://example.org/paper.pdf --kind published --edition 'Journal 2024' --proof 'Journal 2024'
+node ./dist/cli.js topic collect --dir $topic --id 2 --round 1 --existing ./owned.pdf --kind draft --edition 'Preprint v2' --proof 'Preprint v2'
+node ./dist/cli.js topic unavailable --dir $topic --id 3 --round 1 --reason '초록만 열림' --url https://example.org/abstract
+```
+
+`--proof`에는 판본을 식별하는 본문 표기를, `--page`에는 그 PDF 쪽 번호를 적는다(기본 1). 출판본은 선택한 판본 이름이 본문 표기에 있어야 한다. arXiv 표기가 있는 파일은 `--kind draft`로 등록하고 `--edition`과 `--proof`에 본문의 전체 식별자(예: `arXiv:2203.14465v2`)를 사용한다. 제목·저자를 첫 쪽 텍스트에서 확인할 수 없는 파일, 64 MiB 초과, 암호·스캔 등 추출할 수 없는 원문은 사유와 함께 보류한다. 입력 PDF는 일반 파일이어야 한다.
+
+`rows`에서 확인한 파일 경로·해시·판본과 실패 사유를 볼 수 있다. 초고는 출처·판본을 보여주고 “이 초고로 분석할까요?”라고 묻는다. 명시한 답에만 아래 명령을 실행한다. 거절은 `decline`, 미응답은 `pending`으로 둔다. 결정은 선택 회차와 파일 해시에 연결된다.
+
+```powershell
+node ./dist/cli.js topic decide --dir $topic --id 2 --round 1 --sha <표시한-초고-해시> --answer accept
+node ./dist/cli.js topic collect --dir $topic --id 3 --round 1 --pdf ./late.pdf --kind published --edition 'Journal 2024' --proof 'Journal 2024'
+```
+
+새 채팅에서 같은 폴더로 `sources`를 실행하면 `ready`에 분석 가능한 판본과 선택 이유가 나온다. 기존 파일이 사라지거나 바뀌면 `needs-recheck`로 표시한다. 실패는 `rows[].failure`를 확인한다. 수집 시도를 기록하면 실패 사유가 있어도 JSON과 종료 코드 0을 반환한다. 폴더 자체에 쓸 권한이 없으면 목록 갱신도 실패하므로 채팅에 사유를 남기고 저장 권한을 얻은 뒤 같은 항목을 재시도한다. `sources.json`과 `source-<SHA-256>.pdf`는 개인 주제 폴더에서 관리한다.
+
 ## 첫 실행
 
 이 절이 첫 실행 명령과 agent 연결 입력의 정본이다. 지원하는 Node.js 22.x·24.x와 빌드가 준비됐다면 아래에서 시작한다. 준비되지 않았다면 [설치와 빌드](#설치와-빌드)를 먼저 읽는다.

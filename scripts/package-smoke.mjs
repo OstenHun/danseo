@@ -47,4 +47,6 @@ assert.deepEqual(resumed.selected[0], firstChoice);
 assert.deepEqual(resumed.selected.map(paper => paper.number), [1, 4]);
 assert.deepEqual(resumed.selected.map(paper => paper.source), ['https://example.org/a', 'https://example.org/d']);
 assert.equal(resumed.searches.length, 2);
+assert.deepEqual(topic('sources').rows.map(row => row.paper), resumed.selected);
+assert.deepEqual(topic('sources').ready, []);
 console.log('Installed topic: select, additional search and fresh-process resume passed.');

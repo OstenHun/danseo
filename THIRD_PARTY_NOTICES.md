@@ -14,9 +14,10 @@
 | require-from-string | 2.0.2 | 런타임 | MIT | [원문](third-party-licenses/require-from-string.txt) |
 | typescript | 5.9.3 | 개발 | Apache-2.0 | [원문](third-party-licenses/typescript.txt) |
 | undici-types | 6.21.0 | 개발 | MIT | [원문](third-party-licenses/undici-types.txt) |
+| unpdf | 1.9.1 | 원문 수집 | MIT, 내장 PDF.js는 Apache-2.0 | [unpdf](third-party-licenses/unpdf.txt) · [PDF.js](third-party-licenses/pdfjs.txt) |
 | yaml | 2.9.1 | 런타임 | ISC | [원문](third-party-licenses/yaml.txt) |
 
-런타임 패키지는 Ajv·yaml과 전이 의존성이다. TypeScript와 타입 정의는 개발 도구이며 CLI에 번들하지 않는다. npm은 각 의존성 패키지를 별도로 설치한다. 외부 논문·데이터·로컬 연구 workspace는 이 저장소의 배포물에 포함하지 않는다.
+런타임 패키지는 Ajv·yaml·unpdf와 전이 의존성이다. TypeScript와 타입 정의는 개발 도구이며 CLI에 번들하지 않는다. npm은 각 의존성 패키지를 별도로 설치한다. 외부 논문·데이터·로컬 연구 workspace는 이 저장소의 배포물에 포함하지 않는다.
 
 TypeScript가 함께 제공하는 [제삼자 고지 원문](third-party-licenses/typescript-third-party-notices.txt)도 보존했다.
 
