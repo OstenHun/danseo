@@ -74,3 +74,46 @@ test('an invalid batch, multi-select, or competing writer leaves the topic intac
   writeFileSync(join(dir, 'workspace.json.danseo-lock'), '');
   assertFailure('select', '--ids', '1');
 });
+
+test('malformed UTF-8 in input or saved metadata is rejected without replacing the topic', t => {
+  const { dir, input, saveBatch, ok, run } = topicFixture(t);
+  saveBatch([paper('a')]);
+  ok('search', '--input', input);
+  ok('select', '--round', '1', '--ids', '1');
+  const file = join(dir, 'topic.json');
+  const before = readFileSync(file);
+  const malformed = text => {
+    const bytes = Buffer.from(text);
+    bytes[bytes.indexOf('reason for a')] = 0xff;
+    return bytes;
+  };
+  writeFileSync(input, malformed(JSON.stringify({ query: 'next', papers: [paper('a')] })));
+  const badInput = run('search', '--input', input);
+  assert.equal(badInput.status, 2);
+  assert.match(badInput.stderr, /UTF-8 JSON/);
+  assert.deepEqual(readFileSync(file), before);
+  const damaged = malformed(before.toString('utf8'));
+  writeFileSync(file, damaged);
+  const badSaved = run('unselect', '--ids', '1');
+  assert.equal(badSaved.status, 2);
+  assert.match(badSaved.stderr, /UTF-8 JSON/);
+  assert.deepEqual(readFileSync(file), damaged);
+});
+
+test('filesystem access failures use exit 3 and release the writer lock after a read error', t => {
+  const { dir, input, run, ok, saveBatch } = topicFixture(t);
+  const missingDir = run('show', '--dir', join(dir, 'missing'));
+  assert.equal(missingDir.status, 3, missingDir.stderr);
+  assert.match(missingDir.stderr, /TOPIC_FILE/);
+  const missingInput = run('search', '--input', input);
+  assert.equal(missingInput.status, 3, missingInput.stderr);
+  const before = readFileSync(join(dir, 'topic.json'));
+  const blockedDir = join(dir, 'file');
+  writeFileSync(blockedDir, 'not a directory');
+  const notDirectory = run('init', '--dir', join(blockedDir, 'child'), '--question', 'test');
+  assert.equal(notDirectory.status, 3, notDirectory.stderr);
+  assert.match(notDirectory.stderr, /TOPIC_FILE/);
+  assert.deepEqual(readFileSync(join(dir, 'topic.json')), before);
+  saveBatch([paper('a')]);
+  assert.equal(ok('search', '--input', input).searches.length, 1);
+});

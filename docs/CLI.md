@@ -12,12 +12,12 @@
 
 ```powershell
 node ./dist/cli.js topic init --dir ./workspaces/topics/example --question '내 연구 질문'
-node ./dist/cli.js topic search --dir ./workspaces/topics/example --input ./batch.json
+node ./dist/cli.js topic search --dir ./workspaces/topics/example --input ./workspaces/topics/example/batch.json
 node ./dist/cli.js topic select --dir ./workspaces/topics/example --round 1 --ids 1
 node ./dist/cli.js topic show --dir ./workspaces/topics/example
 ```
 
-아래는 `batch.json`의 형식을 보여주는 합성 예시다. 실제 회차에는 확인한 후보 3~5편을 넣고, 적합한 논문이 부족하면 그 수만 저장한다. 빈 검색도 질문과 함께 남길 수 있다.
+아래는 개인 주제 폴더의 `batch.json` 형식을 보여주는 합성 예시다. 개인 검색 입력도 Git에서 제외한 주제 폴더에 저장한다. 실제 회차에는 확인한 후보 3~5편을 넣고, 적합한 논문이 부족하면 그 수만 저장한다. 빈 검색도 질문과 함께 남길 수 있다.
 
 ```json
 {"query":"이번 검색에 사용한 질문","papers":[

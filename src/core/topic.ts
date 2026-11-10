@@ -51,12 +51,12 @@ const validTopic = ajv.compile<Topic>({ type: 'object', additionalProperties: fa
 
 function invalid(message: string): never { throw new DanseoError('TOPIC', message); }
 async function readJson(file: string): Promise<unknown> {
-  let raw: string;
-  try { raw = await readFile(file, 'utf8'); }
+  let raw: Buffer;
+  try { raw = await readFile(file); }
   catch (error) {
     throw new DanseoError('TOPIC_FILE', `파일을 읽을 수 없습니다: ${file} (${(error as NodeJS.ErrnoException).code})`, 3);
   }
-  try { return JSON.parse(raw.replace(/^\uFEFF/, '')); }
+  try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)); }
   catch { return invalid(`올바른 UTF-8 JSON 파일인지 확인하세요: ${file}`); }
 }
 
@@ -88,6 +88,17 @@ function overview(topic: Topic) {
 }
 
 export async function runTopic(args: string[]) {
+  try { return await executeTopic(args); }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (!(error instanceof DanseoError) && code && /^E[A-Z]+$/.test(code)) {
+      throw new DanseoError('TOPIC_FILE', `주제 파일에 접근할 수 없습니다: ${(error as Error).message}`, 3);
+    }
+    throw error;
+  }
+}
+
+async function executeTopic(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) { console.log(topicHelp); return; }
   const [action, ...rest] = args;
   const { values } = parseArgs({ args: rest, options: {

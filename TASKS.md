@@ -2,12 +2,12 @@
 
 요약: 파일 기반 CLI·schema·skill은 구현했다. 카드 편집·저장 왕복·웹앱·독립 효과 평가는 후속이며 공개 준비는 비공개 저장소에서 진행한다.
 
-갱신: 2026-10-21 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
+갱신: 2026-11-10 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
 ## PTP-009 — 주제 채팅의 논문 탐색과 선택 / PR verification
 
 - 기존 에이전트가 확인한 후보를 3~5편 제시하고 `topic` CLI가 카드 없는 개인 주제 폴더에 질문·검색 회차·선택을 저장한다. 후보가 부족하면 0~2편도 기록한다. 추가 검색과 재개 후에도 번호와 선택 당시 출처·판본·추천 이유를 유지한다. [사용법](docs/CLI.md#주제-채팅에서-논문-찾기) · [1~4단계 요구사항과 이번 범위](docs/TOPIC_WORKFLOW.md).
-- 분리한 브랜치의 공개 회귀는 [topic 검사](tests/topic.test.mjs), 설치 패키지 확인은 [패키지 검사](scripts/package-smoke.mjs)에서 실행한다. 실행 결과와 최신 head CI·리뷰는 이 변경의 PR에서 확인한다. 이전 혼합 작업 트리의 Windows 133개 통과와 로컬 리뷰를 이 head의 검증으로 간주하지 않는다.
+- 분리한 브랜치에서 Windows / Node v24.22.0으로 `npm test` 30/30, `npm run check:docs`, `npm run test:package`, `node dist/cli.js validate --workspace examples/minimal --json`을 통과했다. 소스의 `tests/topic.test.mjs`와 `scripts/package-smoke.mjs`가 선택 → 추가 검색 → 새 프로세스 재개와 잘못된 입력·잠금 충돌 시 원본 보존을 확인한다. 최신 head CI·제출된 리뷰는 [draft PR #1](https://github.com/OstenHun/danseo/pull/1)에서 확인한다. 이전 혼합 작업 트리의 Windows 133개 통과와 로컬 리뷰를 이 head의 검증으로 간주하지 않는다.
 - 개인 논문·실사용 기록·검증 폴더는 커밋하지 않는다. 2단계 원문 수집과 기존 그래프·카드 편집·디자인은 후속 PR 범위다. 추천 품질·새 채팅의 지시 준수·사용자 이해는 별도 평가 대상이다.
 
 ## PTP-000 — 프로젝트 시작 / Done
