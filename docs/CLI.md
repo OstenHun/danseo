@@ -4,6 +4,32 @@
 
 [English setup](CLI.en.md)
 
+## 주제 채팅에서 논문 찾기
+
+준비된 도구의 `skills/danseo/SKILL.md`와 개인 주제 폴더를 검색 가능한 채팅 에이전트에 알려준다. “이 폴더에서 연구 질문에 맞는 논문을 찾아줘”, “1번과 3번 담아줘”, “조건을 좁혀 더 찾아줘”처럼 요청한다. 새 채팅에서는 같은 폴더를 지정해 “내가 고른 논문과 출처를 보여줘”라고 한다. 주제 기록은 `topic.json` 한 파일에 들어가며 Paper 카드와 `workspace.json`이 없어도 시작할 수 있다.
+
+에이전트는 실제 논문을 검색하고 CLI는 검색 회차와 선택을 디스크에 저장한다. 도구 루트에서 실행하는 명령은 다음과 같다.
+
+```powershell
+node ./dist/cli.js topic init --dir ./workspaces/topics/example --question '내 연구 질문'
+node ./dist/cli.js topic search --dir ./workspaces/topics/example --input ./batch.json
+node ./dist/cli.js topic select --dir ./workspaces/topics/example --round 1 --ids 1
+node ./dist/cli.js topic show --dir ./workspaces/topics/example
+```
+
+아래는 `batch.json`의 형식을 보여주는 합성 예시다. 실제 회차에는 확인한 후보 3~5편을 넣고, 적합한 논문이 부족하면 그 수만 저장한다. 빈 검색도 질문과 함께 남길 수 있다.
+
+```json
+{"query":"이번 검색에 사용한 질문","papers":[
+  {"key":"example-a","title":"합성 논문 A","authors":"예시 저자","year":2025,
+   "source":"https://example.org/a","edition":"예시 1판","reason":"연구 질문에 관련된 이유","scope":"abstract"}
+]}
+```
+
+같은 폴더에서 새 입력 파일로 `search`를 실행하면 이전 회차에 이어진다. 직전 요청을 똑같이 재시도하면 같은 회차를 반환한다. 다른 검색 뒤 원래 질문을 다시 검색하면 새 회차로 기록한다. 논문 번호는 주제 안에서 고정된다.
+
+`show`의 `searches`에는 회차별 후보가, `selected`에는 선택한 전체 목록이 있다. 출처나 판본이 여러 개인 논문을 새로 고를 때는 본 회차를 `--round`로 지정한다. 이미 담은 번호를 다시 담으면 최초 선택의 판본·출처·메모를 유지한다. 바꾸려면 `unselect --ids`로 해제한 뒤 원하는 회차에서 다시 고른다. 처음 사용하는 채팅 에이전트에는 [Danseo 스킬](../skills/danseo/SKILL.md)을 지정한다.
+
 ## 첫 실행
 
 이 절이 첫 실행 명령과 agent 연결 입력의 정본이다. 지원하는 Node.js 22.x·24.x와 빌드가 준비됐다면 아래에서 시작한다. 준비되지 않았다면 [설치와 빌드](#설치와-빌드)를 먼저 읽는다.

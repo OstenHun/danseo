@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -27,3 +27,24 @@ assert.equal(validation.records, 3);
 assert.equal(validation.projects, 2);
 assert.match(cli('export', '--workspace', workspace, '--project', 'demo', '--application', 'app-demo', '--include-drafts', '--format', 'markdown'), /app-demo/);
 console.log(`Installed ${pack.filename}: help, synthetic validation and export passed (${process.version}/${process.platform}).`);
+
+// Exercise the installed CLI from a consumer outside the source tree.
+const topicDir = path.join(consumer, 'topic');
+const topic = (...args) => JSON.parse(cli('topic', ...args, '--dir', topicDir));
+const candidate = key => ({ key, title: `Synthetic ${key}`, authors: 'Example', year: 2025,
+  source: `https://example.org/${key}`, edition: 'v1', reason: `Reason ${key}`, scope: 'abstract' });
+topic('init', '--question', 'Synthetic package question');
+const batchFile = path.join(consumer, 'batch.json');
+const batch = papers => writeFileSync(batchFile, JSON.stringify({ query: 'Synthetic search', papers }));
+batch(['a', 'b', 'c'].map(candidate));
+topic('search', '--input', batchFile);
+const firstChoice = topic('select', '--round', '1', '--ids', '1').selected[0];
+batch([{ ...candidate('a'), edition: 'v2', source: 'https://example.org/a/v2' }, candidate('d'), candidate('b')]);
+topic('search', '--input', batchFile);
+topic('select', '--round', '2', '--ids', '4');
+const resumed = topic('show');
+assert.deepEqual(resumed.selected[0], firstChoice);
+assert.deepEqual(resumed.selected.map(paper => paper.number), [1, 4]);
+assert.deepEqual(resumed.selected.map(paper => paper.source), ['https://example.org/a', 'https://example.org/d']);
+assert.equal(resumed.searches.length, 2);
+console.log('Installed topic: select, additional search and fresh-process resume passed.');
