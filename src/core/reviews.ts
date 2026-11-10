@@ -60,7 +60,7 @@ export async function readVerifiedReviews(ws: Workspace) {
       requireValue(inputValid(input) && resultValid(result), '지원하는 주장 검토 JSON 형식이 아닙니다.');
       const frozen = input as ReviewInput, review = result as Result;
       requireValue(sha(inputBytes) === review.input_sha256, '고정 입력 해시가 검토 결과와 다릅니다.');
-      requireValue(Number.isFinite(Date.parse(review.reviewed_at)), '검토 시각을 확인하세요.');
+      requireValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(review.reviewed_at) && Number.isFinite(Date.parse(review.reviewed_at)), '검토 시각에 Z 또는 UTC 오프셋을 명시하세요.');
       const expected = frozen.papers.flatMap(p => p.claims.map(c => JSON.stringify([p.paper_id,c.id])));
       const received = review.claims.map(c => JSON.stringify([c.paper_id,c.claim_id]));
       requireValue(new Set(expected).size === expected.length && new Set(received).size === received.length && JSON.stringify(expected.sort()) === JSON.stringify(received.sort()), '검토 주장 ID에 누락·중복·다른 항목이 있습니다.');

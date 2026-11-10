@@ -258,6 +258,92 @@ test('later stale review keeps A→B→A on hold and empty candidates withdraw p
   assert.equal(report.held.find(x => x.key === 'A').reason, '비교 후보 주장 없음');
 });
 
+test('a new answer cites only its evidence while preserving earlier topic comparison candidates', t => {
+  const f = setup(t);
+  const first = f.save(f.open(), answer({ claim_ids: ['c1'], comparison_claims: ['c1'] }));
+  const second = f.save(first, answer({ overview: undefined, question: 'A separate question', claim_ids: ['c2'], comparison_claims: ['c1', 'c2'] }));
+  assert.deepEqual(second.binding.comparison_claims, ['c1', 'c2']);
+  assert.match(second.markdown.split('## A separate question')[1], new RegExp(`${f.a.id}/c2`));
+  assert.doesNotMatch(second.markdown.split('## A separate question')[1], new RegExp(`${f.a.id}/c1`));
+});
+
+test('a damaged B document keeps topic selections and healthy A comparison input available', t => {
+  const f = setup(t); f.save(f.open()); f.review();
+  const b = f.open(f.topic, '2', f.b); writeFileSync(b.document, 'Damaged B; preserve notes');
+  const show = f.ok(f.topic, 'show');
+  assert.equal(show.selected.length, 2);
+  assert.equal(show.analyses.find(x => x.key === 'B').state, 'needs-recheck');
+  assert.equal(f.ok(f.topic, 'analysis-list').find(x => x.key === 'A').state, 'available');
+  const comparison = f.ok(f.topic, 'comparison-input');
+  assert.deepEqual(comparison.claims.map(x => x.claim_id), ['c1']);
+  assert.match(comparison.held.find(x => x.key === 'B').reason, /연결 정보/);
+  assert.notEqual(f.run(f.topic, 'analysis-open', '--id', '2').status, 0);
+  assert.equal(read(b.document), 'Damaged B; preserve notes');
+});
+
+test('review timestamps without a timezone cannot decide the newest verdict', t => {
+  const f = setup(t); f.save(f.open());
+  f.review(f.a, 'supported', '2026-11-10T12:00:00');
+  const report = f.ok(f.topic, 'comparison-input');
+  assert.equal(report.claims.length, 0);
+  assert.match(report.held.find(x => x.claim_id === 'c1').warnings.join(' '), /UTC 오프셋/);
+});
+
+test('revision limit is validated before publishing or backing up a replacement', t => {
+  const f = setup(t), doc = f.open();
+  const raw = read(doc.document), match = /^---\n([\s\S]*?)\n---\n/.exec(raw);
+  const state = JSON.parse(match[1]);
+  state.revisions = Array.from({ length: 1000 }, () => structuredClone(state.revisions[0]));
+  state.revisions.at(-1).round = 2;
+  writeFileSync(doc.document, `---\n${JSON.stringify(state)}\n---\n` + raw.slice(match[0].length));
+  const before = readFileSync(doc.document), files = readdirSync(f.topic);
+  const result = f.run(f.topic, 'analysis-open', '--id', '1', '--workspace', f.workspace, '--paper', f.a.id);
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /판본 이력 한도/);
+  assert.deepEqual(readFileSync(doc.document), before);
+  assert.deepEqual(readdirSync(f.topic), files);
+});
+
+test('a mismatched existing backup refuses saving without changing the document', t => {
+  const f = setup(t), doc = f.open();
+  const before = readFileSync(doc.document);
+  writeFileSync(doc.document + '.' + doc.document_sha256 + '.bak', 'different backup');
+  const input = f.json(join(f.root, 'backup-answer.json'), answer());
+  const result = f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', input);
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /백업이 다릅니다/);
+  assert.deepEqual(readFileSync(doc.document), before);
+});
+
+test('comparison uses one selection snapshot when a second process reselects another analyzed paper', t => {
+  const f = setup(t); f.save(f.open()); f.review();
+  f.save(f.open(f.topic, '2', f.b), answer(), f.topic, '2'); f.review(f.b);
+  f.ok(f.topic, 'unselect', '--ids', '2');
+  const hook = join(f.root, 'selection-hook.mjs');
+  writeFileSync(hook, `
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
+import { spawnSync } from 'node:child_process';
+const read = fs.readFile;
+let selected = false;
+fs.readFile = async function(file, ...args) {
+  const bytes = await read(file, ...args);
+  if (!selected && String(file) === ${JSON.stringify(f.a.data.source.path)}) {
+    selected = true;
+    const proc = spawnSync(process.execPath, [${JSON.stringify(cli)}, 'topic', 'select', '--dir', ${JSON.stringify(f.topic)}, '--ids', '2', '--round', '1'], { encoding: 'utf8' });
+    if (proc.status !== 0) throw Error(proc.stderr);
+  }
+  return bytes;
+};
+syncBuiltinESMExports();
+`);
+  const proc = spawnSync(process.execPath, ['--import', hook, cli, 'topic', 'comparison-input', '--dir', f.topic], { encoding: 'utf8' });
+  assert.equal(proc.status, 0, proc.stderr);
+  const report = JSON.parse(proc.stdout);
+  assert.deepEqual(report.claims.map(x => x.key), ['A']);
+  assert.ok(!report.held.some(x => x.key === 'B'));
+  assert.equal(f.ok(f.topic, 'show').selected.length, 2);
+  assert.deepEqual(f.ok(f.topic, 'comparison-input').claims.map(x => x.key), ['A', 'B']);
+});
+
 test('topic locks and symlink documents are refused without touching linked files', t => {
   const f = setup(t), doc = f.open();
   const original = readFileSync(doc.document);

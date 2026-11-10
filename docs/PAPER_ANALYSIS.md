@@ -14,7 +14,7 @@ node dist/cli.js topic analysis-open --dir <주제 폴더> --id 2 --workspace <�
 
 처음 연결할 때 카드 위치와 ID를 함께 지정한다. `source.version`은 `ready.file.edition`과 같아야 하고, `source.path`의 PDF 해시는 수집한 PDF와 일치해야 한다. 같은 파일을 다른 경로에서 연결할 수 있다. 해시가 같다는 사실은 문장의 원문 지지를 뜻하지 않는다.
 
-출력에는 주제 질문·선택 이유·PDF와 실제 판본·Paper 연결·분석 문서 전문·문서 해시가 있다. `topic show`의 `analyses`와 `analysis-list`에서 문서 위치를 찾는다. 목록은 탐색용이며 원문의 현재성은 `analysis-open`에서 확인한다. 같은 판본을 다시 열기만 하면 파일을 쓰지 않는다.
+출력에는 주제 질문·선택 이유·PDF와 실제 판본·Paper 연결·분석 문서 전문·문서 해시가 있다. `topic show`의 `analyses`와 `analysis-list`에서 문서 위치를 찾는다. 손상되거나 읽을 수 없는 문서는 해당 논문에 `needs-recheck`와 이유를 표시하며 다른 논문의 조회·비교 입력은 계속 처리한다. 목록은 탐색용이며 원문의 현재성은 `analysis-open`에서 확인한다. 같은 판본을 다시 열기만 하면 파일을 쓰지 않는다.
 
 ## 원문을 읽고 답 쓰기
 
@@ -41,7 +41,7 @@ Paper의 `claims`에는 저자가 보고한 문장·`conditions`·`limits`·`loc
 node dist/cli.js topic analysis-save --dir <주제 폴더> --id 2 --sha <열 때 받은 문서 해시> --input <답 JSON>
 ```
 
-답은 같은 문서의 끝에 붙는다. 판본별 첫 답은 `overview`가 필요하며 후속 답은 생략할 수 있다. `claim_ids`는 연결한 Paper의 실제 주장 ID다. `comparison_claims`는 이번 주제에서 비교할 현재 후보 목록 전체이며 빈 배열로 철회할 수 있다. 후보 지정은 검토 완료가 아니다. CLI는 JSON 구조와 참조를 검사하며 답의 사실성·수치의 의미·독해 품질을 자동 인증하지 않는다.
+답은 같은 문서의 끝에 붙는다. 판본별 첫 답은 `overview`가 필요하며 후속 답은 생략할 수 있다. `claim_ids`는 이번 답에서 사용한 Paper의 실제 주장 ID다. `comparison_claims`는 이번 주제에서 비교할 현재 후보 목록 전체이며 앞선 답의 후보를 유지하거나 빈 배열로 철회할 수 있다. 두 목록은 각각 현재 Paper의 ID와 대조한다. 후보 지정은 검토 완료가 아니다. CLI는 JSON 구조와 참조를 검사하며 답의 사실성·수치의 의미·독해 품질을 자동 인증하지 않는다.
 
 ## 새 대화와 판본 변경
 

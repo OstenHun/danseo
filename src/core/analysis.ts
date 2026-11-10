@@ -56,6 +56,7 @@ async function readDocument(root: string, key: string): Promise<Document | undef
 }
 
 async function saveDocument(root: string, key: string, state: Session, body: string, before?: Document) {
+  if (!validateSession(state)) invalid('새 분석 연결 정보의 형식·판본 이력 한도를 확인하세요. 기존 문서는 보존했습니다.');
   const path = join(root, nameFor(key));
   const bytes = `---\n${JSON.stringify(state, null, 2)}\n---\n${body}`;
   if (Buffer.byteLength(bytes) > 2 * 1024 * 1024) invalid('분석 문서가 2 MiB를 넘습니다. 기존 문서를 보존하세요.');
@@ -108,9 +109,14 @@ function context(root: string, source: Source, question: string, document: Docum
 export async function listAnalysisDocuments(root: string, papers: SelectedPaper[]) {
   const rows = [];
   for (const paper of papers) {
-    const document = await readDocument(root, paper.key);
-    rows.push({ number: paper.number, key: paper.key, round: paper.round, document: document ? join(root, nameFor(paper.key)) : null,
-      ...(document ? { binding: currentRevision(document), document_sha256: document.sha256 } : {}) });
+    const identity = { number: paper.number, key: paper.key, round: paper.round };
+    try {
+      const document = await readDocument(root, paper.key);
+      rows.push({ ...identity, state: document ? 'available' : 'not-started', document: document ? join(root, nameFor(paper.key)) : null,
+        ...(document ? { binding: currentRevision(document), document_sha256: document.sha256 } : {}) });
+    } catch (error) {
+      rows.push({ ...identity, state: 'needs-recheck', document: join(root, nameFor(paper.key)), reason: (error as Error).message });
+    }
   }
   return rows;
 }
@@ -123,11 +129,14 @@ function replyBlock(input: Answer, revision: Revision) {
 async function comparisonInput(root: string) {
   const collection = await sourceCollection(root);
   const included = [], held = [];
-  for (const paper of (await selectedTopic(root)).selected) {
-    const doc = await readDocument(root, paper.key);
+  for (const row of collection.rows) {
+    const paper = row.paper;
+    let doc: Document | undefined;
+    try { doc = await readDocument(root, paper.key); }
+    catch (error) { held.push({ key: paper.key, document: join(root, nameFor(paper.key)), reason: (error as Error).message }); continue; }
     if (!doc) { held.push({ key: paper.key, reason: '분석 문서 없음' }); continue; }
     const revision = currentRevision(doc);
-    const source = collection.ready.find(s => s.paper.key === paper.key);
+    const source = row.ready ? { paper, file: row.ready } : undefined;
     if (!source || !sameSource(revision, source)) { held.push({ key: paper.key, reason: '원문·판본·선택 회차 재확인 필요' }); continue; }
     let bound: Awaited<ReturnType<typeof boundPaper>>;
     try { bound = await boundPaper(revision, source); }
@@ -207,6 +216,6 @@ export async function runAnalysis([action = '', ...args]: string[]) {
 
 function checkReferences(input: Answer, card: Card) {
   const claims = card.data.type === 'paper' ? card.data.claims ?? [] : [];
-  if (input.claim_ids.some(id => !claims.some(c => c.id === id)) || input.comparison_claims.some(id => !input.claim_ids.includes(id)))
+  if ([...input.claim_ids, ...input.comparison_claims].some(id => !claims.some(c => c.id === id)))
     invalid('답과 비교 후보에는 연결한 Paper의 실제 주장 ID를 사용하세요.');
 }
