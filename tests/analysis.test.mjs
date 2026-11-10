@@ -214,6 +214,50 @@ test('review source hash, input hash, and exact reviewed claim set must agree', 
   assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
 });
 
+test('duplicate latest support cannot conceal a third same-instant contradicted verdict', t => {
+  const f = setup(t); f.save(f.open()); f.review();
+  f.config.claim_reviews.push(structuredClone(f.config.claim_reviews[0])); f.saveConfig();
+  f.review(f.a, 'contradicted', '2026-11-10T21:00:00+09:00');
+  const report = f.ok(f.topic, 'comparison-input');
+  assert.equal(report.claims.length, 0);
+  assert.match(report.held.find(h => h.claim_id === 'c1').reason, /중복/);
+});
+
+test('connected extracted text requires matching review hash and becomes stale when changed or absent', t => {
+  const f = setup(t); f.save(f.open());
+  const textPath = join(f.workspace, 'source-text.json');
+  const bytes = Buffer.from('source extraction'); writeFileSync(textPath, bytes);
+  f.a.data.source.text_path = 'source-text.json'; f.a.save();
+  const r = f.review();
+  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  const input = JSON.parse(read(r.inputPath));
+  function pin(value) {
+    input.papers[0].source.text_sha256 = value; f.json(r.inputPath, input);
+    r.result.input_sha256 = hash(readFileSync(r.inputPath)); f.json(r.resultPath, r.result);
+    f.config.claim_reviews[0].result_sha256 = hash(readFileSync(r.resultPath)); f.saveConfig();
+  }
+  pin(null); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  pin(hash(bytes)); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
+  writeFileSync(textPath, 'changed'); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  rmSync(textPath); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  writeFileSync(textPath, bytes); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
+  delete f.a.data.source.text_path; f.a.save(); assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+});
+
+test('later stale review keeps A→B→A on hold and empty candidates withdraw prior input', t => {
+  const f = setup(t); f.save(f.open()); f.review();
+  const statement = f.a.data.claims[0].statement;
+  f.a.data.claims[0].statement += ' revision B'; f.a.save();
+  f.review(f.a, 'supported', '2026-11-10T13:00:00Z');
+  f.a.data.claims[0].statement = statement; f.a.save();
+  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  const doc = f.ok(f.topic, 'analysis-open', '--id', '1');
+  f.save(doc, answer({ overview: undefined, comparison_claims: [] }));
+  const report = f.ok(f.topic, 'comparison-input');
+  assert.equal(report.claims.length, 0);
+  assert.equal(report.held.find(x => x.key === 'A').reason, '비교 후보 주장 없음');
+});
+
 test('topic locks and symlink documents are refused without touching linked files', t => {
   const f = setup(t), doc = f.open();
   const original = readFileSync(doc.document);

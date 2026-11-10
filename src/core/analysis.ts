@@ -141,7 +141,7 @@ async function comparisonInput(root: string) {
       // The newest recorded verdict wins, including stale or negative verdicts.
       const entries = reviews.claims[claimId] ?? [];
       const review = entries[0];
-      const tied = entries[1] && review && Date.parse(entries[1].reviewed_at) === Date.parse(review.reviewed_at) && canonical(entries[1]) !== canonical(review);
+      const tied = review && entries.slice(1).some(entry => Date.parse(entry.reviewed_at) === Date.parse(review.reviewed_at) && canonical(entry) !== canonical(review));
       const reason = reviews.warnings.length ? '검토 기록의 무결성을 다시 확인하세요.' : !claim ? '주장이 삭제되었습니다.' : tied ? '같은 시각의 검토가 중복됩니다.'
         : !review ? '원문 대조 기록 없음' : review.state !== 'current' ? review.stale_reason
         : review.verdict !== 'supported' ? review.verdict : review.required_changes.length ? '검토의 필수 수정이 남았습니다.'

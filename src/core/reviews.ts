@@ -89,7 +89,8 @@ export async function loadClaimReviews(ws: Workspace, card: Card) {
       try {
         requireValue(paper.source.path, '원본 PDF 경로가 없습니다.');
         if (sha(await readFile(resolve(dirname(card.path), paper.source.path!))) !== snapshot.source.pdf_sha256) staleReason ||= '검토 이후 원본 PDF가 바뀌었습니다.';
-        if (snapshot.source.text_sha256 && (!paper.source.text_path || sha(await readFile(resolve(dirname(card.path), paper.source.text_path))) !== snapshot.source.text_sha256)) staleReason ||= '검토 이후 연결 원문 텍스트가 바뀌었습니다.';
+        if (Boolean(paper.source.text_path) !== Boolean(snapshot.source.text_sha256)) staleReason ||= '연결 원문 텍스트와 검토 입력의 해시가 모두 있어야 합니다.';
+        else if (paper.source.text_path && sha(await readFile(resolve(dirname(card.path), paper.source.text_path))) !== snapshot.source.text_sha256) staleReason ||= '검토 이후 연결 원문 텍스트가 바뀌었습니다.';
       } catch { staleReason ||= '원본 파일의 현재 해시를 확인하지 못했습니다.'; }
       // Build entries only after the entire registration is validated; never leave partial badges.
       const entries: [string, ClaimReview][] = [];
