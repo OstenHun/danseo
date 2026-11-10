@@ -69,6 +69,6 @@ node dist/cli.js topic comparison-input --dir <주제 폴더>
 
 ## 의존성과 확인 범위
 
-3단계는 2단계 [초안 PR #2](https://github.com/OstenHun/danseo/pull/2)의 `0d16b28`에서 분리했다. `sourceCollection`은 `topic sources`와 같은 재검증 결과를 제공한다. `topic.json`과 `sources.json` 저장 계약은 그대로 유지한다. 2단계 head가 바뀌거나 병합되면 병합 커밋과 입력 계약을 대조하고, 재개·초고 제외·변경 근거 제외·패키지 검사를 다시 실행한 뒤 base를 조정한다.
+3단계는 2단계 [초안 PR #2](https://github.com/OstenHun/danseo/pull/2)의 `0d16b28`에서 분리했고, 진행 중 갱신된 `0903667`의 판본 표시 수정을 반영했다. `sourceCollection`은 `topic sources`와 같은 재검증 결과를 제공한다. `topic.json`과 `sources.json` 저장 계약은 그대로 유지한다. 2단계 head가 바뀌거나 병합되면 병합 커밋과 입력 계약을 대조하고, 재개·초고 제외·변경 근거 제외·패키지 검사를 다시 실행한 뒤 base를 조정한다.
 
 자동 검사와 실제 PDF 동선, 최신 CI·독립 코드 리뷰·남은 확인은 [PTP-011](../TASKS.md#ptp-011--논문별-분석과-재개)에서 연결한다. 새 CLI 프로세스 재개와 사람이 새 채팅에서 진행하는 동선은 다른 검증이다. macOS 앱의 폴더 권한 UI·사용자 이해·학습 효과를 CI 통과로 대신하지 않는다.
