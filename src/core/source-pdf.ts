@@ -28,6 +28,22 @@ function matchesTitle(paper: SelectedPaper, block: string, sameArxiv: boolean) {
     actual.startsWith(compact(paper.title.slice(0, colon))) && actual.endsWith(compact(paper.title.slice(colon + 1)));
 }
 
+function withoutBibliographicHeader(block: string, runs: string[]) {
+  let proceedings = false;
+  for (const run of runs) {
+    const text = run.normalize('NFKC').replace(/['’]/gu, '').trim();
+    if (/^proceedings of\b/i.test(text)) proceedings = true;
+    else if (!/^(?:doi\s*:|https?:\/\/doi\.org\/)/i.test(text) && !(proceedings && (
+      /^,?\s*pages\s+\d+(?:\s*[-–]\s*\d+)?$/i.test(text) ||
+      /^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:[-–]\d{1,2})?,?\s+\d{4}\s*(?:©|\(c\)|copyright)\s*\d{4}\s+Association for Computational Linguistics\.?$/i.test(text)
+    ))) break;
+    // Publisher footers can appear first in extraction order. Consume only
+    // identified components, never an arbitrary prefix or title fragment.
+    block = block.trimStart().slice(text.length).trimStart();
+  }
+  return block;
+}
+
 export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: Edition) {
   if (bytes.subarray(0, 5).toString() !== '%PDF-' || !/%%EOF\s*$/.test(bytes.subarray(-1024).toString('latin1'))) {
     throw Error('PDF 헤더 또는 끝 표시가 없습니다. 초록 HTML이나 중단된 다운로드인지 확인하세요.');
@@ -59,24 +75,43 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     const ids = [paper.key.match(idPattern)?.[1], urlId].filter(Boolean);
     const sameArxiv = !!stamp && ids.length > 0 && ids.every(id => id!.toLowerCase() === stamp.replace(/v\d+$/, ''));
     const abstract = runs.findIndex((run, index) => index > 0 && /^(?:abstract|초록)\s*[:.]?$/iu.test(run.trim()));
-    const front = (abstract < 0 ? runs : runs.slice(0, abstract)).join(' ').slice(0, 6500).normalize('NFKC').replace(/['’]/gu, '');
+    const frontRuns = (abstract < 0 ? runs : runs.slice(0, abstract)).map(run => run.normalize('NFKC').replace(/['’]/gu, ''));
+    const front = frontRuns.join(' ').slice(0, 6500);
     const authors = paper.authors.replace(/\s*(?:외(?:\s*\d+\s*명)?|et\s+al\.?)\s*$/iu, '')
       .split(/\s*(?:[,;&]|\band\b)\s*/iu).filter(Boolean);
-    const byline = authors.map(name => {
-      const tokens = words(name);
-      if (!tokens.length) return -1;
-      return front.search(new RegExp('(?<![\\p{L}\\p{N}])' + tokens.join('[^\\p{L}\\p{N}]*') + '(?![\\p{L}\\p{N}])', 'iu'));
-    });
-    if (!byline.length || byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
-    const titleBlock = front.slice(0, Math.min(...byline));
-    let withoutHeader = titleBlock;
-    for (const run of runs) {
-      if (!/^(?:proceedings of\b|doi\s*:|https?:\/\/doi\.org\/)/i.test(run.trim())) break;
-      withoutHeader = withoutHeader.trimStart().slice(run.length).trimStart();
-    }
+    const authorTokens = authors.map(words);
+    const exactMatches = authorTokens.map(tokens => tokens.length ? new RegExp('(?<![\\p{L}\\p{N}])'
+      + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu').exec(front) : null);
+    const exact = exactMatches.map(match => match?.index ?? -1);
+    const known = exact.filter(index => index >= 0);
+    if (!known.length) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
+    // Establish the complete title using an exact coauthor before permitting
+    // omitted initials. A title fragment that resembles a name is not proof.
+    const titleEnd = Math.min(...known);
+    const titleBlock = front.slice(0, titleEnd);
+    const withoutHeader = withoutBibliographicHeader(titleBlock, runs);
     if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
       throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
     }
+    const occupied = exactMatches.flatMap(match => match ? [{ start: match.index, end: match.index + match[0].length }] : []);
+    const byline = authorTokens.map((tokens, index) => {
+      if (exact[index]! >= 0 || tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact[index]!;
+      // Match a complete name item after the verified title boundary; never
+      // assemble a name from adjacent authors or earlier title lines.
+      const initials = new RegExp('^\\s*' + tokens.join('(?:\\s+[a-z]\\.?){1,3}\\s+') + '\\s*[,;]?\\s*$', 'iu');
+      let offset = 0;
+      for (const run of frontRuns) {
+        if (offset + run.length > front.length) break;
+        if (offset >= titleEnd && !occupied.some(range => range.start < offset + run.length && offset < range.end) && initials.test(run)) {
+          const position = offset + run.search(/\S/u);
+          occupied.push({ start: offset, end: offset + run.length });
+          return position;
+        }
+        offset += run.length + 1;
+      }
+      return -1;
+    });
+    if (byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
     const text = evidence.page === 1 ? first : (await pageRuns(evidence.page)).map(item => item.str).join(' ');
     const quote = words(evidence.proof).join(' ');
     if (!quote || !(' ' + words(text).join(' ') + ' ').includes(' ' + quote + ' ')) {
