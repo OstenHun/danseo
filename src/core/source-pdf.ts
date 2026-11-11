@@ -59,20 +59,40 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     const ids = [paper.key.match(idPattern)?.[1], urlId].filter(Boolean);
     const sameArxiv = !!stamp && ids.length > 0 && ids.every(id => id!.toLowerCase() === stamp.replace(/v\d+$/, ''));
     const abstract = runs.findIndex((run, index) => index > 0 && /^(?:abstract|초록)\s*[:.]?$/iu.test(run.trim()));
-    const front = (abstract < 0 ? runs : runs.slice(0, abstract)).join(' ').slice(0, 6500).normalize('NFKC').replace(/['’]/gu, '');
+    const frontRuns = (abstract < 0 ? runs : runs.slice(0, abstract)).map(run => run.normalize('NFKC').replace(/['’]/gu, ''));
+    const front = frontRuns.join(' ').slice(0, 6500);
     const authors = paper.authors.replace(/\s*(?:외(?:\s*\d+\s*명)?|et\s+al\.?)\s*$/iu, '')
       .split(/\s*(?:[,;&]|\band\b)\s*/iu).filter(Boolean);
     const byline = authors.map(name => {
       const tokens = words(name);
       if (!tokens.length) return -1;
-      return front.search(new RegExp('(?<![\\p{L}\\p{N}])' + tokens.join('[^\\p{L}\\p{N}]*') + '(?![\\p{L}\\p{N}])', 'iu'));
+      const exact = front.search(new RegExp('(?<![\\p{L}\\p{N}])' + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu'));
+      if (exact >= 0 || tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact;
+      // An omitted middle initial is ambiguous across neighbouring authors.
+      // Expand only a complete individual text item, not joined rows/columns.
+      const initials = new RegExp('^\\s*' + tokens.join('(?:\\s+[a-z]\\.?){1,3}\\s+') + '\\s*[,;]?\\s*$', 'iu');
+      let offset = 0;
+      for (const run of frontRuns) {
+        if (offset + run.length > front.length) break;
+        if (initials.test(run)) return offset + run.search(/\S/u);
+        offset += run.length + 1;
+      }
+      return -1;
     });
     if (!byline.length || byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
     const titleBlock = front.slice(0, Math.min(...byline));
     let withoutHeader = titleBlock;
+    let proceedings = false;
     for (const run of runs) {
-      if (!/^(?:proceedings of\b|doi\s*:|https?:\/\/doi\.org\/)/i.test(run.trim())) break;
-      withoutHeader = withoutHeader.trimStart().slice(run.length).trimStart();
+      const text = run.normalize('NFKC').replace(/['’]/gu, '').trim();
+      if (/^proceedings of\b/i.test(text)) proceedings = true;
+      else if (!/^(?:doi\s*:|https?:\/\/doi\.org\/)/i.test(text) && !(proceedings && (
+        /^,?\s*pages\s+\d+(?:\s*[-–]\s*\d+)?$/i.test(text) ||
+        /^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:[-–]\d{1,2})?,?\s+\d{4}\s*(?:©|\(c\)|copyright)\s*\d{4}\s+Association for Computational Linguistics\.?$/i.test(text)
+      ))) break;
+      // Some publishers emit their footer before the title in text order.
+      // Only consume its identified components, never an arbitrary prefix.
+      withoutHeader = withoutHeader.trimStart().slice(text.length).trimStart();
     }
     if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
       throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
