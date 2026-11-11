@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { pdf } from './helpers/source-pdf.mjs';
+import { pdf } from '../build/helpers/source-pdf.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 

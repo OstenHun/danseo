@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
 import ts from 'typescript';
 
 // The strict browser check runs first in npm build. Emit only the two classic
@@ -12,3 +12,6 @@ for (const file of ['web/comparison', 'views/research-map']) {
   });
   await writeFile(new URL('../dist/web/' + file.split('/').at(-1) + '.js', import.meta.url), outputText);
 }
+
+// The browser contract is type-only; tests use it alongside the server declarations.
+await copyFile(new URL('../src/web/browser-types.d.ts', import.meta.url), new URL('../dist/web/browser-types.d.ts', import.meta.url));

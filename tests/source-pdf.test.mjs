@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { verifyPdf } from '../dist/core/source-pdf.js';
-import { pdf } from './helpers/source-pdf.mjs';
+import { pdf } from '../build/helpers/source-pdf.js';
 
 const paper = {key:'example',title:'Selected Paper',authors:'Alice Lee, Ed Chi',source:'https://example.org/paper',edition:'Journal 2024'};
 const edition = {edition:'Journal 2024',proof:'Journal 2024',page:1,draft:false};
