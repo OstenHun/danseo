@@ -1,5 +1,6 @@
 import { pdf } from '../tests/helpers/source-pdf.mjs';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -62,3 +63,39 @@ assert.deepEqual(topic('sources').ready,[saved]);
 assert.deepEqual(collect().ready,[saved]);
 assert.equal(readdirSync(topicDir).filter(file => file.endsWith('.pdf')).length,1);
 console.log(`Installed CLI PDF verified: Korean + space paths, fresh-process reopen, same digest/path and one copy (${process.version}/${process.platform}).`);
+
+const cardsDir = path.join(consumer, '공통 카드');
+mkdirSync(cardsDir);
+const cardPath = path.join(cardsDir, 'paper.md');
+const claims = [{ id: 'c1', statement: 'Synthetic author result', conditions: 'Synthetic evaluation only',
+  locators: [{ type: 'pdf-page-range', start: 1, end: 1 }] }, { id: 'c2', statement: 'Unreviewed result',
+  locators: [{ type: 'pdf-page-range', start: 1, end: 1 }] }];
+const data = { schema_version: 'draft-2', type: 'paper', id: 'paper-a',
+  source: { version: 'v1', path: saved.file.path }, review: { status: 'draft' }, claims };
+writeFileSync(cardPath, `---\n${JSON.stringify(data)}\n---\n# Synthetic a\n\nPreserved card notes.\n`);
+const config = { schema_version: 'workspace-1', records: ['paper.md'], projects: [], claim_reviews: [] };
+const configPath = path.join(cardsDir, 'workspace.json');
+const put = (file, value) => writeFileSync(file, JSON.stringify(value));
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+put(configPath, config);
+let document = topic('analysis-open', '--id', '1', '--workspace', cardsDir, '--paper', 'paper-a');
+const payload = path.join(consumer, 'answer.json');
+put(payload, { overview: 'Synthetic question, method and result.', question: 'How was it evaluated?',
+  answer: 'Synthetic condition, PDF p.1.', interpretation: 'AI interpretation only.', remaining_questions: 'Not evaluated.',
+  resume: 'PDF p.1', claim_ids: ['c1', 'c2'], comparison_claims: ['c1', 'c2'] });
+document = topic('analysis-save', '--id', '1', '--sha', document.document_sha256, '--input', payload);
+assert.equal(topic('analysis-open', '--id', '1').document_sha256, document.document_sha256);
+assert.equal(topic('show').analyses[0].document, document.document);
+const inputPath = path.join(cardsDir, 'input.json'), resultPath = path.join(cardsDir, 'result.json');
+put(inputPath, { run_id: 'synthetic', papers: [{ paper_id: 'paper-a', card_sha256: sha(readFileSync(cardPath)),
+  source: { version: 'v1', pdf_sha256: saved.file.sha256 }, claims: claims.slice(0, 1) }] });
+put(resultPath, { input_sha256: sha(readFileSync(inputPath)), reviewer: 'synthetic fixture', review_type: 'independent-source-review',
+  reviewed_at: '2026-11-10T00:00:00Z', claims: [{ paper_id: 'paper-a', claim_id: 'c1', verdict: 'supported', reason: 'Synthetic only.',
+    evidence: [{ pdf_page: 1, section: 'Synthetic', note: 'Fixture only.' }], required_changes: [] }],
+  source_checks: [{ paper_id: 'paper-a', pdf_sha256: saved.file.sha256 }] });
+config.claim_reviews.push({ input: 'input.json', result: 'result.json', result_sha256: sha(readFileSync(resultPath)) }); put(configPath, config);
+assert.deepEqual(topic('comparison-input').claims.map(c => c.claim_id), ['c1']);
+data.claims[0].conditions = 'Changed condition';
+writeFileSync(cardPath, `---\n${JSON.stringify(data)}\n---\n# Synthetic a\n`);
+assert.equal(topic('comparison-input').claims.length, 0);
+console.log(`Installed analysis: one document, fresh-process resume, current supported candidate only, condition invalidation (${process.version}/${process.platform}).`);

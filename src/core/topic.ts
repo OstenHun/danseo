@@ -114,6 +114,10 @@ export async function runTopic(args: string[]) {
 }
 
 async function executeTopic(args: string[]) {
+  if (['analysis-open', 'analysis-save', 'analysis-list', 'comparison-input'].includes(args[0] ?? '')) {
+    const { runAnalysis } = await import('./analysis.js');
+    return runAnalysis(args);
+  }
   if (['sources', 'collect', 'unavailable', 'decide'].includes(args[0] ?? '')) {
     const { runCollection } = await import('./collection.js');
     return runCollection(args);
@@ -143,7 +147,10 @@ async function executeTopic(args: string[]) {
       topic = await readTopic(root);
     }
     const current = overview(topic);
-    if (action === 'show') { console.log(JSON.stringify(current.result, null, 2)); return; }
+    if (action === 'show') {
+      const { listAnalysisDocuments } = await import('./analysis.js');
+      console.log(JSON.stringify({ ...current.result, analyses: await listAnalysisDocuments(root, current.result.selected) }, null, 2)); return;
+    }
     if (action === 'search') {
       if (!values.input) invalid(topicHelp);
       const search = await readJson(values.input);

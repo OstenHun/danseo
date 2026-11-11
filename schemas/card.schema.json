@@ -136,6 +136,14 @@
                     }
                   ]
                 }
+              },
+              "conditions": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "limits": {
+                "minLength": 1,
+                "type": "string"
               }
             },
             "required": [

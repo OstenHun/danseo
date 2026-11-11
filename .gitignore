@@ -33,3 +33,4 @@ Thumbs.db
 # Topic writer locks and interrupted temporary saves
 *.danseo-lock
 .topic-*.tmp
+.analysis-*.tmp
