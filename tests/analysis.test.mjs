@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, appendFileSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { stringify } from 'yaml';
 import test from 'node:test';
 import { pdf } from './helpers/source-pdf.mjs';
@@ -335,7 +335,7 @@ fs.readFile = async function(file, ...args) {
 };
 syncBuiltinESMExports();
 `);
-  const proc = spawnSync(process.execPath, ['--import', hook, cli, 'topic', 'comparison-input', '--dir', f.topic], { encoding: 'utf8' });
+  const proc = spawnSync(process.execPath, ['--import', pathToFileURL(hook).href, cli, 'topic', 'comparison-input', '--dir', f.topic], { encoding: 'utf8' });
   assert.equal(proc.status, 0, proc.stderr);
   const report = JSON.parse(proc.stdout);
   assert.deepEqual(report.claims.map(x => x.key), ['A']);
