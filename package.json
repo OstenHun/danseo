@@ -36,10 +36,10 @@
     "!**/.gitkeep"
   ],
   "scripts": {
-    "build": "tsc && node scripts/copy-comparison.mjs",
+    "build": "tsc && tsc -p tsconfig.browser.json && node scripts/build-browser.mjs && node scripts/copy-comparison.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "check:docs": "node scripts/check-docs.mjs",
-    "test:package": "node scripts/package-smoke.mjs",
+    "test:package": "npm run build && node scripts/package-smoke.mjs",
     "danseo": "node dist/cli.js"
   },
   "dependencies": {

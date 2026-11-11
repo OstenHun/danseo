@@ -6,6 +6,7 @@ import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { Script } from 'node:vm';
 
 assert.ok(process.env.npm_execpath, 'Run this check with npm run test:package');
 const root = process.cwd();
@@ -114,7 +115,12 @@ try {
   for (const asset of ['', 'comparison.js', 'comparison.css', 'reader-base.css', 'research-map.js', 'cytoscape.min.js', 'data']) {
     const response = await fetch(comparisonUrl + asset);
     assert.equal(response.status, 200, asset);
-    assert.ok((await response.arrayBuffer()).byteLength, asset);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.ok(bytes.byteLength, asset);
+    if (asset !== 'data') {
+      assert.deepEqual(bytes, readFileSync(path.join(root, 'dist/web', asset || 'comparison.html')), 'installed asset matches current build: ' + asset);
+      if (asset.endsWith('.js')) new Script(bytes.toString('utf8'), { filename: asset });
+    }
   }
   assert.deepEqual(Buffer.from(await (await fetch(comparisonUrl + `file/1/pdf/${saved.file.sha256}`)).arrayBuffer()), readFileSync(saved.file.path));
 } finally { await new Promise(resolve => comparisonServer.close(resolve)); }
