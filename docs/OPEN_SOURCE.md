@@ -53,7 +53,7 @@ PTP-011의 공개 코드·문서·자동 검사는 합성 예제를 사용한다
 - Git 업로드 파일, 새 main에서 도달 가능한 commit·blob, 실제 npm tarball을 각각 대조한다.
 - 개인 파일 경로·계정 정보·자격증명 패턴과 바이너리 metadata를 점검하며 의존성 라이선스의 저자 연락처는 프로젝트의 개인 정보와 구분한다.
 - 소스 저장소에는 계획·기여 문서를 둘 수 있다. npm 배포물은 package.json의 files 허용 목록으로 제한하고 설치된 CLI로 검사한다.
-- 최소 Node 22·권장 24, Node 26 사전 검사에 대해 Windows·Ubuntu CI를 실행한다. 최신 head와 [CI 결과](https://github.com/OstenHun/danseo/actions?query=branch%3Amain)를 함께 확인한다.
+- 자동 CI는 PR의 Ubuntu·Node 24를 기본으로 하며 문서만 바뀌면 경량 검사한다. 다른 OS·Node는 필요할 때 수동으로 전체 검사한다. 해당 PR head와 [PR CI 결과](https://github.com/OstenHun/danseo/actions/workflows/ci.yml?query=event%3Apull_request)를 함께 확인한다. 지원 계열·패치 하한·수동 실행 조건은 [런타임 정책](RUNTIME_SUPPORT.md#ci-실행-범위와-패치-기준)을 따른다.
 
 점검은 알려진 개인 자료와 파일·패턴·metadata 범위의 확인이다. 미지의 모든 비밀이나 코드 취약점이 없다는 포괄적 보증이 아니며 CI는 독립 사람 리뷰를 대신하지 않는다. 자세한 백업·파일 해시·실행 로그는 비공개 로컬 기록으로 보존한다.
 

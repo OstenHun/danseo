@@ -12,6 +12,12 @@
 - Windows Node24.22.2의 새 worktree 설치·빌드, 전체80/80, 실제 tarball 설치·재개·PDF·현재 주장·비교 자산 검사를 확인했다. 동일 main의 GitHub CI7개 성공도 대조했다. 문서·이력·파일·새 소스 복사·읽기 검수의 최신 근거는 로컬 `work/public-alpha-prep-20261112/RESULT.md`가 소유한다.
 - 위 검증은 로컬 문서 작업의 결과이며 제품 동작·의존성은 변경하지 않았다. GitHub 반영과 해당 head의 CI·자동 리뷰는 PR에서 확인한다. 병합·저장소 공개·npm 게시는 별도이며 익명 접근과 취약점 신고 활성화는 공개 전환 시점의 확인으로 남긴다.
 
+## CI 실행량 조정 — 2026-11-12
+
+- 자동 실행은 PR당 Ubuntu·Node 24 작업 하나로 줄이고 push 중복을 제거한다. 문서 전용은 링크·요약과 도구 타입 검사, 코드·설정·skill·분류 실패는 전체 검사다. 같은 PR의 이전 실행만 취소한다.
+- 다른 OS·Node는 수동 선택으로 전체 검사한다. 지원 계열과 보안 패치 하한은 유지한다. [실행 기준과 수동 실행 조건](docs/RUNTIME_SUPPORT.md#ci-실행-범위와-패치-기준).
+- 실제 Git diff의 문서·코드·혼합·이름 변경·삭제·빈 목록·실패와 workflow 실행 조건을 회귀로 확인한다. 최신 로컬·PR CI·리뷰 근거는 로컬 `work/public-alpha-prep-20261112/RESULT.md`와 [PR #9](https://github.com/OstenHun/danseo/pull/9)에 연결한다. 병합·공개 전환은 하지 않는다.
+
 ## 남은 JavaScript 테스트·도구 TypeScript 전환 — 2026-11-12 / Local verification
 
 - 최신 원격 main 856ad2c에서 남은 테스트6개와 도구5개의 npm·import·CI·패키지 사용처를 확인했다. 모두 필요해 기능은 유지하고 .ts로 전환했다. 설치 검사는 tests/package-smoke.ts로 옮겨 제품·테스트 출력에 대한 빌드 순환을 피했다. 불필요한 구현 삭제나 언어 통계 설정 변경은 없다.

@@ -5,9 +5,13 @@
 갱신: 2026-10-21 KST / PTP-004. 최소 지원 22·권장 24·Node 18은 실제 수요 발생 시 검토하는 기준을 사용자가 확정했다. GitHub 비공개 저장소의 Windows·Ubuntu CI 실행을 확인했다.
 
 
-## 원문 수집 CI의 패치 기준
+## CI 실행 범위와 패치 기준
 
-Ubuntu·Windows는 Node 22·24와 비차단 26을, macOS는 Node 24를 실행한다. CI는 22.23.4 이상인 22.x와 24.22.1 이상인 24.x 중 최신 출시 패치를 선택하고 실행 버전을 로그에 출력한다. 각 조합에서 설치본으로 한글·공백 경로의 PDF를 등록하고 새 프로세스에서 경로·해시·사본 수를 대조한다. Mac 앱의 권한 대화상자는 이 CLI 검사 범위 밖이다.
+자동 CI는 PR당 Ubuntu·Node 24 작업 하나만 실행한다. push 이벤트는 사용하지 않으며 같은 PR에 새 커밋이 올라오면 이전 실행을 취소한다. 문서 전용 변경은 설치·도구 타입 검사·문서 링크/요약 검사로 끝낸다. README·기여/보안/고지 문서·TASKS·LICENSE, `docs/`의 Markdown과 README 이미지 경로만 문서로 분류한다. PR 변경과 병합될 결과의 경로를 모두 확인하며 코드·설정·skill·알 수 없는 경로·변경 목록 확인 실패는 전체 회귀·합성 예제·tarball 설치 검사까지 실행한다.
+
+다른 환경이 필요한 변경은 Actions의 **Run workflow**에서 OS(Ubuntu·Windows·macOS)와 Node(22·24·26)를 선택한다. 수동 실행은 문서 변경에도 전체 검사하며 다른 수동 실행을 취소하지 않는다. 새 입력 화면은 이 workflow가 기본 브랜치에 반영된 뒤 사용할 수 있다. Node 26은 사전 호환성 검사 대상으로 유지하며 수동 실패도 실행 결과에 표시한다. 이 설정은 Node 22 지원을 종료하거나 모든 OS 조합을 매 PR마다 검증했다는 뜻이 아니다.
+
+CI는 22.23.4 이상인 22.x와 24.22.1 이상인 24.x 중 최신 출시 패치를 선택하고 실행 버전을 로그에 출력한다. 전체 검사는 설치본으로 한글·공백 경로의 PDF를 등록하고 새 프로세스에서 경로·해시·사본 수를 대조한다. Mac 앱의 권한 대화상자는 이 CLI 검사 범위 밖이다.
 
 2026-11-11 KST 조회에서 11월 보안 공지는 배포 예고였고, 공식 배포 목록에는 22.23.4와 24.22.2가 있었다. npm 패키지 감사의 결과는 PR의 잠금 파일 기준으로 따로 기록한다. [10월 보안 패치](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases/) · [11월 공지](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases/) · [배포 목록](https://nodejs.org/dist/index.json)
 
@@ -42,10 +46,10 @@ Danseo를 실행하는 Node와 자료를 읽을 대상 프로젝트의 Node는 �
 | Windows / Node 24.22.0 | 같은 빌드의 기존 CLI 테스트 | 26/26 통과 |
 | Windows / Node 26.12.0 | 같은 빌드의 기존 CLI 테스트 | 26/26 통과, 사전 검사 결과 |
 | Windows / Node 22.23.3 / npm 10.9.9 | 새 소스 폴더의 offline 설치·빌드, 별도 consumer의 tgz 설치·CLI 검사·내보내기 | 각각 통과. 같은 Windows와 npm 캐시를 사용한 격리 설치이며 새 장치 검증은 아님 |
-| GitHub Windows·Ubuntu / Node 22·24 | 소스 설치·문서 검사·빌드·26개 회귀 테스트·합성 예제·실제 tarball 설치 | 새 공개 준비 이력의 head와 CI 실행 결과를 함께 확인한다 |
-| GitHub Windows·Ubuntu / Node 26 | 같은 명령, `continue-on-error`인 사전 검사 | 지원 선언으로 자동 승격하지 않는다 |
+| GitHub Ubuntu / Node 24 | PR 자동 검사. 문서 전용이면 경량 검사, 나머지는 전체 회귀·합성 예제·실제 tarball 설치 | 해당 head의 CI 실행 결과를 확인한다 |
+| GitHub Windows·macOS / Node 22·24·26 | 필요할 때 OS·Node를 선택하는 수동 전체 검사 | 실행한 조합만 근거로 남기며 Node 26은 지원 선언으로 자동 승격하지 않는다 |
 
-기존 검사는 파일 구조·참조·원문 보존·프로젝트 분리·오류 출력·새 파일 생성 경계를 확인한다. CI는 실제 tarball 설치·도움말·합성 예제 검사·내보내기도 실행한다. 현재 실행 상태는 [main의 최신 CI](https://github.com/OstenHun/danseo/actions?query=branch%3Amain)와 [공개 준비](OPEN_SOURCE.md)를 따른다. 과거 개발 이력과 실행 로그는 비공개 백업에 보존하며 새 저장소에서 열리지 않는 과거 run 링크를 사용 조건으로 요구하지 않는다. GitHub 러너 확인을 모든 Linux 배포판·macOS·사용 효과로 확대하지 않는다.
+기존 검사는 파일 구조·참조·원문 보존·프로젝트 분리·오류 출력·새 파일 생성 경계를 확인한다. CI는 실제 tarball 설치·도움말·합성 예제 검사·내보내기도 실행한다. 현재 실행 상태는 해당 PR의 Checks와 [PR 자동 실행 목록](https://github.com/OstenHun/danseo/actions/workflows/ci.yml?query=event%3Apull_request), [공개 준비](OPEN_SOURCE.md)에서 확인한다. main의 과거 실행은 그 당시 소스의 근거다. 과거 개발 이력과 실행 로그는 비공개 백업에 보존하며 새 저장소에서 열리지 않는 과거 run 링크를 사용 조건으로 요구하지 않는다. GitHub 러너 확인을 모든 Linux 배포판·macOS·사용 효과로 확대하지 않는다.
 
 앞선 로컬 로그·다운로드 체크섬과 격리 설치 검사는 별도로 보존한다. 검증용 Node 22·26 ZIP은 공식 배포의 SHA-256 목록과 대조한 뒤 로컬 폴더에만 풀었으며 전역 설치·PATH는 바꾸지 않았다.
 
