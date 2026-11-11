@@ -1,11 +1,12 @@
+import type { SelectedPaper } from '../dist/core/topic.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { verifyPdf } from '../dist/core/source-pdf.js';
-import { pdf } from '../build/helpers/source-pdf.js';
+import { pdf } from './helpers/source-pdf.js';
 
-const paper = {key:'example',title:'Selected Paper',authors:'Alice Lee, Ed Chi',source:'https://example.org/paper',edition:'Journal 2024'};
+const paper: SelectedPaper = { number: 1, round: 1, year: 2024, reason: 'Synthetic fixture', scope: 'abstract', key:'example',title:'Selected Paper',authors:'Alice Lee, Ed Chi',source:'https://example.org/paper',edition:'Journal 2024'};
 const edition = {edition:'Journal 2024',proof:'Journal 2024',page:1,draft:false};
-const verify = (title,author,selected=paper,mark='Journal 2024') => verifyPdf(pdf([...([title].flat()),'Alice Lee'],author,mark),selected,edition);
+const verify = (title: string | string[], author: string, selected = paper, mark: string | string[] = 'Journal 2024') => verifyPdf(pdf([...([title].flat()),'Alice Lee'],author,mark),selected,edition);
 
 test('catalogue may omit Latin middle initials without accepting a different author',async()=>{
   await verify(paper.title,'Ed H. Chi');
@@ -39,7 +40,7 @@ test('catalogue may omit Latin middle initials without accepting a different aut
 });
 
 test('split proceedings footer before the title is not part of the selected title',async()=>{
-  const footer=['Proceedings of the Example Conference',', pages 1330-1350','August 11-16, 2024 (c)2024 Association for Computational Linguistics'];
+  const footer: [string, string, string] = ['Proceedings of the Example Conference',', pages 1330-1350','August 11-16, 2024 (c)2024 Association for Computational Linguistics'];
   await verify([...footer,paper.title],'Ed H. Chi');
   await assert.rejects(verify([...footer,'A Different Paper'],'Ed H. Chi'),/제목/);
   await assert.rejects(verify([...footer,paper.title+': Another Study'],'Ed H. Chi'),/제목/);

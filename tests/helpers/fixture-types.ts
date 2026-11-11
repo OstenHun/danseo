@@ -58,15 +58,20 @@ export type FixtureReviewResult = {
 
 // Only successful commands have a response contract. run() remains available
 // for intentionally malformed CLI requests and exposes the real process result.
+export type TopicState = Awaited<ReturnType<typeof selectedTopic>> & {
+  searches: { round: number; query: string; papers: Omit<SelectedPaper, 'round'>[] }[];
+};
+
 export type TopicOutputs = {
-  init: unknown;
-  search: unknown;
-  select: Awaited<ReturnType<typeof selectedTopic>>;
-  unselect: Awaited<ReturnType<typeof selectedTopic>>;
-  show: Awaited<ReturnType<typeof selectedTopic>> & { analyses: Awaited<ReturnType<typeof listAnalysisDocuments>> };
+  init: TopicState;
+  search: TopicState;
+  select: TopicState;
+  unselect: TopicState;
+  show: TopicState & { analyses: Awaited<ReturnType<typeof listAnalysisDocuments>> };
   collect: Collection;
   sources: Collection;
   decide: Collection;
+  unavailable: Collection;
   'analysis-open': FixtureDocument;
   'analysis-save': FixtureDocument;
   'analysis-list': Awaited<ReturnType<typeof listAnalysisDocuments>>;

@@ -36,13 +36,14 @@
     "!**/.gitkeep"
   ],
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.browser.json && node scripts/build-browser.mjs && node scripts/copy-comparison.mjs",
-    "test": "npm run build:tests && node --test tests/*.test.mjs build/*.test.js",
-    "check:docs": "node scripts/check-docs.mjs",
-    "test:package": "npm run build:tests && node scripts/package-smoke.mjs",
+    "build": "npm run build:tools && tsc && tsc -p tsconfig.browser.json && node build-tools/build-browser.js && node build-tools/copy-comparison.js",
+    "test": "npm run build:tests && node --test build/*.test.js",
+    "check:docs": "npm run build:tools && node build-tools/check-docs.js",
+    "test:package": "npm run build:tests && node build/package-smoke.js",
     "danseo": "node dist/cli.js",
-    "build:tests": "npm run build && node scripts/clean-test-build.mjs && tsc -p tsconfig.tests.json",
-    "check:tests": "npm run build && tsc -p tsconfig.tests.json --noEmit"
+    "build:tests": "npm run build && node build-tools/clean-test-build.js && tsc -p tsconfig.tests.json",
+    "check:tests": "npm run build && tsc -p tsconfig.tests.json --noEmit",
+    "build:tools": "tsc -p tsconfig.tools.json"
   },
   "dependencies": {
     "ajv": "8.20.0",
