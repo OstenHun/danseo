@@ -49,7 +49,7 @@ Danseo를 실행하는 Node와 자료를 읽을 대상 프로젝트의 Node는 �
 
 ## 업데이트와 지원 변경
 
-PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Node 24 CI, 보안 수정 하한 22.23.4·24.22.1을 이어 쓴다. 2026-11-11 KST 재확인한 공식 배포 목록의 최신 지원 패치는 22.23.4·24.22.2다. 11월 공지는 배포 예고와 실제 배포를 구분해 다음 검증 때 다시 확인한다. 이번 잠금 파일의 개발 의존성 포함·제외 `npm audit --package-lock-only`는 알려진 취약점 0건을 보고했다. 로컬 초기 검사는 Windows / Node 24.22.0, 최종 55개 회귀·설치 패키지 검사는 24.22.2에서 실행했다. 실제 CI Node 패치는 작업 로그에서 별도로 확인한다. [공식 배포 목록](https://nodejs.org/dist/index.json) · [보안 공지](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases) · [3단계 검증 범위](PAPER_ANALYSIS.md#의존성과-확인-범위).
+PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Node 24 CI, 보안 수정 하한 22.23.4·24.22.1을 이어 쓴다. 2026-11-11 KST 재확인한 공식 배포 목록의 최신 지원 패치는 22.23.4·24.22.2다. 11월 공지는 배포 예고와 실제 배포를 구분해 다음 검증 때 다시 확인한다. 이번 잠금 파일의 개발 의존성 포함·제외 `npm audit --package-lock-only`는 알려진 취약점 0건을 보고했다. 로컬 초기 검사는 Windows / Node 24.22.0, 최종 60개 회귀·설치 패키지 검사는 24.22.2에서 실행했다. 실제 CI Node 패치는 작업 로그에서 별도로 확인한다. [공식 배포 목록](https://nodejs.org/dist/index.json) · [보안 공지](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases) · [3단계 검증 범위](PAPER_ANALYSIS.md#의존성과-확인-범위).
 
 1. 선택한 계열의 보안·버그 수정은 우선 검토하고 최신 패치로 검사한다. 의존성은 lockfile로 고정하고 `npm ci`로 재현한다. 모든 패키지를 무조건 최신 메이저로 올리지는 않는다.
 2. 새 Node 계열은 사전 호환성 검사를 거친다. LTS 전환과 의존성·설치·지원 OS 검사를 확인한 뒤 engines·CI·문서·개발 기본값을 함께 갱신한다. 버전 번호가 크거나 테스트 한 번이 통과했다는 이유만으로 지원하지 않는다.

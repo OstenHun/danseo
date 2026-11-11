@@ -38,7 +38,7 @@ workspace 안의 상대 경로에 UTF-8 JSON을 쓴다. `card_sha256`은 당시 
 }
 ```
 
-판정은 `supported`, `partially_supported`, `contradicted`, `insufficient_evidence` 중 하나다. 마지막 경우를 제외하면 PDF 쪽·절·대조 메모가 필요하다. `reviewed_at`은 ISO 8601의 `Z` 또는 명시적 UTC 오프셋이 필요하다. 실제로 읽지 못했다면 원문 지지로 쓰지 않는다. 검토 결과도 workspace 안에 보존하고 이전 파일을 덮어쓰지 않는다.
+판정은 `supported`, `partially_supported`, `contradicted`, `insufficient_evidence` 중 하나다. 마지막 경우를 제외하면 PDF 쪽·절·대조 메모가 필요하다. 검토자·이유·위치·메모는 공백만으로 채울 수 없다. `reviewed_at`은 실제 달력 날짜와 ISO 8601의 `Z` 또는 명시적 UTC 오프셋을 쓰고, 소수점은 비교 정밀도와 같은 밀리초(최대 3자리)까지만 허용한다. UTF-8이 손상된 입력·결과는 보류한다. 실제로 읽지 못했다면 원문 지지로 쓰지 않는다. 검토 결과도 workspace 안에 보존하고 이전 파일을 덮어쓰지 않는다.
 
 ## 등록과 확인
 

@@ -12,7 +12,7 @@ export type ReviewInput = { run_id: string; papers: FrozenPaper[] };
 type Result = { input_sha256: string; reviewer: string; review_type: string; reviewed_at: string; claims: { paper_id: string; claim_id: string; verdict: Verdict; reason: string; evidence: Evidence[]; required_changes: string[] }[]; source_checks: { paper_id: string; pdf_sha256: string }[] };
 export type ClaimReview = Result['claims'][number] & { state: 'current' | 'stale'; stale_reason?: string; run_id: string; reviewer: string; reviewed_at: string; review_type: string; input_sha256: string; result_sha256: string; source: { version?: string; url?: string | null } };
 
-const string = { type: 'string', minLength: 1, maxLength: 8192 };
+const string = { type: 'string', minLength: 1, maxLength: 8192, pattern: '\\S' };
 const digest = { type: 'string', pattern: '^[a-f0-9]{64}$' };
 const list = (items: object) => ({ type: 'array', maxItems: 1000, items });
 const object = (properties: object, required: string[]) => ({ type: 'object', properties, required });
@@ -36,6 +36,14 @@ const resultValid = ajv.compile(object({
 
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 const requireValue = (value: unknown, message: string) => { if (!value) throw new Error(message); };
+function validReviewTime(value: string) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!parts || !Number.isFinite(Date.parse(value))) return false;
+  const year = Number(parts[1]), month = Number(parts[2]), day = Number(parts[3]);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1]! && !/T24:/.test(value);
+}
 async function readRegistered(root: string, entry: string) {
   const file = resolve(root, entry), rel = relative(root, file);
   requireValue(!isAbsolute(entry) && rel !== '..' && !rel.startsWith(`..${sep}`), '검토 파일은 workspace 안의 상대 경로로 등록하세요.');
@@ -55,12 +63,12 @@ export async function readVerifiedReviews(ws: Workspace) {
       const inputBytes = await readRegistered(ws.path, registration.input);
       const resultBytes = await readRegistered(ws.path, registration.result);
       requireValue(sha(resultBytes) === registration.result_sha256, '등록한 검토 결과 해시와 파일이 다릅니다.');
-      const input: unknown = JSON.parse(inputBytes.toString('utf8').replace(/^\uFEFF/, ''));
-      const result: unknown = JSON.parse(resultBytes.toString('utf8').replace(/^\uFEFF/, ''));
+      const input: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(inputBytes));
+      const result: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(resultBytes));
       requireValue(inputValid(input) && resultValid(result), '지원하는 주장 검토 JSON 형식이 아닙니다.');
       const frozen = input as ReviewInput, review = result as Result;
       requireValue(sha(inputBytes) === review.input_sha256, '고정 입력 해시가 검토 결과와 다릅니다.');
-      requireValue(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(review.reviewed_at) && Number.isFinite(Date.parse(review.reviewed_at)), '검토 시각에 Z 또는 UTC 오프셋을 명시하세요.');
+      requireValue(validReviewTime(review.reviewed_at), '검토 시각은 실제 달력 날짜와 Z 또는 UTC 오프셋을 쓰고, 소수점은 밀리초(3자리)까지 명시하세요.');
       const expected = frozen.papers.flatMap(p => p.claims.map(c => JSON.stringify([p.paper_id,c.id])));
       const received = review.claims.map(c => JSON.stringify([c.paper_id,c.claim_id]));
       requireValue(new Set(expected).size === expected.length && new Set(received).size === received.length && JSON.stringify(expected.sort()) === JSON.stringify(received.sort()), '검토 주장 ID에 누락·중복·다른 항목이 있습니다.');
@@ -77,7 +85,7 @@ export async function readVerifiedReviews(ws: Workspace) {
 }
 
 /** Optional, explicit review records. Reading them never changes Paper or relation status. */
-export async function loadClaimReviews(ws: Workspace, card: Card) {
+export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha256: string) {
   const output: { claims: Record<string, ClaimReview[]>; warnings: string[]; registered: number } = { claims: Object.create(null), warnings: [], registered: ws.claim_reviews?.length ?? 0 };
   if (card.data.type !== 'paper') return output;
   const paper = card.data, verified=await readVerifiedReviews(ws);
@@ -86,6 +94,7 @@ export async function loadClaimReviews(ws: Workspace, card: Card) {
       const snapshots = frozen.papers.filter(p => p.paper_id === paper.id);
       const snapshot = snapshots[0]; if (!snapshot) continue;
       let staleReason = canonical({version:paper.source.version??null,url:paper.source.url??null}) !== canonical({version:snapshot.source.version??null,url:snapshot.source.url??null}) ? '검토 이후 원문 판본 또는 URL이 바뀌었습니다.' : '';
+      if (snapshot.source.pdf_sha256 !== selectedPdfSha256) staleReason ||= '검토한 PDF가 이 주제에서 선택한 원문 해시와 다릅니다.';
       try {
         requireValue(paper.source.path, '원본 PDF 경로가 없습니다.');
         if (sha(await readFile(resolve(dirname(card.path), paper.source.path!))) !== snapshot.source.pdf_sha256) staleReason ||= '검토 이후 원본 PDF가 바뀌었습니다.';

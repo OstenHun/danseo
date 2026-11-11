@@ -7,7 +7,7 @@
 ## PTP-011 — 논문별 분석과 재개
 
 - 2단계 `0903667` 위 별도 브랜치에서 `analysis-open/save/list`와 `comparison-input`을 구현했다. 같은 주제의 논문별 문서에 답·메모를 보존하고 같은 판본의 공통 Paper를 여러 주제에서 재사용한다. [사용법과 의존성](docs/PAPER_ANALYSIS.md) · [원문 검토 계약](docs/CLAIM_REVIEWS.md).
-- Windows / Node 24.22.2에서 `npm test` 55/55, `npm run test:package`, `npm run check:docs`와 기존 합성 카드 검증을 통과했다. `tests/analysis.test.mjs`는 문서 보존·판본 전환·잘못된 검토·변경 근거 제외·동시 재선택을, 패키지 검사는 한글·공백 경로의 설치 CLI 재개를 확인한다. 실제 두 PDF의 A→B→새 프로세스 A, 다른 주제의 동일 Paper, 주장→표 대조와 최신 CI·독립 리뷰·남은 확인은 [초안 PR #3](https://github.com/OstenHun/danseo/pull/3)에 기록한다.
+- Windows / Node 24.22.2에서 `npm test` 60/60, `npm run test:package`, `npm run check:docs`와 기존 합성 카드 검증을 통과했다. `tests/analysis.test.mjs`는 문서 보존·판본 전환·검토 무결성·PDF 교체와 초고 동의의 경합·변경 근거 제외·동시 재선택을, 패키지 검사는 한글·공백 경로의 설치 CLI 재개를 확인한다. 실제 두 PDF의 A→B→새 프로세스 A, 다른 주제의 동일 Paper, 주장→표 대조와 최신 CI·독립 리뷰·남은 확인은 [초안 PR #3](https://github.com/OstenHun/danseo/pull/3)에 기록한다.
 - 4단계 비교 기준·그래프와 병합은 별도 범위다. 문서 저장·구조 검사·원문 지지·연구 재현·사용자 이해를 구분한다. 사람의 새 채팅·macOS 앱 폴더 권한 UI·학습 효과는 확인하지 않았다.
 
 ## PTP-010 — 선택한 논문의 원문 수집

@@ -94,7 +94,8 @@ async function boundPaper(revision: Revision, source: Source) {
   return { workspace, card };
 }
 async function readySource(root: string, number: number) {
-  const collection = await sourceCollection(root);
+  // analysis-open/save already hold the topic lock until their document save finishes.
+  const collection = await sourceCollection(root, true);
   const source = collection.ready.find(s => s.paper.number === number);
   if (!source) invalid('분석 가능한 원문이 없습니다. topic sources에서 PDF·판본·초고 응답을 다시 확인하세요.');
   return { source, question: collection.question };
@@ -142,7 +143,7 @@ async function comparisonInput(root: string) {
     try { bound = await boundPaper(revision, source); }
     catch (error) { held.push({ key: paper.key, reason: (error as Error).message }); continue; }
     const { card, workspace } = bound;
-    const reviews = await loadClaimReviews(workspace, card);
+    const reviews = await loadClaimReviews(workspace, card, source.file.sha256);
     const claims = card.data.type === 'paper' ? card.data.claims ?? [] : [];
     if (!revision.comparison_claims.length) held.push({ key: paper.key, reason: '비교 후보 주장 없음' });
     for (const claimId of revision.comparison_claims) {

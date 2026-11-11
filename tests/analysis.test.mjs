@@ -344,6 +344,104 @@ syncBuiltinESMExports();
   assert.deepEqual(f.ok(f.topic, 'comparison-input').claims.map(x => x.key), ['A', 'B']);
 });
 
+function compareWithPreload(f, source) {
+  const path = join(f.root, 'source-state-hook.mjs'); writeFileSync(path, source);
+  const proc = spawnSync(process.execPath, ['--import', pathToFileURL(path).href, cli, 'topic', 'comparison-input', '--dir', f.topic], { encoding: 'utf8' });
+  assert.equal(proc.status, 0, proc.stderr);
+  return JSON.parse(proc.stdout);
+}
+function pinResult(f, review) {
+  f.json(review.resultPath, review.result);
+  f.config.claim_reviews.at(-1).result_sha256 = hash(readFileSync(review.resultPath)); f.saveConfig();
+}
+
+test('a replacement PDF review cannot be exported with the earlier selected digest', t => {
+  const f = setup(t); f.save(f.open());
+  const source = f.a.data.source.path, original = readFileSync(source);
+  const replacement = Buffer.from(original.toString().replace('%%EOF', '% different verified bytes\n%%EOF'));
+  writeFileSync(source, replacement); f.review(); writeFileSync(source, original);
+  try {
+    const report = compareWithPreload(f, `
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
+const original = fs.readFile;
+let reads = 0;
+fs.readFile = async function(file, ...args) {
+  const bytes = await original(file, ...args);
+  if (String(file) === ${JSON.stringify(source)} && ++reads === 2) await fs.writeFile(file, Buffer.from(${JSON.stringify([...replacement])}));
+  return bytes;
+};
+syncBuiltinESMExports();
+`);
+    assert.deepEqual(readFileSync(source), replacement);
+    assert.equal(report.claims.length, 0);
+    assert.match(report.held.find(x => x.claim_id === 'c1').reason, /선택한 원문 해시/);
+  } finally { writeFileSync(source, original); }
+});
+
+test('collection and draft consent are captured under one metadata lock, released before PDF work', t => {
+  const f = setup(t); f.save(f.open()); f.review();
+  const draft = f.collect(f.topic, 'B', 'Preprint v2', 'draft');
+  const file = draft.rows.find(row => row.paper.key === 'B').files.find(file => file.draft);
+  const bookPath = join(f.topic, 'sources.json'), book = JSON.parse(read(bookPath));
+  book.rows.find(row => row.key === 'B').files = book.rows.find(row => row.key === 'B').files.filter(file => file.draft);
+  f.json(bookPath, book);
+  f.ok(f.topic, 'decide', '--id', '2', '--round', '1', '--sha', file.sha256, '--answer', 'accept');
+  const b = f.card('B', file); f.save(f.open(f.topic, '2', b), answer(), f.topic, '2'); f.review(b);
+  const observed = join(f.root, 'writer-result.json');
+  const report = compareWithPreload(f, `
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
+import { spawnSync } from 'node:child_process';
+const original = fs.readFile;
+let attempted = false;
+fs.readFile = async function(path, ...args) {
+  const bytes = await original(path, ...args);
+  if (!attempted && String(path) === ${JSON.stringify(bookPath)}) {
+    attempted = true;
+    const result = spawnSync(process.execPath, [${JSON.stringify(cli)}, 'topic', 'decide', '--dir', ${JSON.stringify(f.topic)}, '--id', '2', '--round', '1', '--sha', ${JSON.stringify(file.sha256)}, '--answer', 'decline'], { encoding: 'utf8' });
+    await fs.writeFile(${JSON.stringify(observed)}, JSON.stringify({status: result.status, stderr: result.stderr}));
+  }
+  return bytes;
+};
+syncBuiltinESMExports();
+`);
+  assert.match(JSON.parse(read(observed)).stderr, /EDIT_BUSY/);
+  assert.deepEqual(report.claims.map(x => x.key), ['A', 'B']);
+  f.ok(f.topic, 'decide', '--id', '2', '--round', '1', '--sha', file.sha256, '--answer', 'decline');
+  assert.deepEqual(f.ok(f.topic, 'comparison-input').claims.map(x => x.key), ['A']);
+  assert.ok(!readdirSync(f.topic).includes('workspace.json.danseo-lock'));
+});
+
+test('invalid calendar dates and sub-millisecond timestamps cannot override source reviews', t => {
+  const f = setup(t); f.save(f.open()); const review = f.review();
+  for (const value of ['2026-02-30T23:59:00Z', '2026-02-29T12:00:00Z', '2026-04-31T12:00:00Z',
+    '2026-11-10T12:00:00.123456Z', '2026-11-10T24:00:00Z']) {
+    review.result.reviewed_at = value; pinResult(f, review);
+    assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0, value);
+  }
+  review.result.reviewed_at = '2024-02-29T23:59:00.123+09:00'; pinResult(f, review);
+  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
+});
+
+test('source-support registration needs nonblank reviewer, reasons and evidence notes', t => {
+  const f = setup(t); f.save(f.open()); const review = f.review();
+  review.result.reviewer = ' '; review.result.claims[0].reason = ' ';
+  review.result.claims[0].evidence[0].section = ' '; review.result.claims[0].evidence[0].note = ' ';
+  pinResult(f, review);
+  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+});
+
+test('invalid UTF-8 is held even when the registered result byte digest is correct', t => {
+  const f = setup(t); f.save(f.open()); const review = f.review();
+  review.result.claims[0].evidence[0].note = 'UTF8_MARK';
+  const bytes = Buffer.from(JSON.stringify(review.result)), start = bytes.indexOf('UTF8_MARK');
+  const damaged = Buffer.concat([bytes.subarray(0, start), Buffer.from([255]), bytes.subarray(start + 9)]);
+  writeFileSync(review.resultPath, damaged);
+  f.config.claim_reviews[0].result_sha256 = hash(damaged); f.saveConfig();
+  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+});
+
 test('topic locks and symlink documents are refused without touching linked files', t => {
   const f = setup(t), doc = f.open();
   const original = readFileSync(doc.document);
