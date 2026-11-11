@@ -13,6 +13,7 @@ type Paper = {
 type Search = { query: string; papers: Paper[] };
 type Choice = { key: string; round: number; note?: string };
 type Topic = { version: 1; question: string; searches: Search[]; selected: Choice[] };
+export type SelectedPaper = Paper & { number: number; round: number; note?: string };
 
 const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
   init --question <original question>
@@ -20,6 +21,7 @@ const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
   select --ids <stable numbers, comma-separated> [--round <shown search round>] [--note <reader's reason>]
   unselect --ids <stable numbers, comma-separated>
   show
+  sources | collect | unavailable | decide   See danseo topic collect --help
 All actions return JSON. Search uses candidates verified by the chat agent.`;
 const ajv = new Ajv();
 const nonblank = { type: 'string', pattern: '\\S' };
@@ -87,6 +89,19 @@ function overview(topic: Topic) {
   return { catalog, result: { question: topic.question, searches, selected } };
 }
 
+async function readTopic(root: string): Promise<Topic> {
+  const path = join(root, 'topic.json');
+  if (!await exists(path)) invalid(`저장된 주제가 없습니다. 주제 폴더를 확인하거나 init으로 시작하세요: ${root}`);
+  const data = await readJson(await writableFile(root, path));
+  if (!validTopic(data)) invalid('주제 파일의 형식 또는 버전을 확인하세요.');
+  return data;
+}
+
+export async function selectedTopic(root: string) {
+  const { question, selected } = overview(await readTopic(root)).result;
+  return { question, selected };
+}
+
 export async function runTopic(args: string[]) {
   try { return await executeTopic(args); }
   catch (error) {
@@ -99,6 +114,10 @@ export async function runTopic(args: string[]) {
 }
 
 async function executeTopic(args: string[]) {
+  if (['sources', 'collect', 'unavailable', 'decide'].includes(args[0] ?? '')) {
+    const { runCollection } = await import('./collection.js');
+    return runCollection(args);
+  }
   if (args.includes('--help') || args.includes('-h')) { console.log(topicHelp); return; }
   const [action, ...rest] = args;
   const { values } = parseArgs({ args: rest, options: {
@@ -121,10 +140,7 @@ async function executeTopic(args: string[]) {
       if (await exists(path)) invalid('이미 생성한 주제입니다. show로 다시 여세요.');
       topic = { version: 1, question: values.question!.trim(), searches: [], selected: [] };
     } else {
-      if (!await exists(path)) invalid(`저장된 주제가 없습니다. 주제 폴더를 확인하거나 init으로 시작하세요: ${root}`);
-      const data = await readJson(await writableFile(root, path));
-      if (!validTopic(data)) invalid('주제 파일의 형식 또는 버전을 확인하세요.');
-      topic = data;
+      topic = await readTopic(root);
     }
     const current = overview(topic);
     if (action === 'show') { console.log(JSON.stringify(current.result, null, 2)); return; }

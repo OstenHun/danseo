@@ -4,6 +4,13 @@
 
 갱신: 2026-10-21 KST / PTP-004. 최소 지원 22·권장 24·Node 18은 실제 수요 발생 시 검토하는 기준을 사용자가 확정했다. GitHub 비공개 저장소의 Windows·Ubuntu CI 실행을 확인했다.
 
+
+## 원문 수집 CI의 패치 기준
+
+Ubuntu·Windows는 Node 22·24와 비차단 26을, macOS는 Node 24를 실행한다. CI는 22.23.4 이상인 22.x와 24.22.1 이상인 24.x 중 최신 출시 패치를 선택하고 실행 버전을 로그에 출력한다. 각 조합에서 설치본으로 한글·공백 경로의 PDF를 등록하고 새 프로세스에서 경로·해시·사본 수를 대조한다. Mac 앱의 권한 대화상자는 이 CLI 검사 범위 밖이다.
+
+2026-11-11 KST 조회에서 11월 보안 공지는 배포 예고였고, 공식 배포 목록에는 22.23.4와 24.22.2가 있었다. npm 패키지 감사의 결과는 PR의 잠금 파일 기준으로 따로 기록한다. [10월 보안 패치](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases/) · [11월 공지](https://nodejs.org/en/blog/vulnerability/november-2026-security-releases/) · [배포 목록](https://nodejs.org/dist/index.json)
+
 ## 현재 기준
 
 | 구분 | 기준 | 의미 |
