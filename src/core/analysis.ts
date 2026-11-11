@@ -127,11 +127,15 @@ function replyBlock(input: Answer, revision: Revision) {
   return `\n## ${input.question}\n\n${input.overview ? `### 짧은 개요\n\n${input.overview}\n\n` : ''}### 주제 질문에 대한 답\n\n${input.answer}\n\n### AI 해석\n\n${input.interpretation}\n\n### Paper 근거\n\n${refs}\n\n### 남은 질문\n\n${input.remaining_questions}\n\n### 다음에 읽을 위치\n\n${input.resume}\n`;
 }
 
-async function comparisonInput(root: string) {
+export async function comparisonInput(root: string) {
   const collection = await sourceCollection(root);
   const included = [], held = [];
+  const papers: { key: string; number: number; title: string; paper_id?: string; workspace?: string; card_sha256?: string;
+    document?: string; document_sha256?: string; source?: Source['file'] }[] = [];
   for (const row of collection.rows) {
     const paper = row.paper;
+    const entry: typeof papers[number] = { key: paper.key, number: paper.number, title: paper.title };
+    papers.push(entry);
     let doc: Document | undefined;
     try { doc = await readDocument(root, paper.key); }
     catch (error) { held.push({ key: paper.key, document: join(root, nameFor(paper.key)), reason: (error as Error).message }); continue; }
@@ -143,6 +147,8 @@ async function comparisonInput(root: string) {
     try { bound = await boundPaper(revision, source); }
     catch (error) { held.push({ key: paper.key, reason: (error as Error).message }); continue; }
     const { card, workspace } = bound;
+    Object.assign(entry, { paper_id: revision.paper_id, workspace: revision.workspace, card_sha256: card.sha256,
+      document: join(root, nameFor(paper.key)), document_sha256: doc.sha256, source: source.file });
     const reviews = await loadClaimReviews(workspace, card, source.file.sha256);
     const claims = card.data.type === 'paper' ? card.data.claims ?? [] : [];
     if (!revision.comparison_claims.length) held.push({ key: paper.key, reason: '비교 후보 주장 없음' });
@@ -162,7 +168,7 @@ async function comparisonInput(root: string) {
         document: join(root, nameFor(paper.key)), document_sha256: doc.sha256, review });
     }
   }
-  return { version: 1, question: collection.question, claims: included, held, scope: 'current-supported-claims-only; no-comparison-relations' };
+  return { version: 1, question: collection.question, papers, claims: included, held, scope: 'current-supported-claims-only; no-comparison-relations' };
 }
 
 export async function runAnalysis([action = '', ...args]: string[]) {
