@@ -13,6 +13,8 @@ Ubuntu·Windows는 Node 22·24와 비차단 26을, macOS는 Node 24를 실행한
 
 ## 현재 기준
 
+공개 후보 준비(2026-11-12): main `d5fbc4b`에서 문서만 수정한 별도 worktree를 Windows Node24.22.2/npm11.21.1로 새 설치·빌드하고 전체80/80과 실제 tarball 설치·주제 재개·PDF·분석·비교 자산 검사를 통과했다. 제한 실행 환경에서는 임시 파일 rename 권한으로 회귀가 실패했고 같은 소스를 일반 Windows 사용자 환경에서 재검증했다. main의 [CI43099628098](https://github.com/OstenHun/danseo/actions/runs/43099628098)는 Windows·Ubuntu Node22/24, macOS Node24와 비차단 Node26 두 작업을 포함해7개 성공이다. 이번 로컬 문서 diff의 새 원격 CI는 실행하지 않았다. 상세 로그·새 소스 복사 확인은 로컬 `work/public-alpha-prep-20261112/RESULT.md`, 공개 범위는 [공개 준비](OPEN_SOURCE.md)를 따른다.
+
 | 구분 | 기준 | 의미 |
 | --- | --- | --- |
 | 지원 계열 | Node 22.x·24.x LTS | 각 계열의 최신 패치를 사용한다. `package.json`의 engines는 `^22.0.0 || ^24.0.0`이다 |

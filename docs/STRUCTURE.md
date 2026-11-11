@@ -1,8 +1,8 @@
 # 폴더와 데이터 경계
 
-요약: 공통 core와 CLI·schema·배포 skill을 한 저장소에서 관리한다. 개인 자료는 별도 workspace에서 기존 파일을 참조한다. 첫 읽기·검사·내보내기는 구현했으며 웹·편집·외부 어댑터는 후속이다.
+요약: CLI·공통 core·schema·skill과 읽기 전용 비교 화면을 한 패키지로 관리한다. 주제·원문·분석은 개인 폴더에 보관한다. 카드 편집기·외부 어댑터는 이번 공개 후보에 포함하지 않는다.
 
-현재 구현은 src/core/index.ts와 src/cli.ts, schemas의 두 JSON Schema다. workspace.json이 기록 경로와 프로젝트 연결을 소유한다. 아래는 현재 파일 구성이고, 이후의 project.md·관계 파일·웹 편집기 설명은 확장 설계다. 실제 실행 형식은 [CLI 사용법](CLI.md)을 따른다.
+현재 구현은 아래 CLI·core·비교 서버/화면과 공통 지도다. workspace.json이 카드·프로젝트·주장 검토·관계 연결을 소유하며 주제 폴더가 선택·수집·분석 기록을 보관한다. 이후의 웹 편집기·가져오기 설계는 현재 배포 기능과 구분한다. 실제 형식은 [CLI](CLI.md), [분석](PAPER_ANALYSIS.md), [연구 비교](RESEARCH_COMPARISON.md)를 따른다.
 
 ## 저장소 구성
 
@@ -12,18 +12,20 @@ danseo/
 ├─ docs/                   # MVP·구조·재사용 판단의 정본
 ├─ src/
 │  ├─ cli.ts               # 명령·옵션·출력·종료 코드
-│  └─ core/index.ts        # 카드 읽기·검사·근거 묶음·새 파일 쓰기
-├─ schemas/                # 카드·workspace JSON Schema
-├─ scripts/                # 문서 링크·패키지 설치 검사
+│  ├─ core/               # 카드·주제·원문·분석·검토·관계·비교
+│  ├─ web/                # 읽기 전용 비교 서버·HTML/CSS·TypeScript
+│  └─ views/              # 공통 지도 TypeScript와 읽기 스타일
+├─ schemas/                # 카드·workspace·관계 JSON Schema
+├─ scripts/                # 빌드·문서 검사 도구 TypeScript
 ├─ skills/danseo/           # 배포 skill과 표시 metadata
 ├─ examples/minimal/       # 실행 가능한 합성 workspace
 ├─ evals/                  # 활용 효과 비교 계획; 정답·실행은 로컬 분리
-├─ tests/                  # 읽기·검사·내보내기 회귀 검사
+├─ tests/                  # TypeScript 회귀·helper·설치 패키지 검사
 ├─ workspaces/             # 개인 로컬 자료, Git 제외
 └─ work/                   # 출처 연결·이전 검토·개인 실행, Git 제외
 ```
 
-독립 패키지·별도 서비스로 나누지 않는다. CLI가 옵션과 출력을 다루고 core가 파일·모델 규칙을 다루는 현재 경계면 충분하다. src/cli.ts 옆에 별도 src/cli 폴더를 예약하거나 아직 없는 web/adapters 폴더를 만들지 않는다. 실제 기능이 생기거나 여러 파일로 나눌 이유가 생겼을 때 추가한다. 이미 내용이 있는 폴더의 .gitkeep도 필요하지 않다.
+독립 패키지·별도 상시 서비스로 나누지 않는다. CLI가 옵션·출력을, core가 파일·모델 규칙을 다루고 비교 서버는 loopback 읽기 전용 화면을 제공한다. 빌드는 build-tools/·dist/·build/에 출력하며 개발 도구·테스트 출력은 배포하지 않는다. [빌드와 검사](../CONTRIBUTING.md#공통-테스트-fixture-수정).
 
 docs·TASKS·evals는 공유 가능한 제품 문서와 계획이다. 개인 실행 로그·실제 연구 자료·정답은 여기에 두지 않는다. npm의 files 허용 목록은 dist·schema·skill·합성 예제와 공개 문서·브랜드·고지만 포함하며 소스 저장소의 모든 파일을 자동 배포하지 않는다. 실제 tarball 목록과 설치 CLI를 검사한다.
 
