@@ -3,9 +3,9 @@ import test from 'node:test';
 import { verifyPdf } from '../dist/core/source-pdf.js';
 import { pdf } from './helpers/source-pdf.mjs';
 
-const paper = {key:'example',title:'Selected Paper',authors:'Ed Chi',source:'https://example.org/paper',edition:'Journal 2024'};
+const paper = {key:'example',title:'Selected Paper',authors:'Alice Lee, Ed Chi',source:'https://example.org/paper',edition:'Journal 2024'};
 const edition = {edition:'Journal 2024',proof:'Journal 2024',page:1,draft:false};
-const verify = (title,author,selected=paper,mark='Journal 2024') => verifyPdf(pdf(title,author,mark),selected,edition);
+const verify = (title,author,selected=paper,mark='Journal 2024') => verifyPdf(pdf([...([title].flat()),'Alice Lee'],author,mark),selected,edition);
 
 test('catalogue may omit Latin middle initials without accepting a different author',async()=>{
   await verify(paper.title,'Ed H. Chi');
@@ -14,6 +14,11 @@ test('catalogue may omit Latin middle initials without accepting a different aut
   const interview={...paper,title:'An Interview with Ed H. Chi'};
   await verify(['An Interview with','Ed H. Chi'],'Ed Chi',interview);
   await verify(['Proceedings of Example Conference','An Interview with','Ed H. Chi'],'Ed Chi',interview);
+  await assert.rejects(verify(['An Interview with','Ed H. Chi'],'Ed Chi',{...interview,title:'An Interview with'}),/제목/);
+  const single={...paper,authors:'Ed Chi',title:'An Interview with Ed H. Chi'};
+  await verifyPdf(pdf(['An Interview with','Ed H. Chi'],'Ed Chi','Journal 2024'),single,edition);
+  await assert.rejects(verifyPdf(pdf(['An Interview with','Ed H. Chi'],'Ed Chi','Journal 2024'),{...single,title:'An Interview with'},edition),/제목/);
+  await assert.rejects(verifyPdf(pdf(paper.title,'Ed H. Chi','Journal 2024'),{...paper,authors:'Ed Chi'},edition),/저자/);
   for(const author of ['Edward H. Chi','Ed Henry Chi','Ed H. Chin','Ted H. Chi','Ed XChi']) {
     await assert.rejects(verify(paper.title,author),/저자/);
   }
