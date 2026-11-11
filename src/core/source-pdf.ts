@@ -92,6 +92,7 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
       throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
     }
+    const occupied = exact.filter(index => index >= 0);
     const byline = authorTokens.map((tokens, index) => {
       if (exact[index]! >= 0 || tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact[index]!;
       // Match a complete name item after the verified title boundary; never
@@ -100,7 +101,11 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       let offset = 0;
       for (const run of frontRuns) {
         if (offset + run.length > front.length) break;
-        if (offset >= titleEnd && initials.test(run)) return offset + run.search(/\S/u);
+        if (offset >= titleEnd && !occupied.some(position => position >= offset && position < offset + run.length) && initials.test(run)) {
+          const position = offset + run.search(/\S/u);
+          occupied.push(position);
+          return position;
+        }
         offset += run.length + 1;
       }
       return -1;

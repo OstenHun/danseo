@@ -19,6 +19,10 @@ test('catalogue may omit Latin middle initials without accepting a different aut
   await verifyPdf(pdf(['An Interview with','Ed H. Chi'],'Ed Chi','Journal 2024'),single,edition);
   await assert.rejects(verifyPdf(pdf(['An Interview with','Ed H. Chi'],'Ed Chi','Journal 2024'),{...single,title:'An Interview with'},edition),/제목/);
   await assert.rejects(verifyPdf(pdf(paper.title,'Ed H. Chi','Journal 2024'),{...paper,authors:'Ed Chi'},edition),/저자/);
+  await assert.rejects(verifyPdf(pdf(paper.title,'Ed H. Chi','Journal 2024'),{...paper,authors:'Ed H. Chi, Ed Chi'},edition),/저자/);
+  await assert.rejects(verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed H. Chi, Ed Chi'}),/저자/);
+  await assert.rejects(verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed Chi, Ed Chi'}),/저자/);
+  await verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed H. Chi, Ed Chi'},['Ed J. Chi','Journal 2024']);
   for(const author of ['Edward H. Chi','Ed Henry Chi','Ed H. Chin','Ted H. Chi','Ed XChi']) {
     await assert.rejects(verify(paper.title,author),/저자/);
   }
