@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 assert.ok(process.env.npm_execpath, 'Run this check with npm run test:package');
 const root = process.cwd();
@@ -95,7 +96,31 @@ put(resultPath, { input_sha256: sha(readFileSync(inputPath)), reviewer: 'synthet
   source_checks: [{ paper_id: 'paper-a', pdf_sha256: saved.file.sha256 }] });
 config.claim_reviews.push({ input: 'input.json', result: 'result.json', result_sha256: sha(readFileSync(resultPath)) }); put(configPath, config);
 assert.deepEqual(topic('comparison-input').claims.map(c => c.claim_id), ['c1']);
+put(path.join(topicDir, 'comparison.json'), { version: 1, question: 'Synthetic package question', criteria: [{
+  id: 'evaluation', title: '평가 조건', rationale: 'Synthetic AI grouping only', refs: [{ key: 'a', claim_id: 'c1' }]
+}] });
+const comparison = topic('compare', '--json');
+assert.deepEqual(comparison.criteria[0].groups.map(group => group.claims.length), [1, 0]);
+assert.equal(comparison.relations.length, 0);
+// Load from the installed package: assets must not fall back to source-tree files.
+const { serveComparison } = await import(pathToFileURL(path.join(installed, 'dist/web/comparison-server.js')).href);
+const originalLog = console.log;
+let comparisonUrl, comparisonServer;
+try {
+  console.log = value => { comparisonUrl = JSON.parse(value).url; };
+  comparisonServer = await serveComparison(topicDir);
+} finally { console.log = originalLog; }
+try {
+  for (const asset of ['', 'comparison.js', 'comparison.css', 'reader-base.css', 'research-map.js', 'cytoscape.min.js', 'data']) {
+    const response = await fetch(comparisonUrl + asset);
+    assert.equal(response.status, 200, asset);
+    assert.ok((await response.arrayBuffer()).byteLength, asset);
+  }
+  assert.deepEqual(Buffer.from(await (await fetch(comparisonUrl + `file/1/pdf/${saved.file.sha256}`)).arrayBuffer()), readFileSync(saved.file.path));
+} finally { await new Promise(resolve => comparisonServer.close(resolve)); }
+console.log(`Installed comparison: current claims, missing side, all local assets and exact PDF passed (${process.version}/${process.platform}).`);
 data.claims[0].conditions = 'Changed condition';
 writeFileSync(cardPath, `---\n${JSON.stringify(data)}\n---\n# Synthetic a\n`);
 assert.equal(topic('comparison-input').claims.length, 0);
+assert.equal(topic('compare', '--json').criteria[0].groups[0].claims.length, 0);
 console.log(`Installed analysis: one document, fresh-process resume, current supported candidate only, condition invalidation (${process.version}/${process.platform}).`);

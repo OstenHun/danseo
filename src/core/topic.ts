@@ -21,6 +21,7 @@ const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
   select --ids <stable numbers, comma-separated> [--round <shown search round>] [--note <reader's reason>]
   unselect --ids <stable numbers, comma-separated>
   show
+  compare [--port 0 | --json]       Current topic comparison (comparison.json)
   sources | collect | unavailable | decide   See danseo topic collect --help
 All actions return JSON. Search uses candidates verified by the chat agent.`;
 const ajv = new Ajv();
@@ -114,6 +115,10 @@ export async function runTopic(args: string[]) {
 }
 
 async function executeTopic(args: string[]) {
+  if (args[0] === 'compare') {
+    const { runComparison } = await import('./comparison.js');
+    return runComparison(args);
+  }
   if (['analysis-open', 'analysis-save', 'analysis-list', 'comparison-input'].includes(args[0] ?? '')) {
     const { runAnalysis } = await import('./analysis.js');
     return runAnalysis(args);

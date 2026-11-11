@@ -36,7 +36,7 @@ const resultValid = ajv.compile(object({
 
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 const requireValue = (value: unknown, message: string) => { if (!value) throw new Error(message); };
-function validReviewTime(value: string) {
+export function validReviewTime(value: string) {
   const parts = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!parts || !Number.isFinite(Date.parse(value))) return false;
   const year = Number(parts[1]), month = Number(parts[2]), day = Number(parts[3]);
