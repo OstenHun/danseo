@@ -4,6 +4,11 @@
 
 갱신: 2026-11-11 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
+## 비교 프런트 TypeScript 전환 — 2026-11-12
+
+- 비교 화면·공통 지도를 strict TypeScript로 전환하고 기존 `Comparison`·Cytoscape 타입과 선택·DOM·준비 상태를 연결했다. 일반 `defer` script 출력과 서버 NodeNext 빌드를 분리했다. [구조·빌드·검사](docs/RESEARCH_COMPARISON.md#프런트-개발과-타입-검사).
+- Windows / Node 24.22.2에서 전체 회귀 79/79, `npm run test:package`의 최신 재빌드·설치 자산 대조, `npm run check:docs`를 확인했다. `tests/frontend.test.mjs`와 `scripts/package-smoke.mjs`가 재현 가능한 검사다. 현재 작업은 로컬 diff이며 새 커밋·GitHub CI·게시·병합 결과가 아니다.
+
 ## PTP-012 — 주제의 연구 비교 그래프
 
 - 3단계 PR #3의 `11051a8`에서 분리한 후 병합 main `b3522c4`와 동일 트리를 확인했다. `topic compare`는 현재 `comparison-input`과 주제의 명시적 기준을 읽고 기존 관계·지도·Fieldnotes UI로 투영한다. [사용법·형식·재개·경계](docs/RESEARCH_COMPARISON.md).

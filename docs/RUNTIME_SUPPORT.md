@@ -63,3 +63,7 @@ PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Nod
 2026-11-11 연구 비교는 선행 Windows·Ubuntu Node22/24, macOS Node24와 Node26 비차단 행렬 및 보안 하한을 유지한다. 로컬은 Windows Node24.22.2다. [PR #4](https://github.com/OstenHun/danseo/pull/4)의 최신 head CI와 작업 로그에서 실제 Node 패치·전체 회귀·설치본 자산/PDF 반환 결과를 확인한다. 초기 Windows 짧은 경로·macOS 별칭 경로의 직접 API 검사 실패를 비교 진입점의 realpath 정규화로 수정했으며 파일 경계 검사는 유지했다. 지문 키는 로케일에 무관한 순서로 고정한다. [사용법과 제한](RESEARCH_COMPARISON.md).
 
 개발 포함·제외 잠금 파일 감사와 [공식 Node 배포 목록](https://nodejs.org/dist/index.json)을 확인했으며 전역 런타임을 교체하지 않았다. macOS CI는 실행 환경 검사이며 앱의 폴더 권한 UI나 사람의 화면·학습 평가를 대신하지 않는다.
+
+## 비교 프런트 TypeScript 전환 검사
+
+2026-11-12 KST, Windows / Node 24.22.2에서 strict 서버·브라우저 빌드와 전체 79개 회귀를 통과했다. `npm run test:package`는 최신 소스를 재빌드해 별도 소비자 폴더에 tarball을 설치하고, HTTP 자산의 바이트와 일반 script 문법·현재 근거·PDF 반환을 검사한다. `npm run check:docs`도 통과했다. [실행 목록](../TASKS.md)의 전환 항목과 [개발 계약](RESEARCH_COMPARISON.md#프런트-개발과-타입-검사)을 따른다. 이번 로컬 diff의 다른 OS·Node 계열 및 GitHub CI는 미실행이며 기존 main의 CI와 구분한다.

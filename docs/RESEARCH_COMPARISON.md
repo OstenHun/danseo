@@ -57,4 +57,12 @@ node dist/cli.js topic compare --dir /my/topic
 
 ## 재사용 출처
 
-로컬 개발본의 `research-map.js`, `reader-base.css`, `dependencies.ts`, `relations.schema.json`을 선별해 재사용했다. 지도에 비교 투영만 추가하고 기존 scene을 보존했다. 기존 [Figma 초안](https://www.figma.com/design/IQKRYDlSKcOV0Bltv7qO6C?node-id=11-2)의 지도·근거 패널 구조와 현재 Fieldnotes 토큰을 사용한다. Figma 레이어는 수정하지 않았다.
+로컬 개발본의 `research-map.ts`, `reader-base.css`, `dependencies.ts`, `relations.schema.json`을 선별해 재사용했다. 지도에 비교 투영만 추가하고 기존 scene을 보존했다. 기존 [Figma 초안](https://www.figma.com/design/IQKRYDlSKcOV0Bltv7qO6C?node-id=11-2)의 지도·근거 패널 구조와 현재 Fieldnotes 토큰을 사용한다. Figma 레이어는 수정하지 않았다.
+
+## 프런트 개발과 타입 검사
+
+비교 컨트롤러는 `src/web/comparison.ts`, 공통 지도는 `src/views/research-map.ts`다. 화면 계약은 `src/web/browser-types.d.ts`에서 기존 core의 `Comparison`과 Cytoscape 타입을 참조한다. 응답의 선택 논문은 원문·분석 문서가 준비되지 않을 수 있으며, 화면 ID가 있다는 사실만으로 PDF 링크를 만들지 않는다. 응답 타입 표시는 런타임 JSON 검증이 아니다. 서버의 기존 파일·원문·검토 검사를 유지한다.
+
+`npm run build`는 NodeNext 서버 빌드와 별도의 strict 브라우저 검사를 먼저 실행한다. 이어 두 브라우저 엔트리만 일반 script로 출력하고 HTML·CSS·설치된 Cytoscape 자산을 복사한다. 브라우저에는 Node import나 ESM 표식을 출력하지 않으며 기존 Cytoscape → 지도 → 비교 컨트롤러의 `defer` 순서를 유지한다. JavaScript 사본을 소스에 따로 두지 않는다.
+
+`npm test`는 필드 오타·잘못된 선택 종류·미준비 원문 접근을 거부하는 타입 검사와 일반 script 문법·기존 지도 분기 검사를 포함한다. `npm run test:package`도 최신 소스를 재빌드한 뒤 설치본 자산과 현재 빌드의 바이트를 대조한다. 테스트 통과와 실제 화면 검증·사람의 사용 평가는 구분한다.
