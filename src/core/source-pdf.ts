@@ -80,8 +80,9 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     const authors = paper.authors.replace(/\s*(?:외(?:\s*\d+\s*명)?|et\s+al\.?)\s*$/iu, '')
       .split(/\s*(?:[,;&]|\band\b)\s*/iu).filter(Boolean);
     const authorTokens = authors.map(words);
-    const exact = authorTokens.map(tokens => tokens.length ? front.search(new RegExp('(?<![\\p{L}\\p{N}])'
-      + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu')) : -1);
+    const exactMatches = authorTokens.map(tokens => tokens.length ? new RegExp('(?<![\\p{L}\\p{N}])'
+      + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu').exec(front) : null);
+    const exact = exactMatches.map(match => match?.index ?? -1);
     const known = exact.filter(index => index >= 0);
     if (!known.length) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
     // Establish the complete title using an exact coauthor before permitting
@@ -92,7 +93,7 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
     if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
       throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
     }
-    const occupied = exact.filter(index => index >= 0);
+    const occupied = exactMatches.flatMap(match => match ? [{ start: match.index, end: match.index + match[0].length }] : []);
     const byline = authorTokens.map((tokens, index) => {
       if (exact[index]! >= 0 || tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact[index]!;
       // Match a complete name item after the verified title boundary; never
@@ -101,9 +102,9 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       let offset = 0;
       for (const run of frontRuns) {
         if (offset + run.length > front.length) break;
-        if (offset >= titleEnd && !occupied.some(position => position >= offset && position < offset + run.length) && initials.test(run)) {
+        if (offset >= titleEnd && !occupied.some(range => range.start < offset + run.length && offset < range.end) && initials.test(run)) {
           const position = offset + run.search(/\S/u);
-          occupied.push(position);
+          occupied.push({ start: offset, end: offset + run.length });
           return position;
         }
         offset += run.length + 1;

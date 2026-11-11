@@ -23,6 +23,9 @@ test('catalogue may omit Latin middle initials without accepting a different aut
   await assert.rejects(verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed H. Chi, Ed Chi'}),/저자/);
   await assert.rejects(verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed Chi, Ed Chi'}),/저자/);
   await verify(paper.title,'Ed H. Chi',{...paper,authors:'Alice Lee, Ed H. Chi, Ed Chi'},['Ed J. Chi','Journal 2024']);
+  const split={...paper,authors:'Alice Lee, Mary Anne H. Smith, Anne Smith'};
+  await assert.rejects(verifyPdf(pdf([paper.title,'Alice Lee','Mary'],'Anne H. Smith','Journal 2024'),split,edition),/저자/);
+  await verifyPdf(pdf([paper.title,'Alice Lee','Mary'],'Anne H. Smith',['Anne J. Smith','Journal 2024']),split,edition);
   for(const author of ['Edward H. Chi','Ed Henry Chi','Ed H. Chin','Ted H. Chi','Ed XChi']) {
     await assert.rejects(verify(paper.title,author),/저자/);
   }
