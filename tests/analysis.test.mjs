@@ -395,9 +395,10 @@ import { syncBuiltinESMExports } from 'node:module';
 import { spawnSync } from 'node:child_process';
 const original = fs.readFile;
 let attempted = false;
+const bookPath = await fs.realpath(${JSON.stringify(bookPath)});
 fs.readFile = async function(path, ...args) {
   const bytes = await original(path, ...args);
-  if (!attempted && String(path) === ${JSON.stringify(bookPath)}) {
+  if (!attempted && String(path) === bookPath) {
     attempted = true;
     const result = spawnSync(process.execPath, [${JSON.stringify(cli)}, 'topic', 'decide', '--dir', ${JSON.stringify(f.topic)}, '--id', '2', '--round', '1', '--sha', ${JSON.stringify(file.sha256)}, '--answer', 'decline'], { encoding: 'utf8' });
     await fs.writeFile(${JSON.stringify(observed)}, JSON.stringify({status: result.status, stderr: result.stderr}));
