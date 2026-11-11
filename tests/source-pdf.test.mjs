@@ -11,6 +11,9 @@ test('catalogue may omit Latin middle initials without accepting a different aut
   await verify(paper.title,'Ed H. Chi');
   await verify(paper.title,'Ed H. J. Chi');
   await verify(paper.title,'Ed H. Chi',paper,['ed.chi@example.org','Journal 2024']);
+  const interview={...paper,title:'An Interview with Ed H. Chi'};
+  await verify(['An Interview with','Ed H. Chi'],'Ed Chi',interview);
+  await verify(['Proceedings of Example Conference','An Interview with','Ed H. Chi'],'Ed Chi',interview);
   for(const author of ['Edward H. Chi','Ed Henry Chi','Ed H. Chin','Ted H. Chi','Ed XChi']) {
     await assert.rejects(verify(paper.title,author),/저자/);
   }
