@@ -1,107 +1,116 @@
-# Danseo
+<p align="center">
+  <img src="assets/brand/icon.svg" width="112" alt="Danseo logo">
+</p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
-  <source media="(max-width: 640px)" srcset="assets/brand/banner-compact-light.svg">
-  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
-  <img src="assets/brand/banner-light.svg" alt="Danseo — research evidence, project decisions." width="100%">
-</picture>
+<h1 align="center">Danseo</h1>
 
-**Bring research evidence into project decisions.**
+<p align="center">
+  <strong>Bring research evidence into project decisions.</strong><br>
+  Keep sources, answers and comparisons with your existing AI agent.
+</p>
 
-Danseo (단서) means “clue” in Korean: a clue from research to inform your next project decision. See [the name and identifiers](docs/NAMING.md).
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg" alt="Node.js 22 or 24 LTS">
+  <img src="https://img.shields.io/badge/status-development_preview-orange.svg" alt="Development preview">
+</p>
 
-Summary: Keep paper choices, source PDFs, answers and comparison evidence in local files with your existing AI agent. A development preview with a CLI and a read-only research comparison view.
+<p align="center">
+  <a href="README.md">한국어 — default</a> · <strong>English</strong> · <a href="#quick-start">Quick start</a> · <a href="docs/CLI.en.md">Guide</a> · <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
-![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
+Summary: Keep paper choices, sources, answers and comparison evidence in local files with your existing AI agent. A development preview with a CLI and a read-only research comparison view.
 
-[한국어 — default](README.md) · English · [Quick start](#quick-start) · [Setup and workflow](docs/CLI.en.md) · [Contributing](CONTRIBUTING.md)
+<p align="center">
+  <img src="assets/readme/comparison-preview.jpg" width="960" alt="Danseo comparing synthetic Paper A and Paper B, a criterion, source relationships and AI proposals">
+  <br><sub>Running comparison view with synthetic data, not real papers or research results.</sub>
+</p>
 
-## Why Danseo?
+A summary alone rarely tells you enough to apply a paper. You need its evaluation conditions, exact source locations and a way to revisit earlier decisions in another chat.
 
-A paper summary rarely tells you everything needed to use a method in a project. You also need the evaluation conditions, the source location, and a record of why you chose to apply, test, or defer it.
+Danseo (단서) means “clue” in Korean. It separates shared paper claims from project decisions, so several projects can reference the same evidence. [Name and identifiers](docs/NAMING.md)
 
-Danseo keeps shared research records separate from project decisions. Multiple projects can reference the same claim while making different decisions about it.
+## From finding papers to comparing evidence
 
-```text
-Paper        Claims, conditions, source locations, review status
-   ↓ claim IDs
-Application  Project question and application decision
-   ↓ validate → export
-Agent        Read evidence → compare conditions → revisit sources
-```
+| Step | What you keep |
+| --- | --- |
+| **Find and select** | Search rounds, stable numbers, and each selection's source, edition and reason |
+| **Collect sources** | Managed PDF copies or existing-file links, identity and edition checks, and preprint consent |
+| **Analyze and resume** | Shared Paper cards, topic-specific Markdown answers and notes, follow-up questions and reading positions |
+| **Compare research** | Claims with current source-support reviews, conditions, limits, source locations and AI reasons |
+
+Select a paper or criterion in `topic compare` to return to its PDF and analysis document. Source relationships and AI proposals stay distinct; changed or missing evidence is held back. [Comparison reference](docs/RESEARCH_COMPARISON.md)
+
+**Your agent performs search, downloads, reading and comparison-criteria writing.** Danseo connects those records; it has no built-in LLM or automatic summarizer. Comparison requires agent-prepared Paper cards, claim-review files and `comparison.json`.
 
 ## Quick start
 
-Requires **Node.js 22.x or 24.x LTS and npm**. Use the latest 24.x patch for a new installation. Run from a downloaded source directory. There is no published npm package yet; do not install an unrelated package with the same name. The [runtime policy](docs/RUNTIME_SUPPORT.md) separates supported versions, the recommended version, and actual verification.
+Requires **Node.js 22 or 24 LTS and npm**; use the latest 24.x patch for a new installation. Repository access is required while it is private. There is no npm registry release; do not install an unrelated package with the same name.
 
-This is a short synthetic demo. The [English setup guide](docs/CLI.en.md) covers source installation, private workspaces, agent connection and source-access failures. The [Korean reference](docs/CLI.md) covers the full format.
+Run inside the source directory:
 
 ```sh
 npm ci
 npm run build
 node ./dist/cli.js validate --workspace ./examples/minimal --json
-node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
 ```
 
-Validation reports `ok: true`, 3 records, 2 projects, and a draft warning. The fixture is synthetic, so the warning is expected. `--include-drafts` permits exploratory export without changing its review status. Validation checks structure and references, not scientific truth or reproducibility. Some CLI messages and the fixture are currently in Korean.
+The synthetic example reports `ok: true`, 3 records, 2 projects and an expected draft warning. Validation checks structure and references. [Runtime support](docs/RUNTIME_SUPPORT.md)
 
-### Find and revisit papers for your topic
+### Start with your own question
 
-Give an existing AI agent the absolute tool directory, `skills/danseo/SKILL.md`, and a private topic directory. The agent needs file and shell access; finding papers also requires its own search tools.
+Give an AI agent with file and shell access the absolute Danseo directory and a private topic directory. Finding papers also requires the agent's search tools.
 
 ```text
 Read skills/danseo/SKILL.md in this Danseo directory.
-Find papers for my research question using the private topic directory I provide.
+Find papers for my research question using my private topic directory.
 Show sources, editions and recommendation reasons so I can choose.
 ```
 
-Continue with “Collect the sources I chose”, “Read paper 1 and answer this question”, or “Compare these papers using the evidence checked so far”. Supply the same tool, skill and topic directory in a new chat. The [English workflow guide](docs/CLI.en.md#find-collect-analyze-and-compare) explains each step and its prerequisites.
+1. Choose candidates, then ask **“Collect the sources I chose”** in the same directory.
+2. Ask **“Read paper 1 and answer this question”** to preserve answers and source locations.
+3. Ask **“Compare these papers using the evidence checked so far”** to prepare criteria and the view.
 
-## What works today
+In a new chat, supply the same tool, skill and topic directory. The [English workflow guide](docs/CLI.en.md#find-collect-analyze-and-compare) covers all four steps. The bundled skill, UI and some diagnostics are in Korean.
 
-| Command or feature | Purpose |
+<details>
+<summary><strong>Connect existing cards and projects</strong></summary>
+
+Paper records describe claims and sources; Application records describe project decisions. Register explicit paths using the [synthetic workspace](examples/minimal/workspace.json), then give your agent the [four connection values](docs/CLI.en.md#connect-your-own-workspace).
+
+`validate` checks structure and references; `list`/`show` read cards; `export` emits the current question and linked cards as Markdown or JSON. Original content, comments, extension fields and source locations are preserved. `--out` creates a new file only.
+
+```sh
+node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
+```
+
+The fixture is a draft, so it requires `--include-drafts`. This flag does not change review status. [Card model](docs/CARD_MODEL.md)
+
+</details>
+
+## Local files, explicit decisions
+
+- Keep private PDFs, topic records and cards outside the product source. Exports include full card content and absolute paths; inspect them before sharing.
+- No model key, database or permanent server is required. The CLI makes no outbound requests; only the comparison view starts a local read-only server, stopped with Ctrl+C. Agent search, downloads and model transmission follow that agent's settings and permissions.
+- Keep author claims, AI interpretations, project observations and adoption decisions separate. Structural validation and source-support reviews do not certify reproducibility or user understanding.
+
+## Documentation
+
+| Start here | Contents |
 | --- | --- |
-| `validate` | Check schemas, IDs, claim references, and project paths |
-| `list` / `show` | Find project records and read original cards |
-| `export` | Export an Application and linked Papers as Markdown or JSON |
-| Evidence preservation | Keep original content, comments, extension fields, hashes, paths, and review status |
-| Agent skill | Guide evidence reading, condition comparison, and source verification |
-| Find and select | Save search rounds, stable numbers, and each selection's source, edition and reason |
-| Collect sources | Store a managed copy of an agent-supplied PDF or link an existing file; check title, authors and edition; record preprint consent |
-| Analyze and resume | Link shared Paper cards to topic-specific Markdown answers and notes; append answers and resume in a fresh process |
-| `topic compare` | Use claims with current source-support reviews in a read-only graph of conditions, sources and AI reasons |
+| [English guide](docs/CLI.en.md) · [Korean CLI](docs/CLI.md) | Installation, topic workflow, workspaces and agent setup |
+| [Analysis and resume](docs/PAPER_ANALYSIS.md) · [Research comparison](docs/RESEARCH_COMPARISON.md) | Paper-specific answers, criteria and source links |
+| [Agent skill](skills/danseo/SKILL.md) · [Compatibility](docs/AGENT_COMPATIBILITY.md) | Evidence reading and tested integration scope |
+| [Documentation index](docs/README.md) · [Release preparation](docs/OPEN_SOURCE.md) | Models, design, verification and candidate scope |
 
-**Your agent performs search, downloads, reading and comparison-criteria writing.** Comparison requires Paper cards, claim-review files and `comparison.json`, prepared by the agent using the [bundled skill](skills/danseo/SKILL.md). The CLI does not independently verify a paper's claims.
+## Development status
 
-The CLI needs no model key, database or permanent server and makes no outbound requests. Topic commands write selection, source and analysis records in the specified private directory. Only `topic compare` starts a local read-only server; stop it with Ctrl+C. The existing card export's `--out` creates a new file only. Agent search, downloads and model calls follow that agent's capabilities and permissions.
+`0.1.0-dev.1` is a development preview; the CLI and file formats may change. The candidate covers find, collect, analyze, compare and existing card exports. The card editor, separate learning-HTML skill, autonomous experiments, site submissions and MCP server are not included. Desktop use is in scope; mobile support and testing are excluded.
 
-## Use your own research
-
-Create a private workspace using [the synthetic example](examples/minimal/workspace.json). Register explicit card paths and projects. Follow the [English setup guide](docs/CLI.en.md#connect-your-own-workspace) for the four agent connection values and commands, reusing existing setup when available. The [skill](skills/danseo/SKILL.md) guides your agent through reading the bundle, the current project question, and any necessary sources before making a recommendation. The skill and some CLI messages are currently in Korean; the English guide explains the required evidence-reading flow.
-
-Paper records describe research claims and sources. Application records describe project decisions. Keep author claims, AI interpretations, project observations, and adoption decisions distinct.
-
-**Before sharing:** exports include full card content and local absolute paths. Review them before sharing with another person or an external AI service. Your agent's provider and permissions determine whether it sends that material externally.
-
-## Status and roadmap
-
-Version `0.1.0-dev.1` is a development preview. The schema and CLI may change.
-
-- This candidate: find → collect → analyze and resume → compare, existing card validation and export, the agent skill and synthetic examples.
-- Not included in this source: the card editor and a separate learning-HTML generation skill. Features in a local development copy are not part of this candidate.
-- Separate evaluation: human use across new chats, understanding and learning effects. Desktop use is in scope; mobile support and testing are excluded.
-
-Automatic PDF summaries, a built-in LLM, autonomous experiments, site submissions and an MCP server are not included. CI for main `d5fbc4b` passed on Windows and Ubuntu with Node 22/24 and macOS with Node 24. Node 26 is a non-blocking compatibility preview. The repository is currently private. See [release preparation](docs/OPEN_SOURCE.md), [runtime evidence](docs/RUNTIME_SUPPORT.md), and [tasks](TASKS.md) for the candidate's checks and remaining transition steps.
-
-Korean remains the primary documentation language. The bundled skill, UI and some diagnostics are in Korean; the [English guide](docs/CLI.en.md) covers installation and the four-step workflow.
+Automated and installed-package checks are separate from human usage and learning-effect evaluation. [Runtime evidence](docs/RUNTIME_SUPPORT.md) · [Tasks](TASKS.md)
 
 ## Contributing and license
 
-The editable design source, logo, banners, and social preview are listed in [brand assets](assets/brand/README.md).
+Bug reproductions, clearer guides, synthetic examples and platform reports are welcome. Read [CONTRIBUTING](CONTRIBUTING.md) and [SECURITY](SECURITY.md); do not attach private research or model logs to public reports.
 
-Bug reproductions, documentation improvements, synthetic examples, and platform reports are welcome. Read [CONTRIBUTING](CONTRIBUTING.md) and [SECURITY](SECURITY.md). Do not attach private research, documents, or model logs to public reports.
-
-Project code, documentation, skill, and synthetic examples use the [MIT License](LICENSE). Papers, datasets, and user-supplied material retain their own terms. See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies.
+Code, documentation, skill and synthetic examples use the [MIT License](LICENSE). Papers, datasets and user material retain their own terms. [Third-party notices](THIRD_PARTY_NOTICES.md) · [Brand assets](assets/brand/README.md)

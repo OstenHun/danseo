@@ -33,6 +33,7 @@
     "THIRD_PARTY_NOTICES.md",
     "third-party-licenses",
     "assets/brand",
+    "assets/readme",
     "!**/.gitkeep"
   ],
   "scripts": {
