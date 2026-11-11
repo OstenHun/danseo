@@ -34,3 +34,6 @@ Thumbs.db
 *.danseo-lock
 .topic-*.tmp
 .analysis-*.tmp
+
+# Compiled development tools (never packaged)
+/build-tools/

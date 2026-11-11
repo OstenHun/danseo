@@ -4,6 +4,13 @@
 
 갱신: 2026-11-12 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
+## 남은 JavaScript 테스트·도구 TypeScript 전환 — 2026-11-12 / Local verification
+
+- 최신 원격 main 856ad2c에서 남은 테스트6개와 도구5개의 npm·import·CI·패키지 사용처를 확인했다. 모두 필요해 기능은 유지하고 .ts로 전환했다. 설치 검사는 tests/package-smoke.ts로 옮겨 제품·테스트 출력에 대한 빌드 순환을 피했다. 불필요한 구현 삭제나 언어 통계 설정 변경은 없다.
+- scripts/는 제품보다 먼저 build-tools/에, 테스트·설치 검사는 제품 선언을 사용해 build/에 strict 컴파일한다. npm test는 생성된 테스트만 실행하고 이전 출력을 제거한다. [개발·검사 방법](CONTRIBUTING.md#공통-테스트-fixture-수정).
+- Windows / Node24.22.2·22.23.4에서 전체80/80과 설치 패키지를 통과했다. Node22는 생성 폴더를 비우고 의존성 설치·문서 도구 bootstrap부터 확인했다. 기존 테스트 이름·assertion 수·PDF4건과 제품 산출물31개의 바이트 동일성, stale 테스트 제거, 문서231개를 대조했다.
+- 실제 명령·출력 보존·설치본·독립 완료 리뷰와 한계의 로컬 정본은 work/remaining-javascript-typescript-20261112/RESULT.md다. 이번 변경의 커밋·푸시·PR·CI·병합·배포는 수행하지 않는다.
+
 ## 공통 helper·분석·비교 테스트 TypeScript 전환 — 2026-11-12
 
 - 공통 helper2개와 분석·비교 테스트 본문을 .ts로 전환했다. 분석 테스트의 중복 준비 함수를 통합하고 JSDoc 검사 설정을 테스트용 strict 빌드로 교체했다. [수정·검사 방법](CONTRIBUTING.md#공통-테스트-fixture-수정).

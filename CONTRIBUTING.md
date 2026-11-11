@@ -20,17 +20,24 @@ node ./dist/cli.js validate --workspace ./examples/minimal --json
 
 ## 공통 테스트 fixture 수정
 
-공통 helper와 분석·비교 테스트는 TypeScript로 작성한다. 제품 빌드가 dist/의 JavaScript와 타입 선언을 만들고, 테스트 빌드가 실제 제품 선언을 사용해 strict·noUncheckedIndexedAccess로 검사한 뒤 build/에 ESM JavaScript를 출력한다. Node 22·24는 이 출력과 남은 .mjs 테스트를 기존 node:test로 실행한다. 새 실행기는 필요하지 않다.
+테스트 본문·공통 helper·개발 도구는 TypeScript로 작성한다. 기존 컴파일러의 strict·noUncheckedIndexedAccess·noEmitOnError로 검사하고, Node 22·24가 출력된 JavaScript를 기존 node:test로 실행한다. 새 실행기나 Node의 native 타입 제거는 사용하지 않는다.
 
 ```sh
+npm run build:tools
 npm run check:tests
 npm test
 npm run test:package
+npm run check:docs
 ```
 
-check:tests는 제품을 먼저 빌드하고 테스트를 출력 없이 검사한다. build:tests는 제품 빌드 → 이전 테스트 출력 정리 → 테스트 검사·출력 순서다. npm test와 test:package는 build:tests를 선행하므로 깨끗한 checkout에서도 helper를 읽을 수 있다. build/는 테스트 전용이며 패키지에 포함하지 않는다. 테스트 출력은 원본 tests/와 같은 상대 깊이를 유지해 실제 dist/의 CLI·서버·브라우저 자산을 사용한다. collection·source-pdf의 .mjs 테스트와 설치 검사도 변환한 PDF helper를 가져온다.
+- build:tools는 제품이나 테스트 출력에 의존하지 않는 scripts/의 도구를 build-tools/로 컴파일한다. build와 check:docs가 먼저 호출하므로 출력이 없는 checkout에서도 실행할 수 있다.
+- build는 도구 빌드 → 제품 JavaScript·타입 선언 → 브라우저 검사 → classic script·자산 생성 순서다. 브라우저 실행용 JavaScript와 Cytoscape 배포 파일은 필요한 생성·외부 산출물이다.
+- check:tests는 제품을 빌드한 뒤 실제 테스트 본문과 tests/package-smoke.ts를 출력 없이 검사한다. build:tests는 제품 빌드 → 이전 build/ 전체 제거 → 테스트 검사·출력 순서다. npm test는 build/*.test.js만 실행해 이전 소스와 중복 실행하지 않는다.
+- test:package는 build:tests 후 build/package-smoke.js로 tarball을 설치해 검사한다. PDF helper도 같은 테스트 빌드에서 가져온다. tests/와 build/, scripts/와 build-tools/의 상대 깊이를 유지해 실제 dist/와 자산을 읽는다.
 
-analysis.test.ts와 comparison.test.ts의 본문 전체를 검사하며, fixture-types.test.mjs는 실제 helper를 가져온 소비자의 정상 호출과 잘못된 인자·명령·응답 필드6건을 대조한다. 남은 .mjs 테스트 본문 전체의 타입 검사는 이번 범위에 포함하지 않는다.
+build/·build-tools/는 개발 출력이며 설치 패키지에서 제외한다. 소스에서 개발할 때는 npm ci로 개발 의존성까지 설치해야 한다. 설치 패키지의 CLI는 포함된 dist/를 실행하며 컴파일러나 테스트 출력에 의존하지 않는다.
+
+fixture-types.test.ts와 frontend.test.ts는 실제 소비자 계약의 정상 호출과 잘못된 인자·명령·필드·선택을 대조한다. VM에서는 외부 실행 결과에 MapAPI 계약을 연결하고 API 존재를 확인한다. Cytoscape가 없는 fallback 검사의 빈 DOM 컨테이너 단언은 해당 분기가 DOM에 접근하지 않는 조건에만 사용한다.
 
 ok()는 CLI 성공 여부를 확인한 뒤 명령별 응답 타입을 제공한다. parseJson()의 명시적 타입 경계는 런타임 JSON 검증을 대신하지 않는다. 고의 손상 입력·잘못된 요청을 검증하는 테스트는 json()과 run()을 사용한다. required()는 fixture 항목의 존재를 실행 중에도 확인한다. 제품 카드·주장·검토 타입은 dist/의 선언을 참조하고 테스트 전용 계약은 fixture-types.ts에 둔다.
 

@@ -12,8 +12,8 @@ for (const file of files.filter(file => file.endsWith('.md'))) {
   const summary = source.match(/^(?:요약|Summary): (.+)$/m)?.[1];
   if (summary) assert.ok([...summary].length <= 200, `${file}: summary exceeds 200 characters`);
   const prose = source.replace(/```[\s\S]*?```/g, '');
-  const targets = [...prose.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)].map(match => match[1]);
-  targets.push(...[...prose.matchAll(/(?:src|srcset)="([^"]+)"/g)].map(match => match[1]));
+  const targets = [...prose.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)].map(match => match[1] ?? '');
+  targets.push(...[...prose.matchAll(/(?:src|srcset)="([^"]+)"/g)].map(match => match[1] ?? ''));
   for (const href of targets) {
     const clean = href.split('#')[0];
     if (!clean || /^[a-z]+:/i.test(clean)) continue;

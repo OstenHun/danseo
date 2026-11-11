@@ -5,10 +5,11 @@ import ts from 'typescript';
 
 test('shared fixture contracts reject invalid inputs, command names and response fields', () => {
   const configPath = ts.findConfigFile(process.cwd(), ts.sys.fileExists, 'tsconfig.tests.json');
+  assert.ok(configPath, 'Expected TypeScript configuration');
   const config = ts.readConfigFile(configPath, ts.sys.readFile);
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, process.cwd());
   const probe = resolve('tests/helpers/consumer-probe.ts').replaceAll('\\', '/');
-  function diagnostics(source) {
+  function diagnostics(source: string) {
     const host = ts.createCompilerHost(parsed.options);
     const original = host.getSourceFile;
     host.getSourceFile = (file, language, ...rest) => file === probe

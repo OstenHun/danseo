@@ -1,4 +1,8 @@
-import { pdf } from '../build/helpers/source-pdf.js';
+import { pdf } from './helpers/source-pdf.js';
+import { parseJson, required } from './helpers/analysis-fixture.js';
+import type { FixtureClaim, FixtureConfig, TopicOutputs } from './helpers/fixture-types.js';
+import type { SelectedPaper } from '../dist/core/topic.js';
+import type { serveComparison as ServeComparison } from '../dist/web/comparison-server.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -8,24 +12,26 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Script } from 'node:vm';
 
-assert.ok(process.env.npm_execpath, 'Run this check with npm run test:package');
+const npmPath = process.env.npm_execpath;
+assert.ok(npmPath, 'Run this check with npm run test:package');
 const root = process.cwd();
 const scratch = mkdtempSync(path.join(tmpdir(), 'danseo-package-'));
 const consumer = path.join(scratch, 'consumer');
 mkdirSync(consumer);
-const npm = (args, cwd = root) => execFileSync(process.execPath, [process.env.npm_execpath, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-const [pack] = JSON.parse(npm(['pack', '--json', '--pack-destination', scratch]));
+const npm = (args: string[], cwd = root) => execFileSync(process.execPath, [npmPath, ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+type Pack = { filename: string; files: { path: string }[] };
+const pack = required(parseJson<Pack[]>(npm(['pack', '--json', '--pack-destination', scratch]))[0]);
 assert.ok(pack.files.some(file => file.path === 'dist/cli.js'));
-assert.ok(pack.files.every(file => !/^(work|workspaces|private|outputs|node_modules)\//.test(file.path)));
+assert.ok(pack.files.every(file => !/^(work|workspaces|private|outputs|node_modules|tests|scripts|build|build-tools)\//.test(file.path)));
 assert.ok(pack.files.every(file => !/(^|\/)(?:\.git|\.env(?:\..*)?|\.npmrc|\.aws|\.codex)(?:\/|$)|\.(?:pem|key|pfx|p12|bundle|har|jsonl|pdf|log)$/i.test(file.path)), 'Private files must not be packaged');
 npm(['install', '--prefix', consumer, '--prefer-offline', '--ignore-scripts', '--no-audit', '--no-fund', path.join(scratch, pack.filename)], consumer);
 const installed = path.join(consumer, 'node_modules', 'danseo');
-const manifest = JSON.parse(readFileSync(path.join(installed, 'package.json'), 'utf8'));
+const manifest = parseJson<{ bin: { danseo: string } }>(readFileSync(path.join(installed, 'package.json'), 'utf8'));
 assert.equal(manifest.bin.danseo, 'dist/cli.js');
-const cli = (...args) => execFileSync(process.execPath, [path.join(installed, manifest.bin.danseo), ...args], { cwd: consumer, encoding: 'utf8' });
+const cli = (...args: string[]) => execFileSync(process.execPath, [path.join(installed, manifest.bin.danseo), ...args], { cwd: consumer, encoding: 'utf8' });
 assert.match(cli('--help'), /danseo/);
 const workspace = path.join(installed, 'examples', 'minimal');
-const validation = JSON.parse(cli('validate', '--workspace', workspace, '--json'));
+const validation = parseJson<{ ok: boolean; records: number; projects: number }>(cli('validate', '--workspace', workspace, '--json'));
 assert.equal(validation.ok, true);
 assert.equal(validation.records, 3);
 assert.equal(validation.projects, 2);
@@ -34,15 +40,17 @@ console.log(`Installed ${pack.filename}: help, synthetic validation and export p
 
 // Exercise the installed CLI from a consumer outside the source tree.
 const topicDir = path.join(consumer, '한글 주제 폴더');
-const topic = (...args) => JSON.parse(cli('topic', ...args, '--dir', topicDir));
-const candidate = key => ({ key, title: `Synthetic ${key}`, authors: 'Example', year: 2025,
+function topic<Action extends keyof TopicOutputs>(action: Action, ...args: string[]): TopicOutputs[Action] {
+  return parseJson<TopicOutputs[Action]>(cli('topic', action, ...args, '--dir', topicDir));
+}
+const candidate = (key: string): Omit<SelectedPaper, 'number' | 'round'> => ({ key, title: `Synthetic ${key}`, authors: 'Example', year: 2025,
   source: `https://example.org/${key}`, edition: 'v1', reason: `Reason ${key}`, scope: 'abstract' });
 topic('init', '--question', 'Synthetic package question');
 const batchFile = path.join(consumer, 'batch.json');
-const batch = papers => writeFileSync(batchFile, JSON.stringify({ query: 'Synthetic search', papers }));
+const batch = (papers: ReturnType<typeof candidate>[]) => writeFileSync(batchFile, JSON.stringify({ query: 'Synthetic search', papers }));
 batch(['a', 'b', 'c'].map(candidate));
 topic('search', '--input', batchFile);
-const firstChoice = topic('select', '--round', '1', '--ids', '1').selected[0];
+const firstChoice = required(topic('select', '--round', '1', '--ids', '1').selected[0]);
 batch([{ ...candidate('a'), edition: 'v2', source: 'https://example.org/a/v2' }, candidate('d'), candidate('b')]);
 topic('search', '--input', batchFile);
 topic('select', '--round', '2', '--ids', '4');
@@ -69,16 +77,16 @@ console.log(`Installed CLI PDF verified: Korean + space paths, fresh-process reo
 const cardsDir = path.join(consumer, '공통 카드');
 mkdirSync(cardsDir);
 const cardPath = path.join(cardsDir, 'paper.md');
-const claims = [{ id: 'c1', statement: 'Synthetic author result', conditions: 'Synthetic evaluation only',
+const claims: FixtureClaim[] = [{ id: 'c1', statement: 'Synthetic author result', conditions: 'Synthetic evaluation only',
   locators: [{ type: 'pdf-page-range', start: 1, end: 1 }] }, { id: 'c2', statement: 'Unreviewed result',
   locators: [{ type: 'pdf-page-range', start: 1, end: 1 }] }];
 const data = { schema_version: 'draft-2', type: 'paper', id: 'paper-a',
   source: { version: 'v1', path: saved.file.path }, review: { status: 'draft' }, claims };
 writeFileSync(cardPath, `---\n${JSON.stringify(data)}\n---\n# Synthetic a\n\nPreserved card notes.\n`);
-const config = { schema_version: 'workspace-1', records: ['paper.md'], projects: [], claim_reviews: [] };
+const config: FixtureConfig = { schema_version: 'workspace-1', records: ['paper.md'], projects: [], claim_reviews: [] };
 const configPath = path.join(cardsDir, 'workspace.json');
-const put = (file, value) => writeFileSync(file, JSON.stringify(value));
-const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const put = (file: string, value: unknown) => writeFileSync(file, JSON.stringify(value));
+const sha = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 put(configPath, config);
 let document = topic('analysis-open', '--id', '1', '--workspace', cardsDir, '--paper', 'paper-a');
 const payload = path.join(consumer, 'answer.json');
@@ -87,7 +95,7 @@ put(payload, { overview: 'Synthetic question, method and result.', question: 'Ho
   resume: 'PDF p.1', claim_ids: ['c1', 'c2'], comparison_claims: ['c1', 'c2'] });
 document = topic('analysis-save', '--id', '1', '--sha', document.document_sha256, '--input', payload);
 assert.equal(topic('analysis-open', '--id', '1').document_sha256, document.document_sha256);
-assert.equal(topic('show').analyses[0].document, document.document);
+assert.equal(required(topic('show').analyses[0]).document, document.document);
 const inputPath = path.join(cardsDir, 'input.json'), resultPath = path.join(cardsDir, 'result.json');
 put(inputPath, { run_id: 'synthetic', papers: [{ paper_id: 'paper-a', card_sha256: sha(readFileSync(cardPath)),
   source: { version: 'v1', pdf_sha256: saved.file.sha256 }, claims: claims.slice(0, 1) }] });
@@ -101,19 +109,27 @@ put(path.join(topicDir, 'comparison.json'), { version: 1, question: 'Synthetic p
   id: 'evaluation', title: '평가 조건', rationale: 'Synthetic AI grouping only', refs: [{ key: 'a', claim_id: 'c1' }]
 }] });
 const comparison = topic('compare', '--json');
-assert.deepEqual(comparison.criteria[0].groups.map(group => group.claims.length), [1, 0]);
+assert.deepEqual(required(comparison.criteria[0]).groups.map(group => group.claims.length), [1, 0]);
 assert.equal(comparison.relations.length, 0);
 // Load from the installed package: assets must not fall back to source-tree files.
-const { serveComparison } = await import(pathToFileURL(path.join(installed, 'dist/web/comparison-server.js')).href);
+// The installed copy has the same declaration contract; its runtime path stays
+// outside the checkout so the source server cannot hide a packaging failure.
+const installedModule: { serveComparison: typeof ServeComparison } = await import(pathToFileURL(path.join(installed, 'dist/web/comparison-server.js')).href);
+const { serveComparison } = installedModule;
 const originalLog = console.log;
-let comparisonUrl, comparisonServer;
+let comparisonUrl: string | undefined;
+let comparisonServer: Awaited<ReturnType<typeof ServeComparison>>;
 try {
-  console.log = value => { comparisonUrl = JSON.parse(value).url; };
+  console.log = (value: unknown) => {
+    assert.equal(typeof value, 'string');
+    comparisonUrl = parseJson<{ url: string }>(String(value)).url;
+  };
   comparisonServer = await serveComparison(topicDir);
 } finally { console.log = originalLog; }
 try {
+  assert.ok(comparisonUrl, 'Installed server must report its URL');
   for (const asset of ['', 'comparison.js', 'comparison.css', 'reader-base.css', 'research-map.js', 'cytoscape.min.js', 'data']) {
-    const response = await fetch(comparisonUrl + asset);
+    const response: Response = await fetch(comparisonUrl + asset);
     assert.equal(response.status, 200, asset);
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.ok(bytes.byteLength, asset);
@@ -123,10 +139,11 @@ try {
     }
   }
   assert.deepEqual(Buffer.from(await (await fetch(comparisonUrl + `file/1/pdf/${saved.file.sha256}`)).arrayBuffer()), readFileSync(saved.file.path));
-} finally { await new Promise(resolve => comparisonServer.close(resolve)); }
+} finally { await new Promise<void>((resolve, reject) => comparisonServer.close(error => error ? reject(error) : resolve())); }
 console.log(`Installed comparison: current claims, missing side, all local assets and exact PDF passed (${process.version}/${process.platform}).`);
-data.claims[0].conditions = 'Changed condition';
+required(data.claims[0]).conditions = 'Changed condition';
 writeFileSync(cardPath, `---\n${JSON.stringify(data)}\n---\n# Synthetic a\n`);
 assert.equal(topic('comparison-input').claims.length, 0);
-assert.equal(topic('compare', '--json').criteria[0].groups[0].claims.length, 0);
+const invalidatedCriterion = required(topic('compare', '--json').criteria[0]);
+assert.equal(required(invalidatedCriterion.groups[0]).claims.length, 0);
 console.log(`Installed analysis: one document, fresh-process resume, current supported candidate only, condition invalidation (${process.version}/${process.platform}).`);
