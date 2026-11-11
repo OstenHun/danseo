@@ -67,17 +67,17 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       const tokens = words(name);
       if (!tokens.length) return -1;
       const exact = front.search(new RegExp('(?<![\\p{L}\\p{N}])' + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu'));
-      if (exact >= 0 || tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact;
+      if (tokens.length !== 2 || tokens.some(token => token.length < 2)) return exact;
       // An omitted middle initial is ambiguous across neighbouring authors.
       // Expand only a complete individual text item, not joined rows/columns.
       const initials = new RegExp('^\\s*' + tokens.join('(?:\\s+[a-z]\\.?){1,3}\\s+') + '\\s*[,;]?\\s*$', 'iu');
       let offset = 0;
       for (const run of frontRuns) {
-        if (offset + run.length > front.length) break;
+        if (offset + run.length > front.length || exact >= 0 && offset >= exact) break;
         if (initials.test(run)) return offset + run.search(/\S/u);
         offset += run.length + 1;
       }
-      return -1;
+      return exact;
     });
     if (!byline.length || byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
     const titleBlock = front.slice(0, Math.min(...byline));

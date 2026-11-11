@@ -10,6 +10,7 @@ const verify = (title,author,selected=paper,mark='Journal 2024') => verifyPdf(pd
 test('catalogue may omit Latin middle initials without accepting a different author',async()=>{
   await verify(paper.title,'Ed H. Chi');
   await verify(paper.title,'Ed H. J. Chi');
+  await verify(paper.title,'Ed H. Chi',paper,['ed.chi@example.org','Journal 2024']);
   for(const author of ['Edward H. Chi','Ed Henry Chi','Ed H. Chin','Ted H. Chi','Ed XChi']) {
     await assert.rejects(verify(paper.title,author),/저자/);
   }
