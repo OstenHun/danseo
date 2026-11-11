@@ -29,11 +29,14 @@
             label: '', origin: 'ai', state: 'proposed' } });
         });
       });
-      data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: {
-        id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target,
-        type: 'relation', recordId: relation.id, label: (kind[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label,
-        bend: 180 + 240 * data.relations.slice(0, i).filter(other => other.source === relation.source && other.target === relation.target).length,
-        origin: relation.origin, state: relation.status } }));
+      data.relations.forEach((relation, i) => {
+        const peerIndex = data.relations.slice(0, i).filter(other => other.source === relation.source && other.target === relation.target).length;
+        elements.push({ group: 'edges', data: {
+          id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target,
+          type: 'relation', recordId: relation.id, label: (kind[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label,
+          bend: 180 + 240 * peerIndex, label_offset_y: peerIndex % 2 ? 20 : -20,
+          origin: relation.origin, state: relation.status } });
+      });
     } else if (scene === 'context') {
       data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
       data.project_context.links.forEach((link, i) => elements.push({ group: 'edges', data: { id: 'context:' + i, source: 'topic:' + link.source, target: 'topic:' + link.target, type: 'context-link', recordId: String(i), label: '', origin: 'ai', state: 'proposed' } }));
@@ -67,7 +70,7 @@
         { selector: 'node.active', style: { width: 176 } },
         { selector: 'edge.active', style: { width: 4 } },
         ...(data.mode === 'research-comparison' ? [
-          { selector: 'edge[type="relation"]', style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': 'data(bend)', 'control-point-weights': .5 } }
+          { selector: 'edge[type="relation"]', style: { 'curve-style': 'unbundled-bezier', 'control-point-distances': 'data(bend)', 'control-point-weights': .5, 'text-margin-y': 'data(label_offset_y)' } }
         ] : [])
       ] });
     let interacted = false;

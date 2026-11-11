@@ -42,7 +42,7 @@ node dist/cli.js topic compare --dir /my/topic
 
 - 기존 `source/target/kind/origin/status/rationale/created_by/snapshots/evidence_refs`와 선택적 `review`를 사용한다. `cites/extends/compares`는 관계를 진술한 논문 → 인용·확장·비교 대상이다. 대칭 관계를 만들지 않는다.
 - `source-checked`에는 `origin: source`, 출발 논문의 실제 주장 참조, 확인 주체와 시간대가 있는 시각이 필요하다. AI 제안·읽기 순서는 원문 관계로 승격하지 않는다.
-- `snapshots.dependencies`의 `relation-dependencies-1` 지문으로 양쪽 판본·파일, 관계 종류·방향·이유, 참조 주장과 현재 지지를 대조한다. 지문 없는 옛 기록은 보류한다. `held_relations.current_dependencies`는 실제 재대조 뒤 기록할 후보일 뿐 대조·채택 완료가 아니다. 경고를 없애기 위해 자동 복사하지 않는다.
+- `snapshots.dependencies`의 `relation-dependencies-1` 지문으로 양쪽 판본·파일, 관계 종류·방향·이유, 명시적으로 참조한 주장 전체(조건·한계 포함)와 현재 지지를 대조한다. 지문 없는 옛 기록·삭제된 기존 근거는 해당 관계만 보류한다. 옛 축약 지문이나 로케일별 정렬로 만든 일부 확장 필드 지문은 다시 확인해야 한다. `held_relations.current_dependencies`는 실제 재대조 뒤 기록할 후보일 뿐 대조·채택 완료가 아니다. `null`이면 누락된 근거부터 확인한다. 경고를 없애기 위해 자동 복사하지 않는다.
 - 양쪽 표에 원문 지지가 있어도 두 표를 묶은 판단은 AI다. 기준 연결은 **AI 분류**, 연구 간 연결은 **원문 관계** 또는 **AI 제안**과 구체적 이유로 표시한다.
 
 **원문에 명시된 관계만**은 현재 유효한 `source/source-checked` 연구 간 관계만 남긴다. 자료 탐색용 논문·기준과 AI 분류 연결은 유지한다. 지도·목록·상세에 같은 필터를 적용하고 숨긴 제안의 이유도 닫는다. 0개이면 이유를 표시하고 필터를 풀면 제안을 복원한다. 원문·주장·위치·관계가 바뀌면 영향받은 결과를 보류한다.

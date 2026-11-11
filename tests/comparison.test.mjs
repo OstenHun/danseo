@@ -10,8 +10,12 @@ import { buildComparison, relationState } from '../dist/core/comparison.js';
 import { serveComparison } from '../dist/web/comparison-server.js';
 import { loadWorkspace } from '../dist/core/index.js';
 import { canonical } from '../dist/core/dependencies.js';
+import { canonical as claimCanonical } from '../dist/core/claim-state.js';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+test('claim fingerprint extension keys use a locale-independent canonical order',()=>{
+  assert.equal(claimCanonical({'ä':1,z:2,_extension:3,A:4}),'{"A":4,"_extension":3,"z":2,"ä":1}');
+});
 const answer = { overview: 'A study compares methods and reports accuracy.', question: 'How was the result evaluated?',
   answer: 'Reported percent accuracy, sample size and Table 1.', interpretation: 'AI, limited to this topic.',
   remaining_questions: 'Transfer unknown', resume: 'PDF p.1 Table 1', claim_ids: ['c1','c2'], comparison_claims: ['c1','c2'] };
@@ -85,6 +89,9 @@ test('deleting a previously pinned claim holds dependent relations and keeps unr
   assert.equal(data.papers.length,2);assert.equal(data.claims.length,1);assert.equal(data.criteria[0].groups[0].claims.length,1);
   assert.equal(data.criteria[0].groups[1].claims.length,0);assert.equal(data.relations.length,0);assert.equal(data.held_relations.length,2);
   assert.ok(data.held_relations.every(r=>r.current_dependencies===null));
+  for(const relation of f.relations)delete relation.snapshots.dependencies;f.saveRelations();
+  const legacy=await buildComparison(f.topic);assert.equal(legacy.claims.length,1);assert.equal(legacy.relations.length,0);
+  assert.equal(legacy.held_relations.length,2,'legacy relationships with deleted refs also fail closed locally');
 });
 test('AI cannot be source-checked, absent/foreign claim refs and self-relations are rejected',async t=>{
   const f=await fixture(t);f.relations[1].status='source-checked';f.relations[1].review=f.relations[0].review;f.saveRelations();await assert.rejects(buildComparison(f.topic),/원문 관계/);

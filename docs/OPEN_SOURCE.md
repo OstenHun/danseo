@@ -42,4 +42,10 @@ PTP-011의 공개 코드·문서·자동 검사는 합성 예제를 사용한다
 3. [GitHub 비공개 취약점 신고](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)를 활성화하고 실제 사용 가능한 주소를 SECURITY.md에 연결한다.
 4. 로그아웃한 외부 독자의 README·설치·신고 링크와 공유 미리보기를 확인한다.
 
-공유 이미지 등록·어두운 테마·외부 독자 접근 검사는 전환 확인 목록이다. npm 게시·태그·안정 스키마·웹앱·편집·사용 효과 평가는 별도 후속이다.
+공유 이미지 등록·어두운 테마·외부 독자 접근 검사는 전환 확인 목록이다. npm 게시·태그·안정 스키마·편집·사용 효과 평가는 별도 후속이다.
+
+## PTP-012의 배포 경계
+
+[초안 PR #4](https://github.com/OstenHun/danseo/pull/4)는 3단계 병합 main 위의 연구 비교 기능만 포함한다. [읽기 전용 비교 화면](RESEARCH_COMPARISON.md), 현재 지지 주장·관계 투영, 합성 회귀와 설치본 자산 검사를 추가했다. Cytoscape3.34.4의 MIT 원문을 고지한다.
+
+실제 STaR·Lightman PDF, 주제별 분석 문서, 원문 검토 JSON, 로컬 서버 URL·개인 경로·로그·캡처는 `work/`의 검증 사본에만 두고 PR·tarball에 넣지 않는다. `npm pack --dry-run` 파일 목록, 실제 설치 package-smoke와 PR 변경 파일 목록을 대조한다. 최신 CI·리뷰·원문/화면 확인 범위는 같은 PR에 연결하며 사람 평가·재현·병합·공개 전환과 구분한다.

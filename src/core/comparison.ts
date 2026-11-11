@@ -44,7 +44,7 @@ export async function relationState(relation: Relation, cards: Map<string, Card>
   const prior = relation.snapshots.dependencies;
   const missing = refs.filter(ref => !inputs.find(p => p.paper_id === ref.paper_id)?.claims.some(c => c.id === ref.claim_id));
   if (refs.some(ref => ![relation.source, relation.target].includes(ref.paper_id))
-    || missing.some(ref => !prior?.claims.some(old => old.paper_id === ref.paper_id && old.claim_id === ref.claim_id))) invalid('관계가 등록되지 않은 주장을 참조합니다.');
+    || missing.some(ref => prior && !prior.claims.some(old => old.paper_id === ref.paper_id && old.claim_id === ref.claim_id))) invalid('관계가 등록되지 않은 주장을 참조합니다.');
   // A previously pinned claim can be withdrawn. Hold that relationship without blocking unrelated evidence.
   if (missing.length) return { ...relation, origin_label: originLabel, needs_recheck: true, current_dependencies: null };
   const sourceStates = await Promise.all([source, target].map(readSourceState));
@@ -59,6 +59,7 @@ export async function relationState(relation: Relation, cards: Map<string, Card>
 
 /** Fresh projection, scoped to the selected topic. No saved graph is authoritative. */
 export async function buildComparison(root: string) {
+  root = await realpath(root);
   const input = await comparisonInput(root);
   const config: unknown = JSON.parse(await readSmall(await writableFile(root, join(root, 'comparison.json'))));
   if (!configValid(config)) invalid('comparison.json의 질문·기준·AI 묶음 이유·주장 참조를 확인하세요.');

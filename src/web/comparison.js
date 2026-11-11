@@ -35,7 +35,7 @@
       if(!r){selection=undefined;emptyDetails();return;}
       panel.append(text('h2',(labels[r.kind]??r.kind)+' · '+r.origin_label),
         text('p',data.papers.find(p=>p.paper_id===r.source).title+' → '+data.papers.find(p=>p.paper_id===r.target).title),
-        text('p',r.rationale),text('p','작성 · '+r.created_by+(r.review?' / 원문 대조 · '+r.review.checked_by+' · '+r.review.checked_at:''),'metadata'));
+        text('p',r.rationale),text('p','작성 · '+r.created_by+(r.review?' / '+(r.status==='source-checked'?'원문 대조':'이전 대조 기록')+' · '+r.review.checked_by+' · '+r.review.checked_at:''),'metadata'));
       const columns=text('div','','evidence-columns');
       for(const paper of data.papers.filter(p=>[r.source,r.target].includes(p.paper_id)))columns.append(evidence(paper,data.claims.filter(c=>c.key===paper.key&&r.evidence_refs.some(ref=>ref.paper_id===c.paper_id&&ref.claim_id===c.claim_id))));
       panel.append(columns);
@@ -60,7 +60,7 @@
     if(selection?.type==='relation'&&!relations.some(r=>r.id===selection.id)){selection=undefined;emptyDetails();}
     choices('papers',data.papers,'paper',p=>p.number+'. '+p.title);choices('criteria',data.criteria,'criterion',c=>c.title);
     choices('relations',relations,'relation',r=>r.origin_label+' · '+(labels[r.kind]??r.kind)+' · '+data.papers.find(p=>p.paper_id===r.source).number+' → '+data.papers.find(p=>p.paper_id===r.target).number);
-    $('empty-relations').textContent=relations.length?'':$('source-only').checked?'현재 유효한 원문 관계가 없습니다. 필터를 풀면 AI 제안을 볼 수 있습니다.':'현재 확인 가능한 연구 간 관계가 없습니다.';
+    $('empty-relations').textContent=relations.length?'':$('source-only').checked?'현재 유효한 원문 관계가 없습니다.'+(data.relations.length?' 필터를 풀면 미대조 관계·제안을 확인할 수 있습니다.':''):'현재 확인 가능한 연구 간 관계가 없습니다.';
     $('status').textContent=`논문 ${data.papers.length}편 · 기준 ${data.criteria.length}개 · 연구 간 관계 ${relations.length}개. 현재 파일로 확인했습니다.`;
     map?.destroy();map=window.DanseoMap.mount($('map'),{...data,relations},'comparison',element=>show(element.type,element.recordId));
     if(selection)show(selection.type,selection.id,false);

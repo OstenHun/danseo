@@ -57,3 +57,9 @@ PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Nod
 4. 새 의존성이나 API가 지원 하한을 올리면 기존 계열 유지 비용과 필요한 기능을 비교한다. 실제 소비자가 있으면 전환 조건을 확인하고, 검증하지 않은 범위를 지원한다고 선언하지 않는다.
 
 정책 재검토 시 [공식 지원 상태](https://nodejs.org/en/about/previous-releases)와 [일정](https://github.com/nodejs/Release/blob/main/schedule.json)을 다시 확인한다. 이 문서는 백그라운드 감시·예약 업데이트나 전역 런타임 교체를 설정하지 않는다.
+
+## PTP-012 비교 화면의 실행 근거
+
+2026-11-11 연구 비교는 선행 Windows·Ubuntu Node22/24, macOS Node24와 Node26 비차단 행렬 및 보안 하한을 유지한다. 로컬은 Windows Node24.22.2다. [PR #4](https://github.com/OstenHun/danseo/pull/4)의 최신 head CI와 작업 로그에서 실제 Node 패치·전체 회귀·설치본 자산/PDF 반환 결과를 확인한다. 초기 Windows 짧은 경로·macOS 별칭 경로의 직접 API 검사 실패를 비교 진입점의 realpath 정규화로 수정했으며 파일 경계 검사는 유지했다. 지문 키는 로케일에 무관한 순서로 고정한다. [사용법과 제한](RESEARCH_COMPARISON.md).
+
+개발 포함·제외 잠금 파일 감사와 [공식 Node 배포 목록](https://nodejs.org/dist/index.json)을 확인했으며 전역 런타임을 교체하지 않았다. macOS CI는 실행 환경 검사이며 앱의 폴더 권한 UI나 사람의 화면·학습 평가를 대신하지 않는다.
