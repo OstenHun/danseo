@@ -18,6 +18,22 @@ node ./dist/cli.js validate --workspace ./examples/minimal --json
 
 문서 검사는 로컬에만 있는 파일을 GitHub 링크로 연결하는 실수를 잡는다. 패키지 검사는 앞선 빌드로 tarball을 만들고 임시 consumer에 설치해 실제 CLI를 실행한다. npm 캐시를 우선 사용하며 필요한 의존성 metadata·파일이 없으면 registry에 접근한다.
 
+## 공통 테스트 fixture 수정
+
+공통 helper와 분석·비교 테스트는 TypeScript로 작성한다. 제품 빌드가 dist/의 JavaScript와 타입 선언을 만들고, 테스트 빌드가 실제 제품 선언을 사용해 strict·noUncheckedIndexedAccess로 검사한 뒤 build/에 ESM JavaScript를 출력한다. Node 22·24는 이 출력과 남은 .mjs 테스트를 기존 node:test로 실행한다. 새 실행기는 필요하지 않다.
+
+```sh
+npm run check:tests
+npm test
+npm run test:package
+```
+
+check:tests는 제품을 먼저 빌드하고 테스트를 출력 없이 검사한다. build:tests는 제품 빌드 → 이전 테스트 출력 정리 → 테스트 검사·출력 순서다. npm test와 test:package는 build:tests를 선행하므로 깨끗한 checkout에서도 helper를 읽을 수 있다. build/는 테스트 전용이며 패키지에 포함하지 않는다. 테스트 출력은 원본 tests/와 같은 상대 깊이를 유지해 실제 dist/의 CLI·서버·브라우저 자산을 사용한다. collection·source-pdf의 .mjs 테스트와 설치 검사도 변환한 PDF helper를 가져온다.
+
+analysis.test.ts와 comparison.test.ts의 본문 전체를 검사하며, fixture-types.test.mjs는 실제 helper를 가져온 소비자의 정상 호출과 잘못된 인자·명령·응답 필드6건을 대조한다. 남은 .mjs 테스트 본문 전체의 타입 검사는 이번 범위에 포함하지 않는다.
+
+ok()는 CLI 성공 여부를 확인한 뒤 명령별 응답 타입을 제공한다. parseJson()의 명시적 타입 경계는 런타임 JSON 검증을 대신하지 않는다. 고의 손상 입력·잘못된 요청을 검증하는 테스트는 json()과 run()을 사용한다. required()는 fixture 항목의 존재를 실행 중에도 확인한다. 제품 카드·주장·검토 타입은 dist/의 선언을 참조하고 테스트 전용 계약은 fixture-types.ts에 둔다.
+
 ## 제안과 변경
 
 버그는 실행 환경, 명령, 기대 결과, 실제 결과, 최소 합성 자료를 함께 적는다. 기능 제안은 풀려는 문제와 현재 방식의 한계부터 설명한다. 새 의존성·파일 형식·외부 서비스가 필요한 변경은 먼저 범위를 논의한다.

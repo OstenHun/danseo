@@ -1,4 +1,4 @@
-import { pdf } from '../tests/helpers/source-pdf.mjs';
+import { pdf } from '../build/helpers/source-pdf.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';

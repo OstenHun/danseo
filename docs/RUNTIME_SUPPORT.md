@@ -67,3 +67,7 @@ PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Nod
 ## 비교 프런트 TypeScript 전환 검사
 
 2026-11-12 KST, Windows / Node 24.22.2에서 strict 서버·브라우저 빌드와 전체 79개 회귀를 통과했다. `npm run test:package`는 최신 소스를 재빌드해 별도 소비자 폴더에 tarball을 설치하고, HTTP 자산의 바이트와 일반 script 문법·현재 근거·PDF 반환을 검사한다. `npm run check:docs`도 통과했다. [실행 목록](../TASKS.md)의 전환 항목과 [개발 계약](RESEARCH_COMPARISON.md#프런트-개발과-타입-검사)을 따른다. 이번 로컬 diff의 다른 OS·Node 계열 및 GitHub CI는 미실행이며 기존 main의 CI와 구분한다.
+
+## 공통 helper·분석·비교 테스트 TypeScript 전환 — 2026-11-12
+
+공통 helper와 분석·비교 테스트는 기존 TypeScript 컴파일러로 검사·변환한다. 제품 dist/는 JavaScript와 타입 선언을, 테스트 전용 build/는 실행할 JavaScript를 담는다. Node 22·24에서 변환한 테스트와 기존 .mjs 테스트를 node:test로 실행하며 새 실행기나 native 타입 제거에 의존하지 않는다. [공통 fixture 개발](../CONTRIBUTING.md#공통-테스트-fixture-수정)과 [실행 목록](../TASKS.md)을 따른다. 이번 diff의 로컬 검사와 다른 OS·Node 계열 CI를 구분한다.
