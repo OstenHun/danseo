@@ -24,6 +24,8 @@ TypeScript가 함께 제공하는 [제삼자 고지 원문](third-party-licenses
 
 README 구성은 [OpenCodex](https://github.com/lidge-jun/opencodex)를 참고했으며 코드·이미지·소개 문구를 복제하지 않았다. 프로젝트 MIT 원문은 [SPDX](https://spdx.org/licenses/MIT.html) 형식에 따른다.
 
+README의 작은 로고·요약·실행 화면·상세 문서 배치는 [hide](https://github.com/with-hide/hide)의 구성을 참고했다. hide의 코드·문구·이미지·로고는 복제하지 않았다. Danseo의 화면 이미지는 합성 데이터로 실행한 자체 제품의 캡처다.
+
 ## 브랜드에 사용한 글꼴
 
 [Manrope](https://github.com/google/fonts/blob/main/ofl/manrope/OFL.txt), [Noto Sans KR](https://github.com/google/fonts/blob/main/ofl/notosanskr/OFL.txt), [IBM Plex Mono](https://github.com/google/fonts/blob/main/ofl/ibmplexmono/OFL.txt)의 공식 고지는 SIL Open Font License 1.1이다. 브랜드 제작에 사용했으며 폰트 소프트웨어 자체는 이 저장소에 포함하지 않는다. SVG에는 해당 문구의 윤곽선만 들어 있다.

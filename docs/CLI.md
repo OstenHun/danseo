@@ -1,6 +1,6 @@
 # 최소 CLI 사용법
 
-요약: Node.js 22·24 LTS에서 명시한 논문·적용 파일을 읽고 검사해 agent용 묶음으로 내보낸다. 새 설치에는 24를 권장한다. 자체 LLM·서버는 없으며 전역 skill이나 대상 프로젝트 설정을 자동 변경하지 않는다.
+요약: Node.js 22·24에서 논문 탐색·수집·분석을 기록하고 현재 근거를 비교·내보낸다. 새 설치에는 24를 권장한다. 자체 LLM은 없으며 비교 화면을 열 때만 로컬 읽기 전용 서버를 실행한다.
 
 [English setup](CLI.en.md)
 
@@ -138,7 +138,7 @@ export의 기본값은 source-checked Paper만 허용한다. 탐색용으로 dra
 
 stdout은 결과, stderr는 진단이다. JSON 모드에서는 진단도 JSON이다. 종료 코드는 0 성공, 2 입력·구조·참조·검토 조건 오류, 3 파일 접근/쓰기 실패다. 잘못된 옵션을 무시하지 않는다. 한 workspace의 기록이 잘못되면 부분 성공 대신 오류를 내므로 먼저 validate를 해결한다.
 
-현재 지원하지 않는 명령: init, import, project add, ask, serve. workspace.json과 카드는 파일 편집기로 준비한다. PDF 자동 요약, 카드 편집·재직렬화, MCP, 웹 UI, 모델 provider 연동은 후속이다.
+일반 `init`, `import`, `project add`, `ask`, `serve`는 지원하지 않는다. 주제 기록의 `topic init`과 읽기 전용 비교 화면의 `topic compare`는 사용할 수 있다. workspace.json과 카드는 파일 편집기로 준비한다. PDF 자동 요약, 카드 편집기·재직렬화, MCP, 모델 provider 연동은 이번 소스에 포함하지 않는다.
 
 ## 페이지별 원문 텍스트 연결
 

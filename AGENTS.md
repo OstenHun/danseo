@@ -19,4 +19,8 @@ README → TASKS의 해당 항목 → PRD의 관련 요구사항 → 필요한 �
 
 작업 완료 조건을 먼저 읽고 관련 검사만 실행한다. 구현·렌더 확인·효과 평가·외부 공개를 구분한다. 실제 명령과 결과를 TASKS의 해당 근거에 연결한다. UI 구현 시 전역 Taste/Figma·한국어 읽기 검수 지침을 적용한다.
 
-개인 개발이며 GitHub 비공개 저장소와 Windows·Ubuntu CI를 사용한다. 실제 실행 근거는 docs/OPEN_SOURCE.md와 docs/RUNTIME_SUPPORT.md에 연결한다. CI 통과를 사람 리뷰나 실제 사용자 평가로 기록하지 않는다. 기존 전역 skill 설치본을 자동 교체하지 않는다.
+개인 개발이며 GitHub 공개 저장소와 PR 기본·수동 호환성 CI를 사용한다.
+
+개인 workspace·원문·개인 연구 실행 로그는 로컬에 유지한다.
+
+실제 실행 근거는 docs/OPEN_SOURCE.md와 docs/RUNTIME_SUPPORT.md에 연결한다. CI 통과를 사람 리뷰나 실제 사용자 평가로 기록하지 않는다. 기존 전역 skill 설치본을 자동 교체하지 않는다.
