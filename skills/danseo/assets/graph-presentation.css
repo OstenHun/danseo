@@ -1,0 +1,39 @@
+/* Canonical paper graph surfaces for the web app and portable research HTML. */
+.paper-map {
+  --graph-ink: #202631;
+  --graph-muted: #606b7d;
+  --graph-line: #dce1eb;
+  --graph-accent: #315be8;
+  --graph-selected: #edf1ff;
+  background-color: #fafbfe;
+  background-image: radial-gradient(#dce1eb .7px, transparent .7px);
+  background-size: 24px 24px;
+}
+.paper-map .graph-decorations { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+.paper-map .graph-world { position: absolute; left: 0; top: 0; width: 1px; height: 1px; transform-origin: 0 0; pointer-events: none; }
+.paper-map .graph-paper {
+  box-sizing: border-box; position: absolute; left: 0; top: 0;
+  display: flex; flex-direction: column; gap: 0;
+  padding: 12px 14px; border: 1px solid #aeb9cd; border-radius: 10px;
+  background: #fff; color: var(--graph-ink); box-shadow: 0 2px 5px #20263106;
+  font-family: 'Segoe UI', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  text-align: left; transition: none;
+}
+.paper-map .graph-paper-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin: 0 0 8px; line-height: 1.4; }
+.paper-map .graph-paper-type { color: var(--graph-muted); font-size: 11px; font-weight: 600; }
+.paper-map .graph-paper-review { color: var(--graph-muted); font-size: 11px; white-space: nowrap; }
+.paper-map .graph-paper-title {
+  margin: 0; padding: 0; font-size: 15px; font-weight: 600; line-height: 1.55; letter-spacing: -.015em;
+  min-height: 46.5px; max-height: 46.5px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; word-break: keep-all; overflow-wrap: break-word; text-wrap: pretty;
+}
+.paper-map .graph-paper-date { margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--graph-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.paper-map .graph-paper-meta { display: flex; margin-top: auto; padding-top: 7px; border-top: 1px solid var(--graph-line); color: var(--graph-muted); font-size: 10px; line-height: 1.4; }
+.paper-map .graph-paper-id { font-family: Consolas, monospace; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.paper-map .graph-paper.is-undated { border-style: dashed; }
+.paper-map .graph-paper.is-selected { background: var(--graph-selected); border-color: var(--graph-accent); box-shadow: 0 0 0 1px var(--graph-accent); }
+.paper-map .graph-paper.is-connected { border-color: var(--graph-accent); box-shadow: 0 0 0 1px var(--graph-accent); }
+.paper-map .graph-paper.is-hovered { border-color: var(--graph-accent); }
+.paper-map .graph-paper.is-faded { opacity: .42; }
+.paper-map .graph-paper-port { background: #fff; border-color: #818da1; }
+#research-map.paper-map { background-color: #fafbfe; background-image: radial-gradient(#dce1eb .7px, transparent .7px); background-size: 24px 24px; }

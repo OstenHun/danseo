@@ -83,3 +83,7 @@ PTP-011은 PTP-010의 Windows·Ubuntu Node 22·24(26 사전 검사)와 macOS Nod
 작성한 테스트와 개발 도구 전체를 기존 tsc로 strict 검사·변환한다. Node 22·24는 build/의 테스트와 build-tools/의 도구를 실행한다. 도구 빌드는 제품·테스트 출력에 의존하지 않아 깨끗한 checkout에서 시작하며, 설치 검사는 최신 제품·테스트 빌드 후 tarball의 CLI·HTTP 자산·PDF와 재개·원문 변경을 확인한다. 브라우저용 생성 JavaScript와 외부 Cytoscape는 유지한다. [개발 계약](../CONTRIBUTING.md#공통-테스트-fixture-수정)과 [현재 검증 상태](../TASKS.md)를 따른다. 기존 CI 설정은 유지하며 이번 미커밋 변경의 원격 CI를 실행한 것으로 표시하지 않는다.
 
 이번 전환은 Windows / Node24.22.2와22.23.4에서 각각 전체80/80·tarball 설치 검사를 통과했다. Node22는 공식 SHA256을 대조한 로컬 실행 파일로 생성 폴더 없는 상태부터 검사했으며 전역 Node는 바꾸지 않았다. 다른 OS·이번 diff의 원격 CI·권한이 필요한 Windows symlink 분기 전체는 미확인이다.
+
+## 독립 관계 HTML 근거 검사 — 2026-11-15
+
+Windows Node 24.22.2의 별도 worktree에서 `npm ci --ignore-scripts --no-audit --no-fund`, `npm test`(기존 82개 + 근거 검사 13개), `npm run check:docs`, `npm run test:package`를 실행해 통과했다. 이번 변경의 Linux·Node 22 및 원격 CI 결과는 미실행이다. portable 생성기는 외부 npm 없이 실행하며 같은 후보의 세 로컬 설치본 출력이 동일했다. 이 결과는 모델의 전체 의미 정확도를 보증하지 않는다. [검사 명령·한계](../skills/danseo/references/evidence-gate.md).
