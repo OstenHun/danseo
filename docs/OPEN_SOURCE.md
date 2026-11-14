@@ -1,8 +1,14 @@
 # 공개 준비
 
-요약: 한국어 기본·영어 안내와 탐색→수집→분석→비교를 공개 후보로 준비한다. 로컬 전용 편집기·학습 화면은 제외한다. 파일·이력·설치를 점검하며 저장소와 npm 게시 차단은 private으로 유지한다.
+요약: 탐색→수집→분석→비교를 제공하는 공개 개발 프리뷰다. 파일·이력·Actions 로그를 점검하고 비공개 취약점 신고를 활성화했다. 개인 자료와 로컬 전용 기능은 제외하며 npm 게시 차단은 유지한다.
 
-갱신: 2026-11-12 KST / PTP-004. 기준 main `d5fbc4b30018f166b853b5006aedb2cf5858073c`. [OstenHun/danseo](https://github.com/OstenHun/danseo)는 비공개이며 외부 공개·npm 게시·정식 릴리스는 수행하지 않았다.
+갱신: 2026-11-14 KST / PTP-004. [OstenHun/danseo](https://github.com/OstenHun/danseo)는 공개 저장소다. npm 게시·태그·정식 릴리스는 수행하지 않았다. 아래 2026-11-12 결과는 당시 기준 main `d5fbc4b30018f166b853b5006aedb2cf5858073c`의 검증 기록이다.
+
+## 공개 전환 · 2026-11-14
+
+사용자 요청에 따라 저장소를 public으로 전환하고 비공개 취약점 신고를 활성화했다. 전환 전 branch 10개·PR head 9개의 commit 37개·blob 277개, 이슈/PR 9개·댓글 9개와 Actions 실행 56개의 로그를 검사했다. artifact·release·tag는 없었다. 알려진 인증정보·개인 경로 패턴과 독립 검토에서 공개를 막는 노출은 발견하지 못했다. 모든 미지의 비밀이나 취약점이 없다는 보증은 아니다.
+
+별도 비공개 이력 백업과 개인 workspace는 공개 대상에 포함하지 않았다. 공개 후 CI와 병합 여부는 [PR #9](https://github.com/OstenHun/danseo/pull/9)의 최신 head·검사·리뷰에서 확인한다. 로컬 상세 근거는 `work/public-release-20261114/RESULT.md`, 신고 경로는 [보안 안내](../SECURITY.md)가 소유한다.
 
 ## 이번 공개 후보
 
@@ -33,7 +39,7 @@ PTP-011의 공개 코드·문서·자동 검사는 합성 예제를 사용한다
 - 저작권자: MIT의 OstenHun.
 - 공개 준비 이력: 정리한 파일만 새 루트 커밋으로 구성한다. 초기 개인 개발 기록·이전 작성자 이메일·Actions 실행 이력은 별도 비공개 백업에 보존한다.
 - 새 커밋 작성자: OstenHun, 계정의 GitHub noreply 이메일.
-- 보안 신고: GitHub Private vulnerability reporting만 사용한다. 현재 private 저장소에서는 아직 외부 신고 기능을 활성화하지 않는다.
+- 보안 신고: GitHub Private vulnerability reporting만 사용한다. 공개 전환 후 활성 상태를 확인했으며 실제 신고 경로는 [보안 안내](../SECURITY.md)를 따른다.
 
 현재 파일을 지우거나 force push하는 것만으로 이전 서버의 commit·실행 로그까지 없어졌다고 보장하지 않는다. 그래서 백업 저장소와 새 준비 저장소를 별개로 둔다. 백업을 공개하거나 mirror push로 과거 refs를 다시 올리지 않는다.
 
@@ -59,12 +65,12 @@ PTP-011의 공개 코드·문서·자동 검사는 합성 예제를 사용한다
 
 ## 공개 전환할 때
 
-이번에는 아래 전환 작업을 실행하지 않는다. 공개 준비 문서가 로컬에 있는 상태와 GitHub 반영·공개를 구분한다.
+아래는 공개 전환 시 적용하는 절차다. 2026-11-14 실행 범위는 위 공개 전환 기록을 따른다. 로컬 준비·GitHub 반영·공개·npm 게시를 구분한다.
 
 1. 검증한 문서 변경을 검토·승인된 GitHub 흐름으로 반영한 뒤 실제 공개할 head의 파일·tarball·최신 CI를 대조한다. 변경된 이력·서버 기록이 있으면 해당 공개 범위를 다시 확인한다.
 2. 별도 공개 전환 요청이 있을 때만 저장소 visibility를 바꾼다. npm의 `private: true`는 유지하며 npm 게시·태그는 별도 결정이다.
-3. [GitHub 비공개 취약점 신고](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)를 활성화하고 실제 사용 가능한 주소를 SECURITY.md에 연결한다. 현재 private 상태에서 운영 중으로 표시하지 않는다.
-4. 로그아웃한 외부 독자의 README·소스 내려받기·첫 실행·신고 링크와 공유 미리보기를 확인한다. 현재 비공개이므로 익명 접근 성공은 미검증이다.
+3. [GitHub 비공개 취약점 신고](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)를 활성화하고 실제 사용 가능한 주소를 SECURITY.md에 연결한다. 활성 상태를 확인하기 전에 운영 중으로 표시하지 않는다.
+4. 로그아웃한 외부 독자의 README·소스 내려받기·첫 실행·신고 링크와 공유 미리보기를 확인하고 확인한 범위를 기록한다.
 
 공유 이미지 등록·어두운 테마·외부 독자 접근 검사는 전환 확인 목록이다. npm 게시·태그·안정 스키마·편집·사용 효과 평가는 별도 후속이다.
 

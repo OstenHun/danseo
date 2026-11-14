@@ -45,7 +45,7 @@ Select a paper or criterion in `topic compare` to return to its PDF and analysis
 
 ## Quick start
 
-Requires **Node.js 22 or 24 LTS and npm**; use the latest 24.x patch for a new installation. Repository access is required while it is private. There is no npm registry release; do not install an unrelated package with the same name.
+Requires **Node.js 22 or 24 LTS and npm**; use the latest 24.x patch for a new installation. Clone the public repository or use Download ZIP to get the source. There is no npm registry release; do not install an unrelated package with the same name.
 
 Run inside the source directory:
 

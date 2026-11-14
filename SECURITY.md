@@ -1,6 +1,6 @@
 # 보안 안내 · Security
 
-요약: 개발 프리뷰의 로컬 파일·출력 경계를 설명한다. 현재 저장소는 private이며 외부 신고 채널은 아직 운영하지 않는다. 공개 전환 시 실제 비공개 신고 경로를 연결하고 확인한다.
+요약: 개발 프리뷰의 로컬 파일·출력 경계를 설명한다. 저장소는 공개되어 있으며 보안 신고는 GitHub 비공개 취약점 신고로 받는다. 실제 비밀값·개인 자료는 공개 이슈나 PR에 올리지 않는다.
 
 ## 지원 범위
 
@@ -16,12 +16,12 @@ workspace는 사용자가 등록한 로컬 파일을 읽는 설정이다. 읽을
 
 ## 취약점 보고
 
-보안 신고는 GitHub **Private vulnerability reporting**만 사용한다. 현재 저장소는 private이므로 외부 연구자용 신고 기능은 아직 활성화하지 않았다. 공개 이메일은 운영하지 않으며 응답 기한을 약속하지 않는다.
+보안 신고는 GitHub **Private vulnerability reporting**만 사용한다. [비공개 취약점 신고](https://github.com/OstenHun/danseo/security/advisories/new)에서 GitHub 계정으로 로그인해 보고한다. 공개 이메일은 운영하지 않으며 응답 기한을 약속하지 않는다.
 
-공개 전환 직후 이 기능을 활성화하고 실제 신고 주소를 이 문서에 연결·확인한다. 기능은 [공개 저장소용](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)이다. 신고 화면이 실제 사용 가능하기 전에는 활성 상태로 안내하지 않는다. 재현 세부 정보·비밀값·개인 파일을 공개 이슈나 PR에 올리지 않는다.
+2026-11-14 KST 공개 전환 후 신고 기능의 활성 상태를 GitHub API로 확인했다. 기능은 [공개 저장소용](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository)이다. 재현 세부 정보·비밀값·개인 파일을 공개 이슈나 PR에 올리지 않는다.
 
 비공개 보고에는 영향받는 버전, 실행 환경, 최소 합성 재현, 예상 영향과 실제 관찰을 적는다. 실제 토큰이나 제삼자의 자료는 넣지 않는다.
 
 ## English
 
-Only the development version is currently maintained. Security reports will use GitHub Private vulnerability reporting only. The repository is currently private; the external reporting feature is not enabled yet. After public transition, the maintainer must enable it and publish its verified URL here. No public email or response-time promise is provided. Do not publish exploit details, secrets or private files in Issues or PRs.
+Only the development version is currently maintained. The repository is public and GitHub Private vulnerability reporting is enabled. Use [the private reporting form](https://github.com/OstenHun/danseo/security/advisories/new) while signed in to GitHub. No public email or response-time promise is provided. Do not publish exploit details, secrets or private files in Issues or PRs.
