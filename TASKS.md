@@ -6,7 +6,9 @@
 
 ## 저장소 공개 전환 — 2026-11-14
 
-- 파일·전체 branch/PR 이력·이슈/댓글·Actions 로그를 검사한 뒤 사용자 승인으로 public 전환과 비공개 취약점 신고 활성화를 실행했다. 개인 workspace와 별도 비공개 백업은 제외했다. [공개 범위와 검사 한계](docs/OPEN_SOURCE.md), [신고 경로](SECURITY.md).
+- 공개 전 파일·전체 branch/PR 이력·이슈/댓글·Actions 로그를 검사했다.
+- 사용자 승인으로 저장소를 public으로 전환하고 비공개 취약점 신고를 활성화했다.
+- 개인 workspace와 별도 비공개 백업은 공개 대상에서 제외했다. [공개 범위와 검사 한계](docs/OPEN_SOURCE.md), [신고 경로](SECURITY.md).
 - 차단됐던 CI를 공개 후 재실행했다. 최종 head의 CI·리뷰·병합 상태는 [PR #9](https://github.com/OstenHun/danseo/pull/9)에서 확인한다. 실행 결과와 기존 로컬 작업 보존의 정본은 로컬 `work/public-release-20261114/RESULT.md`다. npm 게시·배포·사용자 효과 평가와 구분한다.
 
 ## 공개 후보 안내·범위·설치 점검 — 2026-11-12 / Local verification

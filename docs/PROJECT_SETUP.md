@@ -1,6 +1,6 @@
 # 프로젝트 운영
 
-요약: 개인 개발의 파일 기반 CLI 프로젝트다. PRD·TASKS를 정본으로 관리하고 공개 GitHub와 PR 기본·수동 호환성 CI를 사용한다. 개인 workspace는 로컬에 두며 npm에는 아직 게시하지 않았다.
+요약: 공개 개발 프리뷰의 운영 기준이다. 개인 자료는 로컬에 두고 PR·수동 CI로 검사한다. npm에는 게시하지 않았다.
 
 갱신: 2026-11-14 KST. 개인 개발 / 파일 기반 로컬 MVP / [OstenHun/danseo](https://github.com/OstenHun/danseo).
 
