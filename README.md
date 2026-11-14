@@ -1,30 +1,21 @@
-<p align="center">
-  <img src="assets/brand/icon.svg" width="112" alt="Danseo 로고">
-</p>
+# Danseo
 
-<h1 align="center">Danseo</h1>
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/brand/banner-compact-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
+  <img src="assets/brand/banner-light.svg" alt="Danseo — 논문 근거를 프로젝트의 판단으로 연결합니다." width="100%">
+</picture>
 
-<p align="center">
-  <strong>논문의 근거를, 내 프로젝트의 판단으로.</strong><br>
-  Research evidence. Project decisions.
-</p>
+**논문의 근거를, 내 프로젝트의 판단으로.**
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg" alt="Node.js 22 또는 24 LTS">
-  <img src="https://img.shields.io/badge/status-development_preview-orange.svg" alt="Development preview">
-</p>
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Node.js 22 또는 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
+![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-<p align="center">
-  <strong>한국어</strong> · <a href="README.en.md">English</a> · <a href="#빠른-시작">빠른 시작</a> · <a href="docs/README.md">문서</a> · <a href="CONTRIBUTING.md">기여하기</a>
-</p>
+한국어 · [English](README.en.md) · [빠른 시작](#빠른-시작) · [문서](docs/README.md) · [기여하기](CONTRIBUTING.md)
 
 요약: 기존 AI 에이전트와 논문을 찾고, 고른 논문의 원문·답변·비교 근거를 로컬 파일로 연결한다. CLI와 읽기 전용 연구 비교 화면을 제공하는 개발 프리뷰다.
-
-<p align="center">
-  <img src="assets/readme/comparison-preview.jpg" width="960" alt="합성 Paper A와 Paper B, 비교 기준과 원문 관계·AI 제안을 표시하는 Danseo 연구 비교 화면">
-  <br><sub>합성 데이터로 실행한 비교 화면입니다. 실제 논문이나 연구 결과가 아닙니다.</sub>
-</p>
 
 논문을 읽고 나면 결과가 나온 조건, 확인한 원문 위치, 내 프로젝트에 적용할 수 있는지를 다음 대화에서도 이어 볼 수 있어야 한다.
 

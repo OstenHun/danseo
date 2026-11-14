@@ -1,30 +1,21 @@
-<p align="center">
-  <img src="assets/brand/icon.svg" width="112" alt="Danseo logo">
-</p>
+# Danseo
 
-<h1 align="center">Danseo</h1>
+<picture>
+  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/brand/banner-compact-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
+  <img src="assets/brand/banner-light.svg" alt="Danseo — research evidence, project decisions." width="100%">
+</picture>
 
-<p align="center">
-  <strong>Bring research evidence into project decisions.</strong><br>
-  Keep sources, answers and comparisons with your existing AI agent.
-</p>
+**Bring research evidence into project decisions.**
 
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg" alt="Node.js 22 or 24 LTS">
-  <img src="https://img.shields.io/badge/status-development_preview-orange.svg" alt="Development preview">
-</p>
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
+![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-<p align="center">
-  <a href="README.md">한국어 — default</a> · <strong>English</strong> · <a href="#quick-start">Quick start</a> · <a href="docs/CLI.en.md">Guide</a> · <a href="CONTRIBUTING.md">Contributing</a>
-</p>
+[한국어 — default](README.md) · English · [Quick start](#quick-start) · [Guide](docs/CLI.en.md) · [Contributing](CONTRIBUTING.md)
 
 Summary: Keep paper choices, sources, answers and comparison evidence in local files with your existing AI agent. A development preview with a CLI and a read-only research comparison view.
-
-<p align="center">
-  <img src="assets/readme/comparison-preview.jpg" width="960" alt="Danseo comparing synthetic Paper A and Paper B, a criterion, source relationships and AI proposals">
-  <br><sub>Running comparison view with synthetic data, not real papers or research results.</sub>
-</p>
 
 A summary alone rarely tells you enough to apply a paper. You need its evaluation conditions, exact source locations and a way to revisit earlier decisions in another chat.
 
