@@ -96,7 +96,7 @@ The fixture is a draft, so it requires `--include-drafts`. This flag does not ch
 
 ## Development status
 
-`0.1.0-dev.1` is a development preview; the CLI and file formats may change. The candidate covers find, collect, analyze, compare and existing card exports. The card editor, separate learning-HTML skill, autonomous experiments, site submissions and MCP server are not included. Desktop use is in scope; mobile support and testing are excluded.
+`0.1.0-dev.1` is a development preview; the CLI and file formats may change. The candidate covers find, collect, analyze, compare and existing card exports. The card editor, separate learning-HTML skill, autonomous experiments, site submissions and MCP server are not included. The research comparison web app targets desktop. Standalone paper-relation HTML provides desktop and mobile layouts, short labels, topic groups and focused connections by default, with evidence and relation filters. Topic groups are editorial interpretations, not source claims.
 
 Automated and installed-package checks are separate from human usage and learning-effect evaluation. [Runtime evidence](docs/RUNTIME_SUPPORT.md) · [Tasks](TASKS.md)
 
