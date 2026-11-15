@@ -43,6 +43,8 @@ Claude, Argon, Codex 모두 같은 Node 생성기를 사용한다. 관계 분석
 }
 ```
 
+표 비교 문장의 각주에 포함된 수량은 같은 표 블록의 실제 발췌·단위·값으로 대조한다. 검증된 표 보고서에는 countText 전체 문장 형식을 중복 강제하지 않으며, 일반 수량 문장의 기존 제약은 유지한다.
+
 위 수량 예시에는 [성능 검토](performance-verification.md)의 tables와 performance 배열을 추가해야 한다. 성능 주장이 없어도 performance-plan의 모든 대상 문장을 검토한다. 이전 v1 evidence는 새 HTML 생성에서 거절한다. 위 예시는 합성 자료다. 해당 필드의 정확한 표시 문자열은 `원문 수량 (S.Example, p. 2): 17개 레코드, 15개 문서, 60개 쌍.`이다. 등호나 해석 문장을 끼워 넣으면 실패한다. `research-evidence.mjs`의 `countMentions(quote)`와 `countText(binding)`를 재사용할 수 있다.
 
 추출 JSON은 `{"pdf_sha256":"<original PDF hash>","pages":[{"page":2,"text":"..."}]}` 형식이다. PDF 해시 연결, 쪽 번호, 공백 정규화한 발췌 포함 여부, 발췌의 수량 값·단위 순서를 검사한다. source_id는 후보의 sources와 해당 claim.evidence(노트이면 해당 논문의 claim)에 연결돼야 한다. 새 값/단위나 출처를 추측해서 채우지 않는다. 수량이 없으면 counts는 빈 배열이다. 성능 비교에 쓰는 원문은 sources/tables에 연결하며 모든 대상 필드의 performance 검토를 포함한다.

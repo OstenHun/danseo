@@ -130,3 +130,27 @@ test('common Korean and English superiority paraphrases cannot be exempted',t=>{
     assert.throws(()=>verifyEvidence(f.c,f.e,f.dir),/cannot be exempted/);
   }
 });
+test('source counts in table footnotes compose with exact performance reports',t=>{
+  const f=fixture(t),oldFooter=f.table.footer;
+  f.table.footer+=' Evaluation on 100 records (80 documents, 120 pairs).';
+  f.table.quote=f.table.quote.replace(oldFooter,f.table.footer);
+  const source=JSON.parse(readFileSync(path.join(f.dir,'pages.json'),'utf8'));source.pages[0].text=f.table.quote;
+  writeFileSync(path.join(f.dir,'pages.json'),JSON.stringify(source));f.e.sources[0].text_sha256=hash(JSON.stringify(source));
+  const parsed=readTable(f.table,new Map([['S.1',new Map([[2,f.table.quote]])]]));
+  f.c.papers[0].claims[0].statement=comparisonText(parsed,f.comparison);f.screen();f.save();
+  const receipt=run([f.input,'--evidence',f.sidecar,'--out',f.output]);assert.equal(receipt.count_fields,1);assert.equal(receipt.performance_fields,1);
+  // A report-shaped classification cannot bypass the old count gate.
+  f.c.papers[0].claims[0].statement='101 records';f.screen();
+  assert.throws(()=>verifyEvidence(f.c,f.e,f.dir),/exact source-derived performance/);
+});
+test('method-only higher-order and lower-bound descriptions remain supported',t=>{
+  const f=fixture(t);
+  for(const claim of ['Uses higher-order interactions to construct the graph.','The proof derives a lower bound on the search space.']) {
+    f.c.papers[0].claims[0].statement=claim;f.screen();
+    Object.assign(f.e.performance.find(x=>x.path==='/papers/0/claims/0/statement'),{kind:'non-performance',comparison:null});
+    assert.doesNotThrow(()=>verifyEvidence(f.c,f.e,f.dir));
+  }
+  f.c.papers[0].claims[0].statement='The method has higher accuracy than the baseline.';f.screen();
+  Object.assign(f.e.performance.find(x=>x.path==='/papers/0/claims/0/statement'),{kind:'non-performance',comparison:null});
+  assert.throws(()=>verifyEvidence(f.c,f.e,f.dir),/cannot be exempted/);
+});

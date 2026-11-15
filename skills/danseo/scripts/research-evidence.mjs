@@ -103,6 +103,9 @@ export function verifyEvidence(candidate, evidence, directory) {
   }
   const fields = visibleCountFields(candidate);
   const covered = new Set();
+  // These paths only defer the whole-field count format. verifyPerformance below
+  // must validate the exact generated report and its source before any success.
+  const reports = new Map((Array.isArray(evidence.performance) ? evidence.performance : []).filter(e => e?.kind === 'table-comparison').map(e => [e.path, e.comparison?.table_id]));
   for (const binding of evidence.counts) {
     object(binding, ['path', 'source_id', 'page', 'quote', 'items'], 'count binding');
     if (!fields.has(binding.path) || covered.has(binding.path)) fail('Invalid or duplicate count field path');
@@ -120,15 +123,24 @@ export function verifyEvidence(candidate, evidence, directory) {
     if (!page || !containsQuote(page, binding.quote)) fail(`${binding.path}: quote missing from declared source page (complete tokens required)`);
     const extracted = countMentions(binding.quote);
     if (JSON.stringify(extracted) !== JSON.stringify(binding.items.map(({unit, value}) => ({unit, value})))) fail(`${binding.path}: count values/units differ from source quote`);
-    if (fields.get(binding.path) !== countText(binding)) fail(`${binding.path}: use the exact source-derived count text (no equality or paraphrase)`);
+    if (!reports.has(binding.path) && fields.get(binding.path) !== countText(binding)) fail(`${binding.path}: use the exact source-derived count text (no equality or paraphrase)`);
     covered.add(binding.path);
   }
   for (const [pointer, value] of fields) {
     // The regression concerns dataset record/pair totals. A retrieval setting
     // such as top-5 documents is not necessarily expressed as a literal count
     // in the source; do not silently reinterpret it as a dataset total.
-    if (countMentions(value).some(i => i.unit !== 'documents') && !covered.has(pointer)) fail(`${pointer}: record/pair count statement needs source-bound evidence`);
+    if (countMentions(value).some(i => i.unit !== 'documents') && !covered.has(pointer) && !reports.has(pointer)) fail(`${pointer}: record/pair count statement needs source-bound evidence`);
   }
   const performance = verifyPerformance(candidate, evidence, sources);
+  for (const [pointer, tableId] of reports) {
+    if (!fields.has(pointer)) continue;
+    const mentions = countMentions(fields.get(pointer));
+    if (!mentions.length) continue;
+    const table = evidence.tables.find(t => t.id === tableId);
+    const sourceCounts = countMentions(table.quote);
+    if (mentions.some(i => !sourceCounts.some(s => s.unit === i.unit && s.value === i.value))) fail(`${pointer}: table report count differs from its source block`);
+    covered.add(pointer);
+  }
   return { checks: 'canonical-overview-source-counts-and-performance', count_fields: covered.size, source_files: sources.size, ...performance, source_semantics: 'not-certified', visual_review: 'not-run' };
 }

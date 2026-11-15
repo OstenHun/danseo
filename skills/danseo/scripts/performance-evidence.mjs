@@ -6,7 +6,7 @@ const containsExcerpt = (page, quote) => {
   return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'iu').test(norm(page));
 };
 // A migration tripwire, not a semantic classifier. V2 requires explicit coverage too.
-export const performanceSignal = s => /능가|우월|우수|필적|뛰어나|뛰어넘|앞선|앞서|더\s*(?:낫|나은|좋)|일관(?:된|되게).*?(?:성능|향상)|(?:성능|정확도|정밀도|효율|점수).*?(?:향상|개선|높|낮|끌어올|극대)|outperform|surpass|superior|state.of.the.art|\b(?:better|best|faster|slower|improv\w*|higher|lower)\b/iu.test(s);
+export const performanceSignal = s => /능가|우월|우수|필적|뛰어나|뛰어넘|앞선|앞서|더\s*(?:낫|나은|좋)|일관(?:된|되게).*?(?:성능|향상)|(?:성능|정확도|정밀도|효율|점수).*?(?:향상|개선|높|낮|끌어올|극대)|outperform|surpass|superior|state.of.the.art|\b(?:better|best|faster|slower|improv\w*)\b|\b(?:higher|lower)\s+(?:than|accuracy|precision|recall|f1|score|loss|latency|perplexity|performance)\b/iu.test(s);
 
 export function performanceFields(candidate) {
   const fields = new Map();
