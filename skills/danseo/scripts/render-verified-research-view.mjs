@@ -3,11 +3,13 @@ import path from 'node:path';
 import { validateCandidate, renderCandidate } from './render-research-view.mjs';
 import { overviewFor, verifyEvidence } from './research-evidence.mjs';
 import { cliEntry, hash, fail } from './view-core.mjs';
+import { performancePlan } from './performance-evidence.mjs';
 
 export function run(args) {
   const [input, option, evidenceFile, action, output] = args;
   const bytes = readFileSync(input);
   const candidate = validateCandidate(JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, '')));
+  if (args.length === 2 && option === '--performance-plan') return performancePlan(candidate);
   if (args.length === 2 && option === '--overview') {
     if (candidate.version !== 2 || candidate.mode !== 'paper-relations') fail('Overview requires version 2 paper-relations');
     return overviewFor(candidate);

@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { hash, fail, object, text, list } from './view-core.mjs';
+import { verifyPerformance } from './performance-evidence.mjs';
 
 // A bounded evidence gate, not a natural-language truth classifier.
 export function overviewFor(candidate) {
@@ -82,8 +83,8 @@ export function verifyEvidence(candidate, evidence, directory) {
   for (const [key, value] of Object.entries(overviewFor(candidate))) {
     if (candidate[key] !== value) fail(`${key}: regenerate the canonical overview with --overview`);
   }
-  object(evidence, ['version', 'sources', 'counts'], 'evidence');
-  if (evidence.version !== 1) fail('Unsupported evidence version');
+  if (![1, 2].includes(evidence.version)) fail('Unsupported evidence version');
+  object(evidence, evidence.version === 2 ? ['version', 'sources', 'counts', 'tables', 'performance'] : ['version', 'sources', 'counts'], 'evidence');
   list(evidence.sources, 'sources'); list(evidence.counts, 'counts');
   const sources = new Map();
   for (const source of evidence.sources) {
@@ -128,5 +129,6 @@ export function verifyEvidence(candidate, evidence, directory) {
     // in the source; do not silently reinterpret it as a dataset total.
     if (countMentions(value).some(i => i.unit !== 'documents') && !covered.has(pointer)) fail(`${pointer}: record/pair count statement needs source-bound evidence`);
   }
-  return { checks: 'canonical-overview-and-source-counts', count_fields: covered.size, source_files: sources.size, source_semantics: 'not-certified', visual_review: 'not-run' };
+  const performance = verifyPerformance(candidate, evidence, sources);
+  return { checks: 'canonical-overview-source-counts-and-performance', count_fields: covered.size, source_files: sources.size, ...performance, source_semantics: 'not-certified', visual_review: 'not-run' };
 }
