@@ -88,7 +88,9 @@
       else { type = 'relation'; id = item.id; title = paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind]; sub = (item.origin === 'ai' ? 'AI 제안' : '원문 기반 기록') + ' · ' + item.status + (item.needs_recheck ? ' · 재확인 필요' : ''); }
       const a = localLink(type, id, undefined, 'map-link'), body = node('span', '', title); body.append(node('span', 'link-subtitle', sub)); a.append(node('span', 'index', String(index + 1).padStart(2, '0')), body); byId('map-links').append(a); nav.set(type + ':' + id, a);
     });
-    map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); });
+    map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); }, matches => {
+      for (const relation of data.relations ?? []) { const link = nav.get('relation:' + relation.id); if (link) link.hidden = !matches(relation); }
+    });
     byId('map-status').textContent = map ? '노드 드래그 · 배경 이동 · 휠/버튼 확대 · 전체 보기' : '지도를 불러오지 못했습니다. 아래 같은 기록 목록으로 탐색할 수 있습니다.';
     for (const button of byId('scene-controls').children) button.setAttribute('aria-pressed', String(button.scene === scene));
   }
@@ -222,7 +224,8 @@
   });
   byId('skip').addEventListener('click', event => { event.preventDefault(); byId('item-title').focus(); });
   byId('fit-map').addEventListener('click', () => map?.fit()); byId('zoom-in').addEventListener('click', () => map?.zoom(1.2)); byId('zoom-out').addEventListener('click', () => map?.zoom(1 / 1.2));
-  window.addEventListener('hashchange', () => followHash(true));
+  // Explorer controls keep their focus; the explicit evidence button moves to detail.
+  window.addEventListener('hashchange', () => followHash(!document.activeElement?.closest?.('.graph-explorer')));
   window.addEventListener('keydown', event => {
     if (event.key !== 'Escape' || projectMode || event.defaultPrevented || selectedType === 'overview') return;
     if (event.target?.closest?.('input, textarea, select, [contenteditable="true"], dialog')) return;

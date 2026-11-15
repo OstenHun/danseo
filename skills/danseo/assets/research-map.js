@@ -31,9 +31,9 @@
     }
     return elements;
   }
-  function mount(container, data, scene, onSelect) {
+  function mount(container, data, scene, onSelect, onFilter = () => {}) {
     if (typeof cytoscape !== 'function') return null;
-    if (data.mode === 'paper-relations') return mountPapers(container, data, scene, onSelect);
+    if (data.mode === 'paper-relations') return mountPapers(container, data, scene, onSelect, onFilter);
     const cy = cytoscape({ container, elements: build(data, scene), layout: { name: 'preset', fit: true, padding: 32 }, minZoom: .25, maxZoom: 2.2,
       style: [
         { selector: 'node', style: { shape: 'round-rectangle', width: 176, height: 74, 'background-color': '#ffffff', 'border-width': 1.5, 'border-color': '#9aa9c5', label: 'data(label)', color: '#202631', 'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif', 'font-size': 18, 'font-weight': 600, 'text-wrap': 'wrap', 'text-max-width': 152, 'text-valign': 'center', 'text-halign': 'center', padding: 8 } },
@@ -60,15 +60,14 @@
       cy.elements().filter(item => item.data('type') === type && (type === 'reference' ? id === item.data('recordId') + ':' + item.data('paperId') && item.data('paperId') === paperId : item.data('recordId') === id)).addClass('active');
     }, destroy: () => { observer?.disconnect(); container.removeEventListener('wheel', wheel); cy.destroy(); } };
   }
-  function mountPapers(container, data, scene, onSelect) {
+  function mountPapers(container, data, scene, onSelect, onFilter) {
     const presentation = window.DanseoGraph;
     const elements = build(data, scene);
     const relations = new Map(data.relations.map(item => [item.id, item]));
-    const positions = presentation.freePositions(data.papers.length);
-    let index = 0;
+    const layout = presentation.topicLayout(data.papers);
     for (const item of elements) {
       if (item.group === 'nodes') {
-        item.position = positions[index++];
+        item.position = layout.positions[item.data.recordId];
       } else {
         const relation = relations.get(item.data.recordId);
         item.data.category = presentation.category(relation);
@@ -87,8 +86,31 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
-      const card = presentation.paperCard({ id: paper.id, title: paper.title, reviewStatus: paper.review_status, dateLabel: '날짜 미제공' });
+      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: '날짜 미제공' });
       cards.set(paper.id, card); world.append(card);
+    }
+    presentation.drawTopics(world, layout.headings);
+    const host = document.createElement('div'); container.before(host);
+    let selection = null;
+    const explorer = presentation.explorer(host, () => {
+      if (selection?.type === 'relation' && !presentation.matchesRelation(relations.get(selection.id), explorer.filters)) {
+        selection = null; onSelect({ type:'overview', recordId:'all' });
+      }
+      applyDisplay(); onFilter(edge => presentation.matchesRelation(edge, explorer.filters));
+    }, (type,id) => onSelect({type,recordId:id}), 'item-title');
+    function applyDisplay() {
+      cy.edges().forEach(edge => edge.toggleClass('display-hidden', !presentation.shownRelation(relations.get(edge.data('recordId')), explorer.filters, selection)));
+      explorer.update(data.papers, data.relations, selection);
+      cy.elements().removeClass('selected connected faded');
+      const item = selection && cy.getElementById(selection.type + ':' + selection.id);
+      if (item?.length) {
+        item.addClass('selected');
+        const eligible = item.connectedEdges().filter(edge => !edge.hasClass('display-hidden'));
+        const connected = item.isNode() ? item.union(eligible).union(eligible.connectedNodes()) : item.connectedNodes().union(item);
+        connected.difference(item).addClass('connected');
+        cy.elements().difference(connected).addClass('faded');
+      }
+      sync();
     }
     let frame = null, interacted = false;
     const sync = () => {
@@ -99,7 +121,7 @@
         for (const [id, card] of cards) presentation.syncCard(card, cy.getElementById('paper:' + id));
       });
     };
-    const fit = () => { cy.resize(); cy.fit(undefined, 40); if (cy.zoom() > 1) cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); sync(); };
+    const fit = () => { cy.resize(); cy.fit(cy.nodes(), 60); if (cy.zoom() > 1) cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); sync(); };
     const wheel = () => { interacted = true; };
     container.addEventListener('wheel', wheel, { passive: true });
     cy.on('mousedown touchstart', wheel);
@@ -109,26 +131,20 @@
     cy.on('mouseover', 'node, edge', event => { event.target.addClass('hovered'); container.style.cursor = 'pointer'; sync(); });
     cy.on('mouseout', 'node, edge', event => { event.target.removeClass('hovered'); container.style.cursor = ''; sync(); });
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { cy.resize(); if (!interacted) fit(); }) : null;
-    observer?.observe(container); fit();
+    observer?.observe(container); applyDisplay(); fit();
     return {
       fit: () => { interacted = true; fit(); },
       zoom: factor => { interacted = true; cy.zoom({ level: Math.max(.25, Math.min(2.5, cy.zoom() * factor)), renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); },
       select(type, id) {
-        cy.elements().removeClass('selected connected faded');
-        const item = cy.getElementById(type + ':' + id);
-        if (item.length) {
-          item.addClass('selected');
-          const connected = item.isNode() ? item.closedNeighborhood() : item.connectedNodes().union(item);
-          connected.difference(item).addClass('connected');
-          cy.elements().difference(connected).addClass('faded');
-        }
-        sync();
+        selection = ['paper','relation'].includes(type) ? {type,id} : null;
+        if (type === 'relation' && relations.has(id)) explorer.reveal(relations.get(id));
+        applyDisplay();
       },
       destroy() {
         observer?.disconnect(); container.removeEventListener('wheel', wheel);
         if (frame !== null) cancelAnimationFrame(frame);
         cy.destroy();
-        layer.remove(); container.classList.remove('paper-map'); container.style.cursor = '';
+        explorer.destroy(); host.remove(); layer.remove(); container.classList.remove('paper-map'); container.style.cursor = '';
       }
     };
   }

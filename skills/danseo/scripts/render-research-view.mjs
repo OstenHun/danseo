@@ -27,7 +27,8 @@ export function validateCandidate(data) {
   }
   const claims = new Map();
   for (const paper of data.papers) {
-    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : [])], `paper.${paper.id}`);
+    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...(Object.hasOwn(paper, 'topic') ? ['topic'] : [])], `paper.${paper.id}`);
+    if (Object.hasOwn(paper, 'topic')) { text(paper.topic, 'paper.topic'); if (paper.topic.length > 40) fail('paper.topic: maximum 40 characters'); }
     if (enhanced) { text(paper.short_title, 'paper.short_title'); paragraphs(paper.notes, 'paper.notes'); }
     text(paper.title, `paper.${paper.id}.title`);
     if (paper.edition !== null) text(paper.edition, `paper.${paper.id}.edition`);

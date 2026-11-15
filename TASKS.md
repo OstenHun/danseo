@@ -4,6 +4,12 @@
 
 갱신: 2026-11-12 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
+## 논문 그래프 기본 구성 — 2026-11-16 / Local verification
+
+- 공통 skill에 짧은 제목·선택 중심 연결·주제 배치·근거/관계 필터·모바일 방향 도식을 기본 적용했다. 주제는 편집상 해석이고 전체 제목과 원문/AI 상태는 보존한다.
+- Windows Node 24에서 `npm test` 86개와 evidence 검사 13개, 그래프 회귀 4개, `npm run test:package`, `npm run check:docs`를 확인했다. 설치된 skill 폴더만 복사한 생성도 검사한다.
+- 실제 12편 새 생성의 Codex·Claude·Argon 결과와 1440/390px 화면을 확인했다. 긴 주제명 겹침과 5개 주제의 과도한 축소를 수정했다. 추가 표본 대조에서 발견한 성능 일반화와 교정·한계는 [검증 기록](docs/GRAPH_DEFAULTS.md)에 분리했다. 개인 원문과 실행 로그는 공개하지 않는다. 원격 상태는 [PR #12](https://github.com/OstenHun/danseo/pull/12)에서 확인한다.
+
 ## 독립 관계 HTML의 근거 검사 — 2026-11-15 / Local verification
 
 - portable Danseo skill에 공통 그래프 생성기·자산·원문 검증 절차를 묶었다. 웹앱의 native 비교 API와 분리된 실행 경로다.

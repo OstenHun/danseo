@@ -6,7 +6,7 @@ import type { serveComparison as ServeComparison } from '../dist/web/comparison-
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,6 +37,33 @@ assert.equal(validation.records, 3);
 assert.equal(validation.projects, 2);
 assert.match(cli('export', '--workspace', workspace, '--project', 'demo', '--application', 'app-demo', '--include-drafts', '--format', 'markdown'), /app-demo/);
 console.log(`Installed ${pack.filename}: help, synthetic validation and export passed (${process.version}/${process.platform}).`);
+
+// Copy only the installed skill to reproduce the README folder-only installation.
+const standalone = path.join(scratch, 'standalone-skill');
+cpSync(path.join(installed, 'skills/danseo'), standalone, {recursive: true});
+for (const file of ['SKILL.md', 'assets/graph-presentation.js', 'assets/graph-presentation.css', 'assets/research-map.js', 'assets/research-view.js', 'scripts/render-research-view.mjs']) {
+  assert.deepEqual(readFileSync(path.join(standalone, file)), readFileSync(path.join(root, 'skills/danseo', file)));
+}
+const portableInput = path.join(consumer, 'graph.json'), portableEvidence = path.join(consumer, 'evidence.json');
+const portableOutput = path.join(consumer, 'graph.html');
+const portable = parseJson<{papers: {topic?: string}[]} & Record<string, unknown>>(readFileSync(path.join(standalone, 'assets/paper-relations.v2.example.json'), 'utf8'));
+required(portable.papers[0]).topic = '검색 결과 근거의 답변 인용과 충실도 평가';
+const renderPortable = (...args: string[]) => execFileSync(process.execPath, [path.join(standalone, 'scripts/render-verified-research-view.mjs'), portableInput, ...args], {cwd: consumer, encoding: 'utf8'});
+writeFileSync(portableInput, JSON.stringify(portable));
+Object.assign(portable, parseJson<Record<string, unknown>>(renderPortable('--overview')));
+writeFileSync(portableInput, JSON.stringify(portable));
+writeFileSync(portableEvidence, JSON.stringify({version: 1, sources: [], counts: []}));
+const portableReceipt = parseJson<{ok: boolean; source_semantics: string}>(renderPortable('--evidence', portableEvidence, '--out', portableOutput));
+assert.equal(portableReceipt.ok, true);
+assert.equal(portableReceipt.source_semantics, 'not-certified');
+const portableHtml = readFileSync(portableOutput, 'utf8');
+assert.match(portableHtml, /선택한 연결만/);
+assert.match(portableHtml, /주제 미분류/);
+assert.match(portableHtml, /검색 결과 근거의 답변 인용과 충실도 평가/);
+required(portable.papers[0]).topic = '가'.repeat(41);
+writeFileSync(portableInput, JSON.stringify(portable));
+assert.throws(() => renderPortable('--evidence', portableEvidence, '--check'), /maximum 40 characters/);
+console.log('Installed folder-only skill: exact shared assets, verified HTML and long-topic boundary passed.');
 
 // Exercise the installed CLI from a consumer outside the source tree.
 const topicDir = path.join(consumer, '한글 주제 폴더');
