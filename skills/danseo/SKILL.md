@@ -1,6 +1,6 @@
 ---
 name: danseo
-description: Find research papers in chat, save candidates, select and resume a reading list, or use the Danseo CLI to validate local paper/application records, export evidence bundles, and compare research conditions with a project's question.
+description: Find and organize research papers, analyze evidence-linked paper relationships, and generate consistent interactive research graphs or standalone HTML. Use for Danseo workflows, paper relation maps, and local paper/application records; use danseo-reading for concept learning.
 ---
 # Danseo
 
@@ -38,6 +38,10 @@ description: Find research papers in chat, save candidates, select and resume a 
 출력의 기존 답·메모·남은 질문을 읽는다. 전체 개요는 연구 질문·방법·주요 결과의 짧은 한 문단으로 쓰고, 주제 관련 절·표는 조건·표본·단위와 PDF 실제 쪽·절·표 번호를 확인해 자세히 답한다. 공통 저자 주장과 조건·한계·원문 위치는 Paper에, 주제별 답과 AI 해석·질문·재개 위치는 분석 문서에 둔다. 다른 주제에서는 같은 Paper를 연결하고 그 주제의 답을 따로 쓴다. 판본이 바뀌면 이전 답과 근거를 보존하고 새로 읽은 범위를 구분한다.
 
 답 JSON과 열 때 받은 문서 해시로 `analysis-save`하면 같은 문서에 덧붙인다. 다른 사람이 메모를 바꾸었으면 다시 열어 보존한다. 실제 PDF를 읽고 비교 후보 핵심 주장만 기존 주장별 고정 입력·결과에 대조해 기록한다. `topic comparison-input`이 현재 유효한 원문 지지 주장만 넘기는지 확인하며, 미대조·변경·충돌 근거를 원문 지지로 만들지 않는다. 이 명령은 비교 관계나 그래프를 만들지 않는다. [분석·저장·새 프로세스 재개](../../docs/PAPER_ANALYSIS.md) · [주장 검토 JSON](../../docs/CLAIM_REVIEWS.md).
+
+## 독립 논문 관계 HTML
+
+논문 관계 지도나 독립 HTML 요청에는 포함된 공통 생성기를 사용한다. [연구 화면 모델](references/research-view.md), [관계 원문 검증](references/relation-verification.md), [개요·수량 검사](references/evidence-gate.md)를 따른다. Claude·Argon·Codex 모두 같은 순서로 원문과 AI를 구분하고 검사에 통과한 후보만 저장한다. 별도 웹앱이나 카드 등록 없이 Node 22/24로 사용할 수 있다. 원문 의미·추출 충실도·실제 화면은 별도로 확인한다. 기존 연구 비교 웹앱의 명령과 독립 HTML 생성기는 별개다.
 
 ## 자료 읽기
 

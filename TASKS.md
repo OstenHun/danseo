@@ -4,6 +4,12 @@
 
 갱신: 2026-11-12 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
+## 독립 관계 HTML의 근거 검사 — 2026-11-15 / Local verification
+
+- portable Danseo skill에 공통 그래프 생성기·자산·원문 검증 절차를 묶었다. 웹앱의 native 비교 API와 분리된 실행 경로다.
+- 관계 상태 기반 개요와 원문 발췌에 연결된 기록/쌍 수량(함께 나온 문서 수 포함)을 코드로 검사하고 실패 시 HTML을 저장하지 않는다. 기존 CLI의 관계 출력은 새 검사 경로로 안내한다.
+- 합성 정상·실패 회귀는 `npm run test:research-evidence`에 포함한다. 실제 논문 자료와 개인 실행 로그는 배포하지 않는다. 검사 범위·제외·사용법은 [근거 검사](skills/danseo/references/evidence-gate.md)에 기록한다.
+
 ## 저장소 공개 전환 — 2026-11-14
 
 - 공개 전 파일·전체 branch/PR 이력·이슈/댓글·Actions 로그를 검사했다.
