@@ -6,7 +6,12 @@ const containsExcerpt = (page, quote) => {
   return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])`, 'iu').test(norm(page));
 };
 // A migration tripwire, not a semantic classifier. V2 requires explicit coverage too.
-export const performanceSignal = s => /능가|우월|우수|필적|뛰어나|뛰어넘|앞선|앞서|더\s*(?:낫|나은|좋)|일관(?:된|되게).*?(?:성능|향상)|(?:성능|정확도|정밀도|효율|점수).*?(?:향상|개선|높|낮|끌어올|극대)|outperform|surpass|superior|state.of.the.art|\b(?:better|best|faster|slower|improv\w*)\b|\b(?:higher|lower)\s+(?:than|accuracy|precision|recall|f1|score|loss|latency|perplexity|performance)\b/iu.test(s);
+const metricDirections = new Map([
+  ...['accuracy', 'factscore', 'f1', 'em', 'exact match', 'bleu', 'rouge', 'rouge-1', 'rouge-2', 'rouge-l', 'precision', 'recall', 'auroc', 'auc'].map(m => [m, 'higher']),
+  ...['loss', 'perplexity', 'latency', 'error rate', 'wer', 'cer'].map(m => [m, 'lower']),
+]);
+const metricSignal = new RegExp(`\\b(?:higher|lower)\\s+(?:than|score|performance|${[...metricDirections.keys()].map(m => m.replaceAll(' ', '\\s+')).join('|')})\\b`, 'iu');
+export const performanceSignal = s => metricSignal.test(s) || /능가|우월|우수|필적|뛰어나|뛰어넘|앞선|앞서|더\s*(?:낫|나은|좋)|일관(?:된|되게).*?(?:성능|향상)|(?:성능|정확도|정밀도|효율|점수).*?(?:향상|개선|높|낮|끌어올|극대)|outperform|surpass|superior|state.of.the.art|\b(?:better|best|faster|slower|improv\w*)\b/iu.test(s);
 
 export function performanceFields(candidate) {
   const fields = new Map();
@@ -64,7 +69,7 @@ export function readTable(table, pages) {
     if (labels.has(col.label) || !norm(table.header).includes(norm(col.label)) || !norm(table.header).includes(norm(col.metric))) fail('Duplicate or unanchored column/metric');
     labels.add(col.label);
     const metric = norm(col.metric).toLowerCase();
-    const known = /^(accuracy|factscore|f1|em|exact match|bleu|rouge(?:-[12l])?|precision|recall|auroc|auc)$/.test(metric) ? 'higher' : /^(loss|perplexity|latency|error rate|wer|cer)$/.test(metric) ? 'lower' : null;
+    const known = metricDirections.get(metric);
     if (known && col.direction !== known) fail(`${col.metric}: metric direction contradicts its definition`);
     if (!known) {
       const quote = typeof col.direction_quote === 'string' ? norm(col.direction_quote).toLowerCase() : '';

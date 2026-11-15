@@ -154,3 +154,11 @@ test('method-only higher-order and lower-bound descriptions remain supported',t=
   Object.assign(f.e.performance.find(x=>x.path==='/papers/0/claims/0/statement'),{kind:'non-performance',comparison:null});
   assert.throws(()=>verifyEvidence(f.c,f.e,f.dir),/cannot be exempted/);
 });
+test('all supported metric names retain higher/lower comparison screening',t=>{
+  const f=fixture(t);
+  for(const metric of ['BLEU','ROUGE-L','EM','Exact Match','FactScore','AUC','AUROC','WER','CER']) {
+    f.c.papers[0].claims[0].statement=`The method achieves higher ${metric} than the baseline.`;f.screen();
+    Object.assign(f.e.performance.find(x=>x.path==='/papers/0/claims/0/statement'),{kind:'non-performance',comparison:null});
+    assert.throws(()=>verifyEvidence(f.c,f.e,f.dir),/cannot be exempted/);
+  }
+});
