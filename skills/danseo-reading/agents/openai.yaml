@@ -1,0 +1,4 @@
+interface:
+  display_name: "Danseo Reading"
+  short_description: "Read papers through questions, source feedback and concept views"
+  default_prompt: "Use $danseo-reading to study this paper with me. State which source passages you inspected, then adapt the questions and feedback to my actual explanations. Respond in my requested language."

@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "language": "en",
+  "title": "How does a small classifier choose an answer?",
+  "description": "Synthetic learning material illustrating the format, not a real paper or experiment result.",
+  "goal": "Explain how inputs, scores and a selection rule produce a prediction.",
+  "view": "map",
+  "view_reason": "Explore how scores and a selection rule jointly contribute to a prediction.",
+  "start": "prediction",
+  "reading_order": [
+    "input",
+    "scores",
+    "rule",
+    "prediction"
+  ],
+  "concepts": [
+    {
+      "id": "input",
+      "title": "Input numbers",
+      "summary": "Start with the material the model receives.",
+      "body": [
+        "This synthetic example uses two numbers as input. Choosing an input and choosing an answer are different tasks."
+      ],
+      "example": "Consider the illustrative input [2, 5]. These numbers do not represent a real image or person.",
+      "evidence": []
+    },
+    {
+      "id": "scores",
+      "title": "A score for each answer",
+      "summary": "Process the input to score each candidate.",
+      "body": [
+        "The synthetic model produces a score for each answer. These scores are neither probabilities nor measured performance."
+      ],
+      "example": "For illustration, let the score for A be 1.2 and the score for B be 2.4.",
+      "evidence": [
+        "synthetic-note"
+      ]
+    },
+    {
+      "id": "rule",
+      "title": "The selection rule",
+      "summary": "Decide how to compare the scores.",
+      "body": [
+        "This synthetic example selects the highest score. A different rule could produce a different answer from the same scores."
+      ],
+      "example": "With a highest-score rule, choose 2.4 over 1.2.",
+      "evidence": []
+    },
+    {
+      "id": "prediction",
+      "title": "The final prediction",
+      "summary": "Use the scores and selection rule together to choose an answer.",
+      "body": [
+        "Scores alone do not determine the prediction. A rule for interpreting them is also required.",
+        "Select a concept in the outline or follow the relationships below. Reading does not record understanding."
+      ],
+      "example": "With illustrative scores A=1.2 and B=2.4 and a highest-score rule, the answer is B.",
+      "evidence": [
+        "synthetic-note"
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "to": "scores",
+      "label": "Processes the input to produce scores",
+      "from": "input",
+      "origin": "ai",
+      "evidence": []
+    },
+    {
+      "to": "prediction",
+      "label": "Provides candidate scores to compare",
+      "from": "scores",
+      "origin": "ai",
+      "evidence": []
+    },
+    {
+      "to": "prediction",
+      "label": "Provides the criterion for selecting a score",
+      "from": "rule",
+      "origin": "ai",
+      "evidence": []
+    }
+  ],
+  "sources": [
+    {
+      "id": "synthetic-note",
+      "title": "Synthetic explanatory material · format example",
+      "url": "https://example.org/synthetic-classifier",
+      "locator": "§2 · Synthetic location, not a real paper",
+      "scope": "No original source was checked. The link only illustrates the source fields.",
+      "verification": "not-checked"
+    }
+  ]
+}

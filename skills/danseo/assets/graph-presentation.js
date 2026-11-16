@@ -1,10 +1,11 @@
 // Shared visual grammar. Adapters retain ownership of records, layout and navigation.
 (() => {
   'use strict';
+  const t = window.DanseoText ?? ((text, values = {}) => text.replace(/\{(\w+)\}/g, (match, key) => Object.hasOwn(values, key) ? String(values[key]) : match));
   const card = Object.freeze({ width: 184, height: 108, column: 216, row: 132 });
-  const kindNames = Object.freeze({ cites: 'Cites', extends: 'Method extension', compares: 'Compares', 'related-to': 'Relatedness', 'reading-order': 'Reading order' });
+  const kindNames = Object.freeze({ cites: t('Cites'), extends: t('Method extension'), compares: t('Compares'), 'related-to': t('Relatedness'), 'reading-order': t('Reading order') });
   const colors = Object.freeze({ source: '#326952', ai: '#7662a6', stale: '#a77832', pending: '#7b8493' });
-  const reviewNames = { draft: 'Paper review in progress', 'source-checked': 'Paper source-check record', 'needs-recheck': 'Paper needs rechecking' };
+  const reviewNames = { draft: t('Paper review in progress'), 'source-checked': t('Paper source-check record'), 'needs-recheck': t('Paper needs rechecking') };
   function shortTitle(paper) {
     const title = paper.short_title || paper.title;
     const prefix = title.split(/[:：]/)[0].trim();
@@ -13,7 +14,7 @@
   function topicLayout(papers) {
     const groups = new Map();
     for (const paper of papers) {
-      const topic = paper.topic || 'Uncategorized';
+      const topic = paper.topic || t('Uncategorized');
       if (!groups.has(topic)) groups.set(topic, []);
       groups.get(topic).push(paper);
     }
@@ -48,18 +49,18 @@
   }
   function relationState(edge) {
     const state = category(edge);
-    if (state === 'stale') return (edge.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck';
-    return state === 'ai' ? 'AI proposal' : state === 'source' ? 'Source check' : 'Source unchecked';
+    if (state === 'stale') return (edge.origin === 'ai' ? t('AI proposal') : t('Source record')) + t(' · recheck');
+    return state === 'ai' ? t('AI proposal') : state === 'source' ? t('Source check') : t('Source unchecked');
   }
   // Shared filters and counts; adapters own graph selection and keyboard navigation.
-  function explorer(host, onChange) {
+  function explorer(host, onChange, initialFilters = {}) {
     const root = element('div', 'graph-explorer'), controls = element('div', 'graph-explorer-controls');
-    const filters = { category: 'all', kind: 'all', mode: 'focus' };
+    const filters = { category: 'all', kind: 'all', mode: 'focus', ...initialFilters };
     const selects = {};
     for (const [key, label, choices] of [
-      ['category', 'Evidence status', [['all','All statuses'],['source','Source check'],['ai','AI proposal'],['stale','Recheck'],['pending','Source unchecked']]],
-      ['kind', 'Relation type', [['all','All types'], ...Object.entries(kindNames)]],
-      ['mode', 'Connections', [['focus','Selected connections'],['all','All connections']]]
+      ['category', t('Evidence status'), [['all',t('All statuses')],['source',t('Source check')],['ai',t('AI proposal')],['stale',t('Recheck')],['pending',t('Source unchecked')]]],
+      ['kind', t('Relation type'), [['all',t('All types')], ...Object.entries(kindNames)]],
+      ['mode', t('Connections'), [['focus',t('Selected connections')],['all',t('All connections')]]]
     ]) {
       const field = element('label', ''), select = element('select', '');
       field.append(element('span', '', label)); select.setAttribute('aria-label', label);
@@ -69,12 +70,12 @@
       field.append(select); controls.append(field);
     }
     const status = element('p', 'graph-explorer-status'); status.setAttribute('aria-live','polite');
-    const note = element('p', 'graph-topic-note', 'Topic groups are editorial interpretations, not citation or method-extension order. Select a paper to show its connections.');
+    const note = element('p', 'graph-topic-note', t('Topic groups are editorial interpretations, not citation or method-extension order. Select a paper to show its connections.'));
     root.append(controls, note, status); host.append(root);
     function update(papers, edges, selection) {
       const eligible = edges.filter(edge => matchesRelation(edge, filters));
       const shown = edges.filter(edge => shownRelation(edge, filters, selection));
-      status.textContent = `Papers: ${papers.length} · filtered relations: ${eligible.length} / ${edges.length} · map connections: ${shown.length}` + (!selection && filters.mode === 'focus' ? ' · select a paper to show connections' : '');
+      status.textContent = t('Papers: {papers} · filtered relations: {eligible} / {total} · map connections: {shown}', { papers: papers.length, eligible: eligible.length, total: edges.length, shown: shown.length }) + (!selection && filters.mode === 'focus' ? t(' · select a paper to show connections') : '');
     }
     return { filters, update, reset() { filters.category='all'; filters.kind='all'; filters.mode='focus'; for(const key of Object.keys(selects))selects[key].value=filters[key]; onChange(); }, reveal(edge) { if (!matchesRelation(edge,filters)) { filters.category='all'; filters.kind='all'; selects.category.value='all'; selects.kind.value='all'; onChange(); } }, destroy() { root.remove(); } };
   }
@@ -104,7 +105,7 @@
     node.style.width = card.width + 'px';
     node.style.height = card.height + 'px';
     const top = element('div', 'graph-paper-top');
-    top.append(element('span', 'graph-paper-type', 'Paper'), element('span', 'graph-paper-review', reviewNames[paper.reviewStatus] ?? 'Paper status unknown'));
+    top.append(element('span', 'graph-paper-type', t('Paper')), element('span', 'graph-paper-review', reviewNames[paper.reviewStatus] ?? t('Paper status unknown')));
     const title = element('p', 'graph-paper-title', shortTitle(paper));
     title.title = paper.title;
     const date = element('p', 'graph-paper-date', paper.dateLabel);

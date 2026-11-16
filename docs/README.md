@@ -1,6 +1,6 @@
 # Documentation
 
-Summary: English guides cover installation, topic workflows, formats and evidence checks. Research prose follows the requested language; fixed guidance is English and internal execution records stay local.
+Summary: English guides cover installation, workflows, formats and evidence checks. Standalone research UI supports Korean/English; prose follows the request. Internal execution records stay local.
 
 [Project overview](../README.md) · [한국어 안내](README.ko.md)
 
@@ -25,9 +25,9 @@ Summary: English guides cover installation, topic workflows, formats and evidenc
 
 ## Language and permissions
 
-Fixed viewer labels, diagnostics and active skill guidance are English. Agent-authored prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language); original titles, quotations, IDs and saved research text are preserved. There is no language selector or translation service. Explicit Korean README editions and synthetic research content remain available.
+Standalone research and learning labels support candidate `language` (`ko`/`en`). Omitted language retains English research UI or legacy Korean learning UI. CLI/native comparison labels, diagnostics and active skill instructions remain English. Agent-authored prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language); original titles, quotations, IDs and saved records are preserved. Other requested prose languages use English controls. There is no live language selector or content translation service. Korean README editions remain available.
 
-The repository provides one research skill and an optional local read-only comparison viewer. It does not bundle a card editor or separate learning skill. Keep private papers, workspaces, learner answers, raw logs and internal execution/review notes local. Public examples are synthetic; tests do not prove reader understanding or usefulness.
+The repository provides [three complete skills](../README.md#companion-skills-and-output-language): research records/maps, paper learning, and project application decisions. A local read-only comparison viewer is optional; no card editor is bundled. Keep private papers, workspaces, learner answers, raw logs and internal execution/review notes local. Public examples are synthetic; tests do not prove reader understanding or usefulness.
 
 ## Development and contribution
 

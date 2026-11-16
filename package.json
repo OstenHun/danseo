@@ -22,6 +22,8 @@
     "dist",
     "schemas",
     "skills/danseo",
+    "skills/danseo-reading",
+    "skills/paper-to-project",
     "examples/minimal",
     "docs",
     "evals",
@@ -46,7 +48,7 @@
     "build:tests": "npm run build && node build-tools/clean-test-build.js && tsc -p tsconfig.tests.json",
     "check:tests": "npm run build && tsc -p tsconfig.tests.json --noEmit",
     "build:tools": "tsc -p tsconfig.tools.json",
-    "test:research-evidence": "node --test skills/danseo/scripts/research-evidence.test.mjs skills/danseo/scripts/performance-evidence.test.mjs skills/danseo/scripts/research-view.test.mjs"
+    "test:research-evidence": "node --test skills/danseo/scripts/research-evidence.test.mjs skills/danseo/scripts/performance-evidence.test.mjs skills/danseo/scripts/research-view.test.mjs skills/danseo-reading/scripts/learning-view.test.mjs"
   },
   "dependencies": {
     "ajv": "8.20.0",

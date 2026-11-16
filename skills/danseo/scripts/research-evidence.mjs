@@ -1,7 +1,7 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { hash, fail, object, text, list } from './view-core.mjs';
-import { verifyPerformance } from './performance-evidence.mjs';
+import { verifyPerformance, performanceFields } from './performance-evidence.mjs';
 
 // A bounded evidence gate, not a natural-language truth classifier.
 export function overviewFor(candidate) {
@@ -9,8 +9,15 @@ export function overviewFor(candidate) {
   const checked = relations.filter(r => r.origin === 'source' && r.status === 'source-checked' && !r.needs_recheck);
   const ai = relations.filter(r => r.origin === 'ai');
   const pending = relations.length - checked.length - ai.length;
+  const backgroundCount = candidate.backgrounds?.length ?? 0;
+  if (candidate.language === 'ko') return {
+    description: `논문 ${candidate.papers.length}편 · 원문 확인 연결 ${checked.length}개 · AI 제안 ${ai.length}개 · 미확인 연결 ${pending}개.` + (backgroundCount ? ` 개념 배경 ${backgroundCount}개 · AI 선정 자료 ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}개.` : ''),
+    view_reason: '원문 확인 연결과 AI 제안을 나누어 살펴보세요. AI 제안을 저자가 주장한 연결로 취급하지 않습니다.',
+    scope: '입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. 원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다.',
+  };
+  const backgroundNotice = backgroundCount ? ` Concept backgrounds: ${backgroundCount} · AI-selected readings: ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}.` : '';
   return {
-    description: `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · AI proposals: ${ai.length} · unchecked relations: ${pending}.`,
+    description: `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · AI proposals: ${ai.length} · unchecked relations: ${pending}.` + backgroundNotice,
     view_reason: 'Select source-checked relations and AI proposals separately. AI proposals are not treated as relations asserted by the authors.',
     scope: 'Only input papers and relations are shown. Check each evidence scope for source coverage and unknowns. Source checking does not establish reproduction or reader understanding.',
   };
@@ -58,6 +65,9 @@ function visibleCountFields(candidate) {
       for (const key of ['conditions', 'limitations']) claim[key].forEach((value, i) => fields.set(`${base}/${key}/${i}`, value));
     });
   });
+  for (const [pointer, field] of performanceFields(candidate)) {
+    if (/^\/(?:concepts|backgrounds)\//.test(pointer)) fields.set(pointer, field.value);
+  }
   return fields;
 }
 
@@ -109,10 +119,8 @@ export function verifyEvidence(candidate, evidence, directory) {
   for (const binding of evidence.counts) {
     object(binding, ['path', 'source_id', 'page', 'quote', 'items'], 'count binding');
     if (!fields.has(binding.path) || covered.has(binding.path)) fail('Invalid or duplicate count field path');
-    const parts = binding.path.split('/');
-    const paper = candidate.papers[Number(parts[2])];
-    const claims = parts[3] === 'claims' ? [paper.claims[Number(parts[4])]] : paper.claims;
-    if (!candidate.sources.some(s => s.id === binding.source_id) || !claims.some(c => c.evidence.includes(binding.source_id))) fail(`${binding.path}: source must be linked to the displayed paper/claim`);
+    const allowedSources = performanceFields(candidate).get(binding.path)?.sourceIds ?? [];
+    if (!candidate.sources.some(s => s.id === binding.source_id) || !allowedSources.includes(binding.source_id)) fail(`${binding.path}: source must be linked to the displayed paper/claim or concept background`);
     text(binding.quote, 'quote'); list(binding.items, 'items');
     if (!binding.items.length) fail('Count items cannot be empty');
     for (const item of binding.items) {

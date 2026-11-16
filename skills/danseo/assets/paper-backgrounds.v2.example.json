@@ -1,0 +1,151 @@
+{
+  "version": 2,
+  "mode": "paper-relations",
+  "title": "What should we read next across these papers?",
+  "description": "Synthetic example, not an actual research result. Read each recorded relationship with its direction and evidence.",
+  "view_reason": "Select a paper and compare incoming and outgoing connections in their recorded direction.",
+  "start": "P.Score-1",
+  "papers": [
+    {
+      "id": "P.Score-1",
+      "title": "Predictions through changing scores",
+      "edition": "Synthetic edition v1",
+      "review_status": "source-checked",
+      "claims": [
+        {
+          "id": "C.1",
+          "statement": "Class scores change with the input in a synthetic classifier.",
+          "conditions": [
+            "An illustrative setting comparing two classes."
+          ],
+          "limitations": [
+            "Not a measurement from an actual trained model."
+          ],
+          "evidence": [
+            "S.1"
+          ],
+          "reviews": []
+        }
+      ],
+      "short_title": "P.Score-1",
+      "notes": []
+    },
+    {
+      "id": "P.Boundary-2",
+      "title": "Inputs near a decision boundary",
+      "edition": "Synthetic edition v2",
+      "review_status": "needs-recheck",
+      "claims": [
+        {
+          "id": "C.1",
+          "statement": "For an input near a boundary, a small score difference can change the prediction.",
+          "conditions": [
+            "A synthetic example with a fixed input and decision rule."
+          ],
+          "limitations": [
+            "A small change does not always change the prediction."
+          ],
+          "evidence": [
+            "S.2"
+          ],
+          "reviews": []
+        }
+      ],
+      "short_title": "P.Boundary-2",
+      "notes": []
+    },
+    {
+      "id": "P.Isolated",
+      "title": "An observation with no connections yet",
+      "edition": null,
+      "review_status": "draft",
+      "claims": [],
+      "short_title": "P.Isolated",
+      "notes": []
+    }
+  ],
+  "sources": [
+    {
+      "id": "S.1",
+      "title": "Synthetic source A",
+      "url": "https://example.org/score",
+      "locator": "§2 · Figure 1",
+      "scope": "Illustrates a synthetic source location, not a record of checking a real paper.",
+      "verification": "not-checked"
+    },
+    {
+      "id": "S.2",
+      "title": "Synthetic source B",
+      "url": "https://example.org/background",
+      "locator": "Local synthetic material · p. 4 · §3",
+      "scope": "Illustrates the location and scope of a claim linked only through a relationship. No actual source comparison is claimed.",
+      "verification": "not-checked"
+    }
+  ],
+  "relations": [
+    {
+      "id": "R.Cites",
+      "source": "P.Boundary-2",
+      "target": "P.Score-1",
+      "kind": "cites",
+      "origin": "source",
+      "status": "source-checked",
+      "needs_recheck": true,
+      "rationale": "Synthetic relationship: an old record that B cites the score example in A. Recheck after the edition change.",
+      "created_by": "synthetic-author",
+      "review": {
+        "checked_by": "synthetic-reviewer",
+        "checked_at": "2026-11-06T09:00:00+09:00"
+      },
+      "evidence_refs": [
+        {
+          "paper_id": "P.Boundary-2",
+          "claim_id": "C.1"
+        }
+      ]
+    },
+    {
+      "id": "R.Read",
+      "source": "P.Score-1",
+      "target": "P.Boundary-2",
+      "kind": "reading-order",
+      "origin": "ai",
+      "status": "proposed",
+      "needs_recheck": true,
+      "rationale": "AI reading-order suggestion: read the decision boundary after the score example. This implies neither a prerequisite nor method inheritance.",
+      "created_by": "synthetic-agent",
+      "review": null,
+      "evidence_refs": []
+    }
+  ],
+  "scope": "Synthetic format example. It does not represent the record counts or connections of a real workspace.",
+  "provenance": [],
+  "concepts": [
+    {
+      "id": "concept-demo",
+      "title": "Shared representation",
+      "summary": "Synthetic AI explanation; no historical priority claim."
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "B.Demo",
+      "paper_id": "P.Score-1",
+      "concept_id": "concept-demo",
+      "origin": "ai",
+      "status": "proposed",
+      "rationale": "Explore this idea if needed for the current paper.",
+      "readings": [
+        {
+          "paper_id": "P.Boundary-2",
+          "rationale": "Selected for a focused explanation; optional reading.",
+          "evidence": [
+            "S.2"
+          ],
+          "return_question": "What does the current paper change about the shared idea?"
+        }
+      ]
+    }
+  ],
+  "language": "en"
+}

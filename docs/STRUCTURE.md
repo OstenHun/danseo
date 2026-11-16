@@ -27,7 +27,9 @@ danseo/
 │  └─ views/               # Shared map and reading styles
 ├─ schemas/                # Card/workspace/relation JSON Schema
 ├─ scripts/                # TypeScript build/documentation tools
-├─ skills/danseo/           # Portable instructions, generators and assets
+├─ skills/danseo/           # Research instructions, generators and assets
+├─ skills/danseo-reading/   # Learning questions, source feedback and concept views
+├─ skills/paper-to-project/ # Paper/project comparisons and application guidance
 ├─ examples/minimal/       # Runnable synthetic workspace
 ├─ evals/                  # Evaluation plan; answers/runs remain private
 ├─ tests/                  # TypeScript regressions, helpers, package checks
@@ -95,4 +97,4 @@ Agents choose relevant sections from the overview, then read evidence/conditions
 
 ## Local execution versus deployment
 
-File-writing proposals require explicit local workspace access; this does not imply cloud hosting. Cross-device access, authentication and public APIs are separate scope. Develop with native Windows PowerShell and supported CI; see [runtime support](RUNTIME_SUPPORT.md). Never require a maintainer's private runtime/path. Fixed UI guidance is English, while supplied/generated research prose follows the [output-language rule](../skills/danseo/SKILL.md#output-language).
+File-writing proposals require explicit local workspace access; this does not imply cloud hosting. Cross-device access, authentication and public APIs are separate scope. Develop with native Windows PowerShell and supported CI; see [runtime support](RUNTIME_SUPPORT.md). Never require a maintainer's private runtime/path. Standalone research UI supports Korean/English via candidate `language`; CLI/native comparison guidance remains English. Supplied/generated research prose follows the [output-language rule](../skills/danseo/SKILL.md#output-language).

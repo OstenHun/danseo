@@ -5,7 +5,7 @@ Summary: Distribute the Danseo source, portable skill and synthetic examples. Ke
 ## What belongs in the repository
 
 - Product source, schemas, build/test tools and public usage documentation.
-- The complete portable `skills/danseo` folder and its bundled generators/assets.
+- Complete portable `skills/danseo`, `skills/danseo-reading` and `skills/paper-to-project` folders with their required references, generators and assets.
 - Synthetic fixtures, examples and an evaluation plan with no private answer keys.
 - License, dependency attribution, contribution and security guidance.
 

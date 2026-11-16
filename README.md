@@ -118,6 +118,20 @@ Start a new chat, select Danseo using the invocation above, and try the [graph p
 
 GitHub changes do not automatically update your installed copy. To update, download the latest source, back up the existing skill outside the host's skill search paths, then copy and check the complete folder again.
 
+### Companion skills and output language
+
+Instructions, agent metadata and default synthetic examples are in English. Explanations and generated content follow your requested language; English instructions do not force English answers.
+
+| Complete source folder | Use it for |
+| --- | --- |
+| [`skills/danseo`](skills/danseo/SKILL.md) | Paper discovery, records, evidence and research relationship views |
+| [`skills/danseo-reading`](skills/danseo-reading/SKILL.md) | Questions, source feedback and concept learning views |
+| [`skills/paper-to-project`](skills/paper-to-project/SKILL.md) | Comparing paper/project conditions and choosing an application action |
+
+Install a companion using the same procedure, replacing **both** the source and destination folder name with `danseo-reading` or `paper-to-project`. Invoke it by that name, or explicitly read its installed `SKILL.md`. Each folder contains its own required resources. The application skill is guidance only and needs no Node runtime; for the learning generator run `node --test <installed-danseo-reading>/scripts/learning-view.test.mjs`.
+
+For standalone research and learning HTML, set candidate `language` to `en` or `ko` to match the request. The renderers preserve supplied prose and quotations. Older candidates without this field retain their original defaults: English research UI and Korean learning UI. Other requested prose languages use English fixed controls; no live language switch or automatic translation service is included. Existing saved HTML must be regenerated to receive changes. CLI/native comparison controls remain English.
+
 <a id="논문-그래프-생성-요청"></a>
 
 ## Generate a paper-relationship graph
@@ -226,8 +240,8 @@ Private papers and records belong outside shared product source. `work/`, `works
 Version `0.1.0-dev.1` is a development preview. The CLI and file formats may change.
 
 - **Included:** discovery records, source collection, topic-specific analysis and resumption, evidence-linked comparison, existing-card export, and standalone relationship HTML.
-- **Not included:** a card editor, a separate learning-HTML skill, automatic experiments or submissions, or an MCP server. The research comparison app targets desktop browsers.
-- **Language:** fixed viewer controls, diagnostics, skill instructions and active usage references are English. Agent-authored research prose follows your explicit language request; otherwise it preserves the current work's chosen language, or uses your request language for new work. Original titles, quotations, identifiers and saved records are preserved. There is no language switch. [Output-language rules](skills/danseo/SKILL.md#output-language). Explicit Korean README editions and synthetic research content are preserved; internal work records stay local.
+- **Not included:** a card editor, automatic experiments or submissions, or an MCP server. The research comparison app targets desktop browsers; the optional learning skill is installed separately from the same source.
+- **Language:** standalone research HTML supports Korean or English controls and guidance through candidate `language: "ko"` or `"en"`; the agent sets it to match your request. Old inputs default to English. Agent-authored prose follows your requested language. Original titles, quotations, identifiers and saved records are preserved. CLI/native comparison controls, diagnostics, skill instructions and usage references remain English. There is no live language switch. [Output-language rules](skills/danseo/SKILL.md#output-language). Korean README editions and synthetic content remain available; internal work records stay local.
 
 Danseo itself needs no model key, database, or permanent server and makes no outbound requests. `topic compare` runs a read-only loopback server only while you use the view; stop it with Ctrl+C. Your agent's search, downloads, and model transmissions follow that agent's settings and permissions.
 

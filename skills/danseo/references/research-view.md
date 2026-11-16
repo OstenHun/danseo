@@ -45,7 +45,7 @@ Credential-free HTTP(S) URL validation and rejection of unregistered evidence st
 
 Use existing authorized CLI/export/graph data and full text. Distinguish recorded history from source checks in this run. Examples are synthetic references: [project application v2](../assets/project-application.v2.example.json), [paper relations v2](../assets/paper-relations.v2.example.json). New views use v2; v1 `.example.json` files test compatibility. Node 22/24 and the complete skill folder suffice, without external npm packages, sibling skills, repository code or a server.
 
-Apply [output language](../SKILL.md#output-language) to agent-authored prose before rendering. Original titles, quotations, IDs and machine fields stay unchanged. Fixed interface/diagnostic labels and deterministic evidence reports are English. Neither renderer nor CLI guesses/translates content language, and no language switch is provided.
+Apply [output language](../SKILL.md#output-language) to both the generated prose and standalone interface. Set optional root `language` to `ko` or `en` before generating the canonical overview. Korean requests use `ko`; omitted language preserves the legacy English interface. This applies to paper-relations and project-application inputs, including v1. Original titles, quotations, IDs, status values and saved content stay unchanged. The renderer translates only its fixed UI phrases, including accessible names and announcements; it neither detects nor translates supplied prose. Diagnostics, deterministic performance reports and the native CLI comparison remain English. There is no live language switch. Existing HTML must be regenerated with the updated complete skill folder.
 
 v1 common fields are required; unknown fields fail unless explicitly supported:
 
@@ -60,6 +60,28 @@ v1 common fields are required; unknown fields fail unless explicitly supported:
 Paper: `{id,title,edition,review_status,claims}`; unknown edition is null, review status preserves `draft|source-checked|needs-recheck`. Claim: `{id,statement,conditions,limitations,evidence}`. Statement is the recorded author claim; conditions/limitations are text arrays from the source body, evidence links source IDs. Missing conditions/limits are empty arrays, not a conclusion that none exist. Preserve locator labels/pages/ranges when converting to strings; never turn AI interpretation into an author claim.
 
 Make original card conditions/limits available on representative-claim and project-reference reading paths, not only separate Paper notes. Distinguish card commentary/review scope from author claims. IDs begin with an English letter/digit and contain letters/digits/dot/underscore/hyphen. Claim IDs are Paper-local; always reference `{paper_id,claim_id}`. Keep input order; do not sort relation direction by dates.
+
+### Optional concept backgrounds
+
+For v2 `paper-relations` only, add `concepts` and `backgrounds` together when a reading question reveals a useful background concept. Both are optional arrays; existing v1/v2 inputs remain supported. A previous generator rejects these new fields, so new inputs require the updated complete skill folder. No core Paper/Application/Relation schema is changed. See the [synthetic example](../assets/paper-backgrounds.v2.example.json).
+
+| Record | Fields and meaning |
+| --- | --- |
+| Concept | `{id,title,summary}`; a distinct concept with an AI explanation, never a fabricated Paper |
+| Background | `{id,paper_id,concept_id,origin,status,rationale,readings}`; current paper, concept, and why exploring it may help. `origin` must be `ai`, `status` must be `proposed` |
+| Representative reading | `{paper_id,rationale,evidence,return_question}`; a different registered Paper, why it was selected for this purpose, selected source IDs, and an AI question for comparison after returning to the current paper |
+
+IDs are unique within each record kind. A paper/concept pair appears once, and its reading list has at least one distinct Paper. Selected evidence must be registered on a claim of that representative Paper; do not borrow another paper's URL or manufacture a locator. An empty evidence list preserves missing-location uncertainty. Keep the source's recorded edition, reading scope and verification limits. Representative selection is not a historical first-invention claim, an author citation, or evidence of exhaustive coverage.
+
+The current paper offers **Explore background** choices. Selecting one opens a focused map of the current Paper → Concept → representative Papers, with distinct concept/visual identity and explicit AI labels. Returning restores the relation map's filters, zoom, pan and node positions within the current page session. A background Paper keeps its original source shortcut and adds **Return to current paper** plus the comparison question. Hash links reopen the selected background context without completing or marking a reading; reloading does not persist the previous map camera or filters. Only the registered selection is expanded; there is no recursive reference crawl or full-paper requirement.
+
+Keep the three meanings separate:
+
+- **Actual citation:** existing `relations` with `kind:cites`, pointing from the citing Paper to its cited Paper. Record the checked edition and source location; preserve an unspecified cited subversion as unknown.
+- **Concept background:** `concepts/backgrounds`, including the task-specific selection reason and selected reading locations. The focused map is an AI learning aid, not a citation graph.
+- **Suggested order:** existing `kind:reading-order`, normally `origin:ai`, `status:proposed`, `review:null`, pointing from earlier reading to later reading for this task. It does not assert chronology, historical priority or strict prerequisites.
+
+New concept/background prose participates in the existing source-count and performance screening. Regenerate the canonical overview and performance plan after adding it; missing or stale reviews still prevent HTML generation. A passing gate is not a source-semantic or reader-understanding certificate.
 
 ### Project application
 
