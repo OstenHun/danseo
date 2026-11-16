@@ -6,6 +6,8 @@ description: Find and organize research papers, analyze evidence-linked paper re
 
 요약: 로컬 CLI로 논문·적용 기록을 읽고 프로젝트 질문과 대조한다. 판본·조건·미확인을 함께 사용하며 수치·방법·불일치에 의존하는 결정은 원문으로 돌아간다.
 
+성능 비교가 있는 관계 HTML은 [표 조건·예외 검증](references/performance-verification.md)을 기본 수행한다. evidence v2로 모든 대상 문장을 검토하고, 표의 같은 조건·지표에서 계산한 결과와 예외를 보존한다. 검토 누락·원문 불일치·과장·낡은 해시는 생성 전에 차단한다.
+
 ## 연결 확인
 
 논문 탐색·선택·재개는 아래 주제 절차부터 시작한다. 준비된 CLI와 개인 주제 폴더만 있으면 된다.

@@ -52,7 +52,9 @@ const renderPortable = (...args: string[]) => execFileSync(process.execPath, [pa
 writeFileSync(portableInput, JSON.stringify(portable));
 Object.assign(portable, parseJson<Record<string, unknown>>(renderPortable('--overview')));
 writeFileSync(portableInput, JSON.stringify(portable));
-writeFileSync(portableEvidence, JSON.stringify({version: 1, sources: [], counts: []}));
+// This public synthetic fixture contains only method context; real inputs must be screened individually.
+const performance = parseJson<Record<string, unknown>[]>(renderPortable('--performance-plan')).map(x => ({...x,kind:'non-performance',reason:'Reviewed synthetic method-only fixture',comparison:null}));
+writeFileSync(portableEvidence, JSON.stringify({version: 2, sources: [], counts: [], tables: [], performance}));
 const portableReceipt = parseJson<{ok: boolean; source_semantics: string}>(renderPortable('--evidence', portableEvidence, '--out', portableOutput));
 assert.equal(portableReceipt.ok, true);
 assert.equal(portableReceipt.source_semantics, 'not-certified');

@@ -7,6 +7,7 @@ import { overviewFor, countMentions, countText, verifyEvidence } from './researc
 import { run } from './render-verified-research-view.mjs';
 import { run as legacyRun } from './render-research-view.mjs';
 import { hash } from './view-core.mjs';
+import { performancePlan } from './performance-evidence.mjs';
 
 function fixture(t) {
   const dir = mkdtempSync(path.join(tmpdir(), 'danseo-evidence-'));
@@ -18,8 +19,9 @@ function fixture(t) {
   const pages = JSON.stringify({pdf_sha256: hash(pdf), pages: [{page: 2, text: quote}]});
   writeFileSync(path.join(dir, 'source.pdf'), pdf); writeFileSync(path.join(dir, 'pages.json'), pages);
   const binding = {path: '/papers/0/claims/0/conditions/0', source_id: 'S.1', page: 2, quote, items: countMentions(quote)};
-  const evidence = {version: 1, sources: [{id: 'S.1', document_path: 'source.pdf', document_sha256: hash(pdf), text_path: 'pages.json', text_sha256: hash(pages)}], counts: [binding]};
+  const evidence = {version: 2, sources: [{id: 'S.1', document_path: 'source.pdf', document_sha256: hash(pdf), text_path: 'pages.json', text_sha256: hash(pages)}], counts: [binding], tables: [], performance: []};
   candidate.papers[0].claims[0].conditions[0] = countText(binding);
+  evidence.performance = performancePlan(candidate).map(x => ({...x,kind:'non-performance',reason:'Synthetic count/method fixture, no performance comparison',comparison:null}));
   const input = path.join(dir, 'candidate.json'), sidecar = path.join(dir, 'evidence.json'), output = path.join(dir, 'view.html');
   const save = () => { writeFileSync(input, JSON.stringify(candidate)); writeFileSync(sidecar, JSON.stringify(evidence)); };
   save(); return {dir, candidate, evidence, binding, input, sidecar, output, save};
