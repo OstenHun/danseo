@@ -2,9 +2,11 @@
 
 Summary: Install with Node 22 or 24, then use your agent to find, collect, analyze and compare papers in private folders. Node 24 is recommended; only the comparison view starts a local server.
 
+[Overview](../README.md) · [Install the standalone skill](../README.md#install-the-skill) · [한국어 전체 참조](CLI.md)
+
 ## Install from source
 
-Use Node.js 24.x with npm, or a supported 22.x patch. Access to the repository is required while it is private.
+Use Node.js 24.x with npm, or a supported 22.x patch. Clone the public repository or download its source ZIP.
 
 ```sh
 git clone https://github.com/OstenHun/danseo.git

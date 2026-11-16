@@ -1,28 +1,28 @@
-# 활용 효과 평가 계획
+# Evaluation plan
 
-요약: 제품 동작, 카드·skill의 agent 활용, 그래프의 사람 탐색 효과를 각각 확인한다. 기존 개인 파일럿은 탐색 근거이며 공개 평가 결과가 아니다. 입력·예산·채점 기준을 실행 전에 고정한다.
+Summary: Evaluate product behavior, agent use of cards and skills, and human graph exploration separately. Private pilots are exploratory evidence. Fix inputs, budgets, and scoring before each evaluation.
 
-## 확인 질문
+## Questions
 
-1. 같은 자료에서 필요한 근거와 조건에 더 정확히 도달하는가?
-2. 프로젝트에 맞지 않는 논문 결과의 전이·이미 실패한 제안·평가 조건 누락이 줄어드는가?
-3. 그래프가 비교 표와 카드만 있을 때보다 사람의 관계 탐색을 돕는가?
-4. 카드 작성·갱신 시간을 포함해 반복 사용의 이득이 남는가?
+1. Can a reader or agent reach the relevant evidence and conditions more accurately with the same source material?
+2. Does the workflow reduce unsuitable transfer of paper results, repeated failed suggestions, and omitted evaluation conditions?
+3. Does a graph help people explore relationships compared with cards and comparison tables alone?
+4. Do repeated-use benefits outweigh the time needed to create and maintain cards?
 
-## 조건 분리
+## Comparison conditions
 
-A: 기존 노트·원문과 충분히 사용할 수 있는 검색. B: 같은 자료 + 공통 카드·skill. C: B + 그래프/비교 화면. A/B는 agent 조언의 비교, B/C는 우선 사람 탐색의 비교로 설계한다. 카드를 더 주고 검색 예산을 줄이는 식으로 baseline을 약화하지 않는다. 카드만/skill만의 효과는 별도 제거 실험이 없으면 구분하지 않는다.
+**A:** existing notes, original sources, and usable search. **B:** the same material plus shared cards and a skill. **C:** B plus graph or comparison views. A/B compares agent advice; B/C initially compares human exploration. Do not weaken the baseline by reducing its search budget while giving the other condition more prepared evidence. Without separate ablations, do not attribute effects to cards or skills alone.
 
-같은 논문 집합·질문·모델/설정·도구/읽기 예산을 기록하고 새 실행 ID로 반복한다. 사람에게 같은 정답을 반복 노출할 때는 순서·학습 효과를 통제하거나 동등한 미사용 과제를 사용한다. 준비에 사용한 과제와 평가 과제를 나누고 카드 작성 뒤 평가를 동결한다. AI 평가만 있으면 사람 독립 검토로 표시하지 않는다.
+Record the same paper set, questions, model/settings, and tool/reading budget, then repeat with new run IDs. Control order and learning effects when participants see the same answer repeatedly, or use equivalent unseen tasks. Separate preparation tasks from evaluation tasks and freeze the evaluation after card preparation. AI-only grading is not independent human review.
 
-## 사례와 지표
+## Cases and measures
 
-연구 비교: 평가 조건의 공통점/차이, 근거 없는 신규성 주장, 다음 비교 설계. 실험 조언: 과제·모델 조건의 전이, 기존 실패 확인, 관찰의 과도한 인과 해석. 외부 평가 제출과 논문 실험 재현은 별도 작업이다.
+Research comparisons should cover shared and differing evaluation conditions, unsupported novelty claims, and the design of the next comparison. Experiment advice should cover transfer across task/model conditions, prior failures, and excessive causal interpretation of observations. External evaluation submissions and paper reproduction are separate tasks.
 
-원문 근거 적합성, 중요한 조건 누락, 잘못된 주장/전이, 과제 완료 시간, 읽기/모델 비용, 카드 제작·유지 시간을 기록한다. 기준값·목표값·횟수·중단 조건은 사전 계획에서 확정하며 현재 결과 칸을 만들지 않는다.
+Record source-evidence fit, important omitted conditions, incorrect claims or transfers, task completion time, reading/model costs, and card creation and maintenance time. Set baselines, targets, repetitions, and stop conditions in the advance plan; this document does not report measured results.
 
-## 기존 근거와 실행 자료
+## Existing evidence and evaluation material
 
-기존 개인 파일럿에는 읽기 예산·표본·AI 채점의 한계가 있다. 본 프로젝트의 공개 성능 수치로 재사용하지 않는다. 원본과 상세 조건은 공유 예제와 분리해 보존한다.
+Private pilots have limits in reading budget, sample size, and AI scoring. Do not reuse them as public performance figures for this project. Preserve originals and detailed conditions separately from shared examples.
 
-공개 가능한 합성 평가 fixture와 검사 코드는 여기에 추가할 수 있다. 비공개 rubric, agent 원시 응답, 비용·실패 로그는 `work/evals/`에 두고 공개 여부를 따로 검토한다. 평가자 전용 정답이 agent용 workspace에 들어가지 않게 한다.
+Publicly shareable synthetic evaluation fixtures and checks may be added here. Keep private rubrics, raw agent responses, costs, and failure logs under `work/evals/` and review publication separately. Evaluator-only answers must stay outside agent-facing workspaces.

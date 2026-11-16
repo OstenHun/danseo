@@ -1,29 +1,50 @@
-# 문서 안내
+# Documentation
 
-요약: 사용자는 CLI와 skill부터, 기여자는 데이터 모델과 실행 목록부터 읽는다. 설계 제안·과거 검증 기록은 현재 구현과 구분하며 공개 준비 상태는 OPEN_SOURCE가 소유한다.
+Summary: Start with the English README and CLI guide. This index separates current workflows from detailed formats and historical plans, and labels references that remain in Korean.
 
-## 사용하기
+English · [한국어](README.ko.md) · [Project overview](../README.md)
 
-- [CLI](CLI.md): 실제 명령, workspace 설정, 오류와 출력.
-- [논문별 분석과 재개](PAPER_ANALYSIS.md): 같은 문서에서 후속 질문, 다른 주제에서 Paper 재사용, 현재 주장만 비교 입력으로 전달.
-- [연구 비교 그래프](RESEARCH_COMPARISON.md): 논문·기준 선택, 원문 근거와 AI 이유, 관계 출처 필터.
-- [주장별 검토](CLAIM_REVIEWS.md): 고정 입력·결과·PDF 해시와 원문 지지 판정의 연결.
-- [English setup and workflow](CLI.en.md): source installation, private workspaces, agent setup, find → collect → analyze → compare, and source-access failures.
-- [Skill](../skills/danseo/SKILL.md): agent의 자료 읽기와 원문 복귀 절차.
-- [Agent 호환성](AGENT_COMPATIBILITY.md): 확인한 연결과 남은 검사.
+## Start here
 
-## 개발하기
+| Guide | Purpose | Language |
+| --- | --- | --- |
+| [Install the skill](../README.md#install-the-skill) | Install the complete portable skill for your agent | English |
+| [CLI and agent guide](CLI.en.md) | Source installation, private workspaces, discovery → collection → analysis → comparison | English |
+| [Skill overview](../skills/danseo/README.md) | Evidence reading and standalone relationship HTML | English |
+| [Contributing](../CONTRIBUTING.md) · [Security](../SECURITY.md) | Development checks, private-material boundaries, and reporting | English |
+| [Evaluation plan](../evals/README.md) | Separate product behavior from practical benefits | English |
+| [Brand assets](../assets/brand/README.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md) | Artwork, dependency notices, and licenses | English |
 
-- [런타임 지원](RUNTIME_SUPPORT.md): 지원·권장 버전, 실제 검사, 업데이트와 지원 종료 기준.
-- [이름과 표기](NAMING.md): Danseo의 의미, CLI·skill 식별자와 중복 검색 범위.
-- [기여 안내](../CONTRIBUTING.md) · [실행 목록](../TASKS.md).
-- [카드 모델](CARD_MODEL.md) · [폴더 구조](STRUCTURE.md).
-- [PRD](PRD.md): 구현된 기능보다 넓은 MVP 요구사항과 후속 범위.
-- [평가 계획](../evals/README.md): 제품 검사와 활용 효과 평가의 구분.
-- [프로젝트 운영](PROJECT_SETUP.md) · [공개 준비](OPEN_SOURCE.md).
+The skill instructions, application labels, some diagnostics, and fixtures still contain Korean. The published source includes the research skill and a read-only comparison app; a card editor and separate learning-HTML skill are outside this candidate.
 
-## 설계와 과거 기록
+## Detailed workflow references
 
-[기존 도구 검토](REUSE.md), [기술 방향](TECH_DIRECTION.md), [사용 흐름 제안](USAGE_FLOW.md), [초기 구성 기록](BOOTSTRAP.md), [CLI 구현 기록](CLI_IMPLEMENTATION.md)을 보존한다. 각 기록의 시점·미검증 범위를 따른다. 과거의 미구현·라이선스 미정 표시는 현재 상태가 아닐 수 있다.
+These references are currently **in Korean**.
 
-기록에 나오는 `work/` 근거는 로컬 비공개 자료이며 공개 저장소에 포함하지 않는다. 공개 독자가 실행할 수 있는 검사는 [합성 예제](../examples/minimal/workspace.json)와 테스트다. 개인 실험 기록을 공개 재현 결과로 취급하지 않는다.
+- [Full CLI reference](CLI.md): commands, workspace configuration, errors, and outputs.
+- [Paper analysis and resumption](PAPER_ANALYSIS.md): follow-up questions in the same document, Paper reuse across topics, and current comparison claims.
+- [Research comparison](RESEARCH_COMPARISON.md): paper/criterion selection, source evidence, AI reasons, and relationship provenance filters.
+- [Claim-level reviews](CLAIM_REVIEWS.md): pinned inputs, results, PDF hashes, and source-support judgments.
+- [Research skill](../skills/danseo/SKILL.md): agent source-reading and verification procedures.
+- [Agent compatibility](AGENT_COMPATIBILITY.md): tested integrations and remaining checks.
+- [Default graph presentation](GRAPH_DEFAULTS.md) · [Performance evidence](PERFORMANCE_EVIDENCE.md): graph defaults, source-table conditions, exceptions, and scoped verification.
+
+## Developing Danseo
+
+These references are currently **in Korean**.
+
+- [Runtime support](RUNTIME_SUPPORT.md): supported/recommended versions, checks, updates, and end-of-support criteria.
+- [Naming](NAMING.md): the meaning of Danseo, identifiers, and name-conflict search scope.
+- [Task list](../TASKS.md): canonical development tracking; preserve `PTP-*` identifiers.
+- [Card model](CARD_MODEL.md) · [Repository structure](STRUCTURE.md): data formats, ownership, and storage boundaries.
+- [PRD](PRD.md): requirements and future scope, which extend beyond implemented features.
+- [Topic workflow](TOPIC_WORKFLOW.md): discovery, source collection, analysis, and comparisons.
+- [Project setup](PROJECT_SETUP.md) · [Distribution records](OPEN_SOURCE.md): operating and publication history.
+
+## Design and historical records
+
+The [reuse review](REUSE.md), [technical direction](TECH_DIRECTION.md), [proposed usage flow](USAGE_FLOW.md), [bootstrap record](BOOTSTRAP.md), and [CLI implementation record](CLI_IMPLEMENTATION.md) are preserved in Korean. Read each with its date and unverified scope. Historical statements about missing features or undecided licensing may not describe the current source.
+
+Distribution and task records also preserve dated private or unreleased snapshots alongside later public-transition entries. Read their dates before interpreting an older status as current.
+
+References to `work/` identify private local evidence excluded from distribution. Public reproduction material consists of [synthetic examples](../examples/minimal/workspace.json) and tests. Private experiments are not public evaluation results.

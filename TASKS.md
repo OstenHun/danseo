@@ -6,6 +6,13 @@
 
 갱신: 2026-11-12 KST. 작업 상태의 정본이며 `PTP-*`는 유지하는 식별자다. Done은 해당 항목의 완료 조건에만 적용한다.
 
+## English documentation — 2026-11-16
+
+- Made English the default introduction and documentation index, preserving Korean editions and the existing English README URL. Translated contribution, security, skill, brand, evaluation, and dependency guidance.
+- Kept the current public scope: one portable research skill plus the file-based discovery/collection/analysis/comparison CLI and read-only comparison app. Host installation paths, duplicate-installation safeguards, private reporting, and source/AI distinctions are preserved.
+- README organization draws on the official Meta Astryx/SAM 3, Anthropic Skills, and Microsoft MarkItDown READMEs. The UI, runtime skill instructions, and detailed development references still contain Korean.
+- Local checks on Windows / Node 24 passed: documentation links and summaries, product and portable-skill tests, installed-package workflows, and the synthetic validation/export examples. These checks do not establish reader comprehension or learning benefits.
+
 ## 논문 그래프 기본 구성 — 2026-11-16 / Local verification
 
 - 공통 skill에 짧은 제목·선택 중심 연결·주제 배치·근거/관계 필터·모바일 방향 도식을 기본 적용했다. 주제는 편집상 해석이고 전체 제목과 원문/AI 상태는 보존한다.
