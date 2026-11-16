@@ -51,8 +51,8 @@
     if (state === 'stale') return (edge.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck';
     return state === 'ai' ? 'AI proposal' : state === 'source' ? 'Source check' : 'Source unchecked';
   }
-  // Both adapters use the same controls and touch/keyboard alternative to a tiny canvas.
-  function explorer(host, onChange, onSelect, detailId) {
+  // Shared filters and counts; adapters own graph selection and keyboard navigation.
+  function explorer(host, onChange) {
     const root = element('div', 'graph-explorer'), controls = element('div', 'graph-explorer-controls');
     const filters = { category: 'all', kind: 'all', mode: 'focus' };
     const selects = {};
@@ -70,49 +70,11 @@
     }
     const status = element('p', 'graph-explorer-status'); status.setAttribute('aria-live','polite');
     const note = element('p', 'graph-topic-note', 'Topic groups are editorial interpretations, not citation or method-extension order. Select a paper to show its connections.');
-    const mobile = element('div', 'graph-mobile');
-    root.append(controls, note, status, mobile); host.append(root);
+    root.append(controls, note, status); host.append(root);
     function update(papers, edges, selection) {
-      const activeKey = document.activeElement?.dataset?.explorerKey;
-      const focusTargets = new Map();
       const eligible = edges.filter(edge => matchesRelation(edge, filters));
       const shown = edges.filter(edge => shownRelation(edge, filters, selection));
       status.textContent = `Papers: ${papers.length} · filtered relations: ${eligible.length} / ${edges.length} · map connections: ${shown.length}` + (!selection && filters.mode === 'focus' ? ' · select a paper to show connections' : '');
-      mobile.replaceChildren();
-      const groups = new Map();
-      for (const paper of papers) { const key = paper.topic || 'Uncategorized'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(paper); }
-      const names = new Map(papers.map(p => [p.id, shortTitle(p)]));
-      const topicList = element('div', 'graph-topic-list');
-      for (const [title, group] of groups) {
-        const section = element('section','graph-topic-section'); section.append(element('h3','',title));
-        const list = element('div','graph-topic-buttons');
-        for (const paper of group) {
-          const button = element('button','',shortTitle(paper)); button.type='button'; button.title=paper.title;
-          button.dataset.explorerKey = 'paper:' + paper.id; focusTargets.set(button.dataset.explorerKey, button);
-          button.setAttribute('aria-pressed',String(selection?.type === 'paper' && selection.id === paper.id));
-          button.addEventListener('click',()=>onSelect('paper',paper.id)); list.append(button);
-        }
-        section.append(list); topicList.append(section);
-      }
-      mobile.append(topicList);
-      const chosen = selection?.type === 'relation' ? eligible.find(edge => edge.id === selection.id) : null;
-      if (chosen) {
-        const pair = element('div','graph-pair ' + category(chosen));
-        pair.append(element('strong','',names.get(chosen.source)),element('span','',`↓ ${kindNames[chosen.kind]} · ${relationState(chosen)}`),element('strong','',names.get(chosen.target)));
-        pair.tabIndex=-1; pair.setAttribute('aria-label','Selected relation'); focusTargets.set('relation:' + chosen.id,pair);
-        const jump = element('button','','View selected evidence ↓'); jump.type='button';
-        jump.addEventListener('click',()=>document.getElementById(detailId)?.focus()); pair.append(jump);
-        mobile.append(pair);
-      }
-      const links = selection?.type === 'paper' ? eligible.filter(e=>e.source===selection.id||e.target===selection.id) : filters.mode === 'all' ? eligible : [];
-      if (selection?.type === 'paper') mobile.append(element('h3','',names.get(selection.id) + ' · connections: ' + links.length + ''));
-      for (const edge of links) {
-        const button = element('button','graph-mobile-relation',`${names.get(edge.source)} → ${names.get(edge.target)} · ${kindNames[edge.kind]}`);
-        button.type='button'; button.append(element('small','',relationState(edge)));
-        button.dataset.explorerKey='relation:' + edge.id; focusTargets.set(button.dataset.explorerKey,button);
-        button.addEventListener('click',()=>onSelect('relation',edge.id)); mobile.append(button);
-      }
-      if (activeKey) focusTargets.get(activeKey)?.focus({preventScroll:true});
     }
     return { filters, update, reset() { filters.category='all'; filters.kind='all'; filters.mode='focus'; for(const key of Object.keys(selects))selects[key].value=filters[key]; onChange(); }, reveal(edge) { if (!matchesRelation(edge,filters)) { filters.category='all'; filters.kind='all'; selects.category.value='all'; selects.kind.value='all'; onChange(); } }, destroy() { root.remove(); } };
   }

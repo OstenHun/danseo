@@ -14,8 +14,7 @@
 body { margin: 0; font-size: 1rem; line-height: 1.8; }
 p,h1,h2,h3,h4,a,button,span { word-break: keep-all; overflow-wrap: break-word; }
 p { text-wrap: pretty; } h1,h2 { text-wrap: balance; }
-button,a { -webkit-tap-highlight-color: transparent; }
-button { font: inherit; cursor: pointer; touch-action: manipulation; }
+button { font: inherit; cursor: pointer; }
 a { color: var(--green); text-underline-offset: 4px; }
 a:focus-visible,button:focus-visible,summary:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
 .topbar { min-height: 64px; display: flex; align-items: center; gap: 24px; padding: 12px 40px; border-bottom: 1px solid var(--line); background: var(--surface); }

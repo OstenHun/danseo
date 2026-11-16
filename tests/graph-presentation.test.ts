@@ -21,6 +21,55 @@ const scope = {window: {} as {DanseoGraph: Presentation}};
 runInNewContext(asset('graph-presentation.js'), scope);
 const view = scope.window.DanseoGraph;
 
+test('explorer preserves filter controls and counts without rebuilding hidden selection lists', () => {
+  let created = 0, changes = 0;
+  class Element {
+    className = ''; textContent = ''; value = ''; removed = false;
+    children: Element[] = [];
+    attributes = new Map<string, string>();
+    listeners = new Map<string, () => void>();
+    constructor() { created++; }
+    append(...nodes: Element[]) { this.children.push(...nodes); }
+    setAttribute(name: string, value: string) { this.attributes.set(name, value); }
+    addEventListener(name: string, listener: () => void) { this.listeners.set(name, listener); }
+    remove() { this.removed = true; }
+  }
+  interface Explorer {
+    filters: Filters;
+    update(papers: Paper[], relations: Relation[], selection: Selection): void;
+    reset(): void; reveal(relation: Relation): void; destroy(): void;
+  }
+  const context = {window: {} as {DanseoGraph: {explorer(host: Element, onChange: () => void): Explorer}}, document: {createElement: () => new Element()}};
+  runInNewContext(asset('graph-presentation.js'), context);
+  const host = new Element(), explorer = context.window.DanseoGraph.explorer(host, () => { changes++; });
+  const root = host.children[0]!, controls = root.children[0]!, status = root.children[2]!;
+  const selects = controls.children.map(label => label.children[1]!);
+  assert.equal(status.attributes.get('aria-live'), 'polite');
+  const papers = [{id: 'a'}, {id: 'b'}];
+  const source: Relation = {id: 's', source: 'a', target: 'b', kind: 'cites', origin: 'source', status: 'source-checked'};
+  const ai = {...source, id: 'ai', kind: 'reading-order', origin: 'ai', status: 'proposed'};
+  const mountedCount = created;
+  explorer.update(papers, [source, ai], null);
+  assert.match(status.textContent, /map connections: 0.*select a paper/);
+  selects[0]!.value = 'source'; selects[0]!.listeners.get('change')!();
+  explorer.update(papers, [source, ai], {type: 'paper', id: 'a'});
+  assert.match(status.textContent, /filtered relations: 1 \/ 2 · map connections: 1$/);
+  explorer.reveal(ai);
+  assert.equal(selects[0]!.value, 'all');
+  assert.equal(selects[1]!.value, 'all');
+  explorer.update(papers, [source, ai], {type: 'relation', id: 'ai'});
+  assert.match(status.textContent, /filtered relations: 2 \/ 2 · map connections: 1$/);
+  selects[2]!.value = 'all'; selects[2]!.listeners.get('change')!();
+  explorer.update(papers, [source, ai], null);
+  assert.match(status.textContent, /map connections: 2$/);
+  explorer.reset();
+  assert.deepEqual(selects.map(select => select.value), ['all', 'all', 'focus']);
+  assert.equal(changes, 4);
+  assert.equal(created, mountedCount, 'Selection and filter updates only update counts, without allocating duplicate navigation');
+  assert.equal(root.children[0], controls, 'Existing keyboard-focusable controls remain mounted');
+  explorer.destroy(); assert.ok(root.removed);
+});
+
 test('twelve papers have deterministic nonoverlapping topic positions and unknown topics remain visible', () => {
   const papers = Array.from({length: 12}, (_, i) => ({id: 'p' + i, topic: ['검색', '융합', '추론', '검증'][i % 4]!}));
   const layout = view.topicLayout(papers);
