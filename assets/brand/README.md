@@ -1,57 +1,59 @@
-# 브랜드 자료
+# Brand assets
 
-요약: 접힌 논문 페이지와 터미널 프롬프트를 결합한 Danseo의 브랜드 자료다. Figma 원본과 SVG·PNG에 확정 이름을 적용했다. 비공개 GitHub의 밝은 테마에서 일반·좁은 배너를 확인했으며 공유 이미지 등록은 후속이다.
+Summary: Danseo's brand combines a folded paper with a terminal prompt. SVG and PNG assets are included; historical visual checks are scoped below, and social-preview registration is a separate step.
 
-작성: 2026-10-21 KST / PTP-004. 아래 SVG·PNG는 저장소에서 바로 사용할 수 있다. 편집 원본은 maintainer가 별도로 보관하며 접근 권한을 전제로 하지 않는다.
+Created: 2026-10-21 KST / PTP-004. These assets can be used directly from the repository. The maintainer keeps the editable Figma source separately; access to it is not required.
 
-## 디자인 방향
+## Design direction
 
-제품명은 **Danseo(단서)**, 패키지·CLI·배포 skill 식별자는 `danseo`다. 이름의 의미와 중복 검색 범위는 [명칭 결정](../../docs/NAMING.md)을 따른다.
+The product name is **Danseo (단서)**. The package, CLI, and research skill identifier is `danseo`. See [naming](../../docs/NAMING.md) (Korean) for the name's meaning and the scope of conflict checks.
 
-논문을 읽고 프로젝트에서 판단하는 개발자 도구를 표현한다. 접힌 종이의 안쪽에 `>_`를 넣어 자료와 실행의 연결을 나타냈다. 배너의 주황색 선은 여러 근거 중 프로젝트로 이어지는 경로다. 실제 앱 화면·실험 결과를 표현한 그림은 아니다.
+The mark represents a developer tool for connecting research with project decisions. A folded paper contains `>_`; an orange path connects evidence to a project. The artwork is not an app screenshot or an experimental result.
 
-| 역할 | 값 |
+| Role | Value |
 | --- | --- |
-| Ink — 바탕·주요 글자 | `#18221F` |
-| Paper — 밝은 바탕·주요 글자 | `#F4F6F1` |
-| Orange — 연결·강조 | `#F58A4B` |
-| 어두운 배너의 보조 글자 | `#AAB5AD` |
-| 밝은 배너의 보조 글자 | `#43584A` |
-| 영문 제목 | Manrope ExtraBold |
-| 영문 보조 문구 | Manrope Medium |
-| 한국어 | Noto Sans KR Medium |
-| CLI 설명 | IBM Plex Mono Medium |
+| Ink — background or primary text | `#18221F` |
+| Paper — light background or primary text | `#F4F6F1` |
+| Orange — connections and emphasis | `#F58A4B` |
+| Secondary text on dark banners | `#AAB5AD` |
+| Secondary text on light banners | `#43584A` |
+| English title | Manrope ExtraBold |
+| English supporting text | Manrope Medium |
+| Korean text | Noto Sans KR Medium |
+| CLI description | IBM Plex Mono Medium |
 
-주황색은 연결선과 강조에 쓴다. 작은 본문 글자의 색으로 사용하지 않는다. 색상·글꼴은 이 브랜드 초안의 기준이며 제품 웹앱의 디자인 시스템이 확정됐다는 뜻은 아니다.
+Use orange for paths and emphasis, not small body text. These colors and fonts describe the brand draft; they do not establish the web app's design system.
 
-## 파일과 용도
+## Files and uses
 
-모든 항목은 같은 이름의 SVG·PNG를 제공한다. Figma 원본의 글자는 편집 가능하며, 배포 SVG의 글자는 경로로 변환해 글꼴 설치에 따라 모양이 바뀌지 않게 했다. 폰트 파일·외부 이미지·스크립트는 포함하지 않는다.
+Every asset has SVG and PNG versions. Text in the editable Figma source remains editable; text in the distributed SVGs is outlined to avoid installed-font differences. The assets contain no font files, external images, or scripts.
 
-| 파일 | 크기 | 용도 |
+| File | Size | Use |
 | --- | --- | --- |
-| [banner-dark.svg](banner-dark.svg) · [PNG](banner-dark.png) | 1600 × 640 | 어두운 README |
-| [banner-light.svg](banner-light.svg) · [PNG](banner-light.png) | 1600 × 640 | 밝은 README·기본 fallback |
-| [banner-compact-dark.svg](banner-compact-dark.svg) · [PNG](banner-compact-dark.png) | 800 × 640 | 좁은 화면의 어두운 배너 |
-| [banner-compact-light.svg](banner-compact-light.svg) · [PNG](banner-compact-light.png) | 800 × 640 | 좁은 화면의 밝은 배너 |
-| [icon.svg](icon.svg) · [PNG](icon.png) | 512 × 512 | 프로젝트 식별용 정사각 아이콘 |
-| [social-preview.svg](social-preview.svg) · [PNG](social-preview.png) | 1280 × 640 | GitHub 저장소 social preview 업로드용 |
+| [banner-dark.svg](banner-dark.svg) · [PNG](banner-dark.png) | 1600 × 640 | Dark README |
+| [banner-light.svg](banner-light.svg) · [PNG](banner-light.png) | 1600 × 640 | Light README and fallback |
+| [banner-compact-dark.svg](banner-compact-dark.svg) · [PNG](banner-compact-dark.png) | 800 × 640 | Narrow dark README |
+| [banner-compact-light.svg](banner-compact-light.svg) · [PNG](banner-compact-light.png) | 800 × 640 | Narrow light README |
+| [icon.svg](icon.svg) · [PNG](icon.png) | 512 × 512 | Square project icon |
+| [social-preview.svg](social-preview.svg) · [PNG](social-preview.png) | 1280 × 640 | GitHub social-preview upload |
 
-README는 `<picture>`의 화면 너비·색상 모드 조건으로 배너를 선택하며 지원하지 않는 렌더러에서는 밝은 일반 배너를 사용한다. 사회관계망 공유 이미지는 GitHub 저장소 설정에서 PNG를 수동 등록할 수 있다. 현재는 파일만 준비했으며 계정 아바타나 저장소 설정을 변경하지 않았다.
+The README's `<picture>` selects a banner by viewport width and color scheme. Renderers without that support use the regular light banner. The social-preview PNG can be uploaded through GitHub repository settings. Preparing files is separate from changing the repository settings or account avatar.
 
-## 편집과 내보내기
+## Editing and exporting
 
-Figma의 해당 프레임에서 글자·도형을 편집한 뒤 같은 크기로 SVG와 PNG를 내보낸다. SVG는 글자 윤곽선 변환을 켜고, PNG는 1배율로 내보낸다. 변경한 배너의 일반·좁은 화면과 밝은·어두운 버전을 함께 확인한다. 한국어는 어절·의미 단위로 줄을 나누고 받침이나 조사만 남는 줄을 만들지 않는다.
+Edit text and vectors in the relevant Figma frame, then export SVG and PNG at the listed dimensions. Outline SVG text and export PNG at 1×. Recheck regular and compact banners in both color schemes after changes. Break Korean text at word or phrase boundaries, avoiding isolated syllables or particles.
 
-현재 로고는 독자적으로 만든 벡터다. OpenCodex의 로고·이미지·문구는 복제하지 않았다. 그래픽은 저장소의 [MIT License](../../LICENSE)를 따른다. 글꼴 출처와 아트워크의 권리 범위는 [외부 고지](../../THIRD_PARTY_NOTICES.md#브랜드에-사용한-글꼴)에 연결했다. 명칭·상표의 독점 가능성을 조사하거나 보장한 것은 아니다.
+The logo is an original vector design. OpenCodex logos, images, and copy were not reproduced. Graphics use the repository's [MIT License](../../LICENSE). See [font and artwork notices](../../THIRD_PARTY_NOTICES.md#fonts-used-in-brand-assets). Name or trademark exclusivity has not been established.
 
-## 확인한 범위
+## Recorded verification
 
-- Figma 원본: 6개 프레임, 편집 가능한 글자와 벡터. 화면 전체를 하나의 이미지로 평면화하지 않았다.
-- 일반 배너: 밝은·어두운 버전 각각 1600 × 640에서 제목·부제·연결선·로고를 읽고 겹침·잘림을 확인했다.
-- 좁은 배너: 원본 800 × 640과 실제 표시 폭 400px에서 두 색상 모드를 확인했다. 부제는 16px 상당으로 읽힌다.
-- 공유 이미지: 1280 × 640과 표시 폭 640px에서 한국어 두 줄과 CLI 설명을 확인했다.
-- 아이콘: 512px와 64px에서 종이·프롬프트 형태를 확인했다.
-- 파일 검사: SVG 구문·외부 참조 없음·PNG 크기·README 경로·패키지 포함 목록을 확인했다. 개인 작업 로그는 공유 예제가 아니다.
+The original brand review recorded:
 
-비공개 GitHub에서 밝은 테마의 한국어·영문 README와 390px 폭의 compact 배너 선택·로드를 확인했다. 현재 상태는 [공개 준비](../../docs/OPEN_SOURCE.md)에 연결한다. 실제 어두운 테마와 social preview 등록은 후속이다. 디자인 검수는 CLI 동작의 테스트를 대신하지 않는다.
+- Six Figma frames with editable text and vectors, rather than flattened screenshots.
+- Regular banners read at 1600 × 640 in both color schemes, checking titles, subtitles, paths, logo, overlap, and clipping.
+- Compact banners checked at 800 × 640 and a displayed width of 400px in both color schemes; the subtitle reads at roughly 16px.
+- Social preview checked at 1280 × 640 and a displayed width of 640px, including the two Korean lines and CLI description.
+- Icon checked at 512px and 64px.
+- SVG syntax, absence of external references, PNG dimensions, README paths, and package inclusion checked.
+
+That review also checked Korean and English READMEs in a private GitHub light theme and compact-banner selection at 390px. Actual GitHub dark-theme rendering and social-preview registration remained follow-ups in that record. See [release preparation](../../docs/OPEN_SOURCE.md) (Korean). Historical design checks do not replace CLI tests or establish current publication status.

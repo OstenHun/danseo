@@ -1,15 +1,27 @@
-# 공통 skill 준비
+# Danseo research skill
 
-요약: CLI 조회·검사·내보내기와 원문 복귀 절차를 제공하는 배포 skill이다. SKILL.md와 표시 메타데이터를 작성·검사했으며 기존 전역 설치본은 변경하지 않았다.
+Summary: Use your existing agent to read evidence, manage research records through the CLI, and generate standalone relationship HTML. The skill adds no model service or automatic global installation.
 
-현재 정본은 [SKILL.md](SKILL.md)다. 연결 설정과 실행은 [CLI 사용법](../../docs/CLI.md)을 따른다. agents/openai.yaml은 UI 메타데이터이며 별도 자율 agent나 모델 설정 파일이 아니다. 아래는 준비 단계의 목표를 보존한다.
+## What is included
 
-## PTP-002의 결과
+[SKILL.md](SKILL.md) is the canonical agent procedure. It connects discovery, source collection, analysis, claim review, comparison, and source verification. The instructions and detailed references currently contain Korean; this overview and the [CLI guide](../../docs/CLI.en.md) are in English.
 
-카드/프로젝트를 찾고, 판본·현재 조건·기존 실험을 확인하고, 필요한 원문을 읽어 적용 판단과 최소 다음 행동을 반환한다. 카드에 없는 것을 없는 연구라고 단정하지 않는다. 카드의 읽기 범위와 원문 재확인 조건을 유지한다.
+`agents/openai.yaml` provides display metadata, not an autonomous agent or model configuration.
 
-기존 개인 skill을 출발점으로 검토하며 배포용 정본은 이 디렉터리에 둔다. 작성 시 skill-creator의 해당 절차·구조 검사를 적용한다. 자동 설치나 특정 agent 전용 경로를 기본 동작으로 만들지 않는다. skill은 명령의 권한을 늘리지 않으며 모델 성능을 보증하지 않는다.
+## Install and connect
 
-## 독립 연구 HTML
+For standalone relationship HTML, use Node.js 22 or 24 and the **complete skill folder**, including `scripts/`, `references/`, and `assets/`. No npm installation, Danseo build, or server is needed for this path. Follow the [installation guide](../../README.md#install-the-skill) for host-specific destinations, duplicate-installation checks, updates, and a first prompt.
 
-Node 22/24와 이 skill 폴더만으로 논문 관계 및 프로젝트 적용 HTML을 생성한다. 포함한 공통 자산을 사용해 호스트별 디자인 차이를 줄인다. 관계 모드는 [원문 검증](references/relation-verification.md) 후 [개요·수량 검사](references/evidence-gate.md)를 통과해야 저장한다. 형식은 [연구 화면](references/research-view.md)을 참고한다. 자동 검사 범위와 원문 의미 검수의 차이를 유지한다.
+For topic and card management, build the Danseo CLI separately and follow [CLI and agent setup](../../docs/CLI.en.md). Reuse existing connection values and private records. Do not automatically replace global installations or copy private research into product source.
+
+## Evidence workflow
+
+Find the relevant cards and project question, check the edition, current conditions, and existing experiments, then revisit necessary sources before recommending an application decision and a minimal next action. Missing information in a card is not proof that the research does not exist.
+
+Preserve the recorded reading scope and source-recheck conditions. Keep author claims, AI interpretations, project observations, and adoption decisions distinct. The skill neither extends execution permissions nor guarantees model performance.
+
+## Standalone research HTML
+
+The bundled generators support paper relationships and project-application views using common assets. For relationship mode, perform [source verification](references/relation-verification.md), then pass the [overview and quantity checks](references/evidence-gate.md) before saving. Performance comparisons also follow the [table-condition and exception procedure](references/performance-verification.md). These detailed instructions are currently in Korean.
+
+The [research-view contract](references/research-view.md) describes input formats. Automated checks, source-meaning review, actual rendered reading, and user understanding are separate evidence. The full CLI's read-only topic comparison app is a separate workflow; it is not a card editor or a separate learning-HTML skill.
