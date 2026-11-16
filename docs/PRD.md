@@ -25,7 +25,7 @@ Find/select papers → collect verified editions with draft consent → analyze 
 | M5 | Reuse an existing agent | Markdown/JSON export and portable skill; no bundled model service |
 | M6 | Reuse external-tool material | Explicit native files now; additional import formats require separate selection/validation |
 
-The core workflow must remain usable with manually prepared records. A self-running web agent or paid model API is not required. Fixed guidance is English; generated research prose follows [requested language](../skills/danseo/SKILL.md#output-language).
+The core workflow must remain usable with manually prepared records. A self-running web agent or paid model API is not required. Standalone research guidance supports Korean/English through candidate `language`; CLI/native comparison guidance remains English. Generated research prose follows [requested language](../skills/danseo/SKILL.md#output-language).
 
 ## Boundaries
 

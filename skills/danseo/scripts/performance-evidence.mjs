@@ -38,6 +38,19 @@ export function performanceFields(candidate) {
     add(`/relations/${i}/rationale`, r.rationale, ids);
   });
   candidate.sources.forEach((s, i) => add(`/sources/${i}/scope`, s.scope, [s.id]));
+  (candidate.concepts ?? []).forEach((concept, i) => {
+    const ids = (candidate.backgrounds ?? []).filter(b => b.concept_id === concept.id).flatMap(b => b.readings.flatMap(r => r.evidence));
+    add(`/concepts/${i}/title`, concept.title, ids);
+    add(`/concepts/${i}/summary`, concept.summary, ids);
+  });
+  (candidate.backgrounds ?? []).forEach((background, i) => {
+    add(`/backgrounds/${i}/rationale`, background.rationale, background.readings.flatMap(r => r.evidence));
+    background.readings.forEach((reading, j) => {
+      add(`/backgrounds/${i}/readings/${j}/rationale`, reading.rationale, reading.evidence);
+      const returnSources = candidate.papers.find(p => p.id === background.paper_id).claims.flatMap(c => c.evidence);
+      add(`/backgrounds/${i}/readings/${j}/return_question`, reading.return_question, [...reading.evidence, ...returnSources]);
+    });
+  });
   return fields;
 }
 

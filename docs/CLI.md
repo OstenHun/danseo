@@ -154,7 +154,7 @@ The prepared PDF hash is a declaration: this export path does not reopen the PDF
 
 [SKILL.md](../skills/danseo/SKILL.md) provides the portable workflow; `agents/openai.yaml` provides display metadata/default prompt. No autonomous agent process or model preset is bundled. Your selected agent/model calls the CLI. Reuse [first-run inputs](#first-run); manually merge them into existing project instructions for repeated use. Danseo needs no model key or background server; the agent's external-model settings remain separate.
 
-Install the complete `skills/danseo` folder in the host's documented location. Do not automatically replace an existing same-name global skill. Repository changes do not establish global registration or automatic discovery. Follow the [output-language rule](../skills/danseo/SKILL.md#output-language); fixed UI/diagnostics are English, generated research prose follows the user's request.
+Install the complete `skills/danseo` folder in the host's documented location. Do not automatically replace an existing same-name global skill. Repository changes do not establish global registration or automatic discovery. Follow the [output-language rule](../skills/danseo/SKILL.md#output-language): standalone research UI uses candidate `language` (`ko`/`en`, default `en`), while CLI/native comparison UI and diagnostics remain English. Generated research prose follows the user's request.
 
 <a id="개발-검증"></a>
 

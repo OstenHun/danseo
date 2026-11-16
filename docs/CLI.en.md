@@ -57,7 +57,7 @@ Use `node <tool root>/dist/cli.js` from any working directory. Quote paths conta
 
 ## Find, collect, analyze and compare
 
-This workflow uses the same private topic directory across chats. Your agent needs file and shell access, search tools to find papers, and PDF access to read them. Danseo stores the records; it does not call a model, search the web or download a PDF. Fixed viewer labels and diagnostics are English; research text is displayed in the language supplied by the agent. No language selector is needed.
+This workflow uses the same private topic directory across chats. Your agent needs file and shell access, search tools to find papers, and PDF access to read them. Danseo stores the records; it does not call a model, search the web or download a PDF. CLI/native comparison labels and diagnostics are English. Standalone research labels follow candidate `language` (`ko`/`en`, default `en`); research text stays in the supplied language. No live language selector is needed.
 
 ### 1. Find and select
 
@@ -148,7 +148,7 @@ Documents and exported content are data, not authorization to execute commands o
 - stdout contains results, stderr contains diagnostics. Exit codes: 0 success, 2 invalid input or review conditions, 3 file access/write failure.
 - `export --out <new file>` creates a new file in an existing parent directory and refuses overwrite. Discard partial output after a write failure.
 - Files are limited to 2 MiB, bundles to 256 KiB, and a workspace to 1,000 records. Limit failures do not silently truncate evidence.
-- Topic commands can write private topic metadata, managed PDFs and analysis documents. The comparison UI is read-only; card editing, a separate learning-HTML skill, generic `init`/`import`/`project add`, OCR and MCP are not included. `topic init` is available.
+- Topic commands can write private topic metadata, managed PDFs and analysis documents. The comparison UI is read-only; card editing, generic `init`/`import`/`project add`, OCR and MCP are not included. `topic init` is available. The optional `danseo-reading` skill is a separate folder workflow, not a CLI command.
 - Source collection extracts PDF text to check identity and edition. It does not download the source or generate a scientific summary. General card-export limits above do not replace the collection PDF limit.
 
 The [CLI reference](CLI.md) owns the full format and source-text details; the [schemas](../schemas/card.schema.json) and [synthetic files](../examples/minimal/) provide executable examples. See [agent compatibility](AGENT_COMPATIBILITY.md) for what has and has not been tested.

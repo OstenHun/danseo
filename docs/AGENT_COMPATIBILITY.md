@@ -24,9 +24,11 @@ The [view contract](../skills/danseo/references/research-view.md) owns shared ge
 | Ordinary chat | Person supplies Markdown evidence bundle, current question and necessary sources | Do not assume access to local paths |
 | Custom agent host | Forward JSON/Markdown/exit codes as tool results | Host owns APIs/model SDKs/permissions |
 
-See [first-run values](CLI.md#first-run) and [setup](CLI.en.md#connect-your-own-workspace). Begin with explicit [skill](../skills/danseo/SKILL.md) reading; do not assume global installation or automatic discovery. Repository updates do not replace installed skills. Fixed guidance is English; [generated prose](../skills/danseo/SKILL.md#output-language) follows requested language. No language selector or translation service is bundled.
+See [first-run values](CLI.md#first-run) and [setup](CLI.en.md#connect-your-own-workspace). Begin with explicit [skill](../skills/danseo/SKILL.md) reading; do not assume global installation or automatic discovery. Repository updates do not replace installed skills. Standalone research guidance follows candidate `language` (`ko`/`en`, default `en`); CLI/native comparison guidance remains English. [Generated prose](../skills/danseo/SKILL.md#output-language) follows the requested language. No live language selector or content translation service is bundled.
 
 ## Observed scope
+
+The [companion skills](../README.md#companion-skills-and-output-language) use English instructions and requested-language explanations. `danseo-reading` owns learning questions and concept views; `paper-to-project` owns paper/project condition comparisons. Learning views explicitly support `language: en | ko`; omission preserves their legacy Korean UI. Other prose languages use English fixed controls. Each complete folder is independently usable; host discovery still needs a separate check.
 
 In a prepared installation/build/data environment, two local agents called CLI and read cards. One accessed original text; another failed to read a PDF and made some unsupported source/CLI claims. This is not a provider/model ranking. Private prompts/responses/authentication are not shareable examples.
 

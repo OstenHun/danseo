@@ -1,25 +1,25 @@
 {
   "version": 1,
   "mode": "project-application",
-  "title": "논문 근거를 프로젝트 판단으로 옮기기",
-  "description": "합성 예제 · 원문 주장, 프로젝트 관찰, AI 해석과 채택 결정을 구분합니다.",
-  "view_reason": "적용 기록별로 논문 조건과 프로젝트 조건을 대조하고 다음 확인을 정합니다.",
+  "title": "Bring paper evidence into project decisions",
+  "description": "Synthetic example distinguishing source claims, project observations, AI interpretations and adoption decisions.",
+  "view_reason": "Compare paper conditions with project conditions for each application, then choose the next check.",
   "start": "APP.Compare",
   "papers": [
     {
       "id": "P.Score-1",
-      "title": "점수의 변화로 보는 예측",
-      "edition": "합성 판본 v1",
+      "title": "Predictions through changing scores",
+      "edition": "Synthetic edition v1",
       "review_status": "source-checked",
       "claims": [
         {
           "id": "C.1",
-          "statement": "합성 분류기에서 입력 변화에 따라 클래스 점수가 달라진다.",
+          "statement": "Class scores change with the input in a synthetic classifier.",
           "conditions": [
-            "클래스 두 개를 비교한 설명용 조건이다."
+            "An illustrative setting comparing two classes."
           ],
           "limitations": [
-            "실제 학습 모델의 측정 결과가 아니다."
+            "Not a measurement from an actual trained model."
           ],
           "evidence": [
             "S.1"
@@ -29,18 +29,18 @@
     },
     {
       "id": "P.Boundary-2",
-      "title": "결정 경계 가까이의 입력",
-      "edition": "합성 판본 v2",
+      "title": "Inputs near a decision boundary",
+      "edition": "Synthetic edition v2",
       "review_status": "needs-recheck",
       "claims": [
         {
           "id": "C.1",
-          "statement": "경계 가까이에 있는 입력은 작은 점수 차이로도 예측이 바뀔 수 있다.",
+          "statement": "For an input near a boundary, a small score difference can change the prediction.",
           "conditions": [
-            "특정 입력과 결정 규칙을 고정한 합성 예시다."
+            "A synthetic example with a fixed input and decision rule."
           ],
           "limitations": [
-            "작은 변화가 언제나 예측을 바꾸는 것은 아니다."
+            "A small change does not always change the prediction."
           ],
           "evidence": [
             "S.2"
@@ -50,7 +50,7 @@
     },
     {
       "id": "P.Isolated",
-      "title": "아직 연결하지 않은 관찰",
+      "title": "An observation with no connections yet",
       "edition": null,
       "review_status": "draft",
       "claims": []
@@ -59,34 +59,34 @@
   "sources": [
     {
       "id": "S.1",
-      "title": "합성 원문 A",
+      "title": "Synthetic source A",
       "url": "https://example.org/score",
       "locator": "§2 · Figure 1",
-      "scope": "합성 원문의 위치 표현 예제. 실제 논문을 확인한 기록이 아니다.",
+      "scope": "Illustrates a synthetic source location, not a record of checking a real paper.",
       "verification": "not-checked"
     },
     {
       "id": "S.2",
-      "title": "합성 원문 B",
+      "title": "Synthetic source B",
       "url": null,
-      "locator": "로컬 합성 자료 · p. 4 · §3",
-      "scope": "관계에만 연결된 claim의 위치와 확인 범위를 표시하는 예제. 실제 대조 선언이 아니다.",
+      "locator": "Local synthetic material · p. 4 · §3",
+      "scope": "Illustrates the location and scope of a claim linked only through a relationship. No actual source comparison is claimed.",
       "verification": "not-checked"
     }
   ],
   "project": {
     "id": "PRJ.Demo",
-    "title": "분류기 점검 도구",
-    "question": "예측이 바뀐 이유를 점수 차이로 설명할 수 있을까?",
+    "title": "Classifier inspection tool",
+    "question": "Can score differences explain why the prediction changed?",
     "conditions": [
-      "설명용 분류기 두 클래스만 다룬다.",
-      "실제 모델 검증에 앞선 설계 검토다."
+      "Covers only two classes in an illustrative classifier.",
+      "A design review before actual model validation."
     ]
   },
   "applications": [
     {
       "id": "APP.Compare",
-      "title": "예측 전후 점수를 함께 보여주기",
+      "title": "Show scores before and after a prediction change",
       "claim_refs": [
         {
           "paper_id": "P.Score-1",
@@ -97,37 +97,38 @@
           "claim_id": "C.1"
         }
       ],
-      "interpretation": "입력 변화 전후의 점수와 결정 규칙을 같이 보여 주는 비교 화면을 제안한다. 논문에서 프로젝트 효과를 확인한 것은 아니다.",
+      "interpretation": "Propose a view comparing scores before and after an input change alongside the decision rule. The paper does not establish a project effect.",
       "observations": [],
       "next_checks": [
-        "같은 입력과 모델을 고정해 전후 점수를 비교한다.",
-        "사용자가 점수 차이와 예측 변화를 연결해 설명하는지 확인한다."
+        "Compare before/after scores with the same input and model.",
+        "Check whether the reader can explain how score differences relate to a changed prediction."
       ],
       "decision": {
         "status": "proposed",
         "action": "test",
-        "rationale": "프로젝트의 실측 결과가 아직 없으므로 작은 비교부터 제안한다."
+        "rationale": "Start with a small comparison because no project measurements are available yet."
       }
     },
     {
       "id": "APP.Defer",
-      "title": "전체 입력으로 확대하는 판단",
+      "title": "A decision about expanding to all inputs",
       "claim_refs": [
         {
           "paper_id": "P.Score-1",
           "claim_id": "C.1"
         }
       ],
-      "interpretation": "설명용 결과를 전체 입력으로 일반화할 근거는 부족하다.",
+      "interpretation": "There is insufficient evidence to generalize this illustrative result to all inputs.",
       "observations": [
-        "합성 관찰 기록: 화면 시안만 비교했고 실제 모델은 실행하지 않았다."
+        "Synthetic observation record: only interface drafts were compared; no actual model was run."
       ],
       "next_checks": [],
       "decision": {
         "status": "accepted",
         "action": "defer",
-        "rationale": "합성 결정 기록: 현재는 확대 적용을 보류하기로 정했다. 재현 성공을 뜻하지 않는다."
+        "rationale": "Synthetic decision record: defer wider adoption for now. This does not mean reproduction succeeded."
       }
     }
-  ]
+  ],
+  "language": "en"
 }

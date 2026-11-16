@@ -22,6 +22,10 @@ const npm = (args: string[], cwd = root) => execFileSync(process.execPath, [npmP
 type Pack = { filename: string; files: { path: string }[] };
 const pack = required(parseJson<Pack[]>(npm(['pack', '--json', '--pack-destination', scratch]))[0]);
 assert.ok(pack.files.some(file => file.path === 'dist/cli.js'));
+for (const skill of ['danseo', 'danseo-reading', 'paper-to-project']) {
+  assert.ok(pack.files.some(file => file.path === `skills/${skill}/SKILL.md`));
+}
+assert.ok(pack.files.every(file => !/(^|\/)local-connection\.json$/.test(file.path)));
 assert.ok(pack.files.every(file => !/^(work|workspaces|private|outputs|node_modules|tests|scripts|build|build-tools)\//.test(file.path)));
 assert.ok(pack.files.every(file => !/(^|\/)(?:\.git|\.env(?:\..*)?|\.npmrc|\.aws|\.codex)(?:\/|$)|\.(?:pem|key|pfx|p12|bundle|har|jsonl|pdf|log)$/i.test(file.path)), 'Private files must not be packaged');
 npm(['install', '--prefix', consumer, '--prefer-offline', '--ignore-scripts', '--no-audit', '--no-fund', path.join(scratch, pack.filename)], consumer);
@@ -66,6 +70,28 @@ required(portable.papers[0]).topic = '가'.repeat(41);
 writeFileSync(portableInput, JSON.stringify(portable));
 assert.throws(() => renderPortable('--evidence', portableEvidence, '--check'), /maximum 40 characters/);
 console.log('Installed folder-only skill: exact shared assets, verified HTML and long-topic boundary passed.');
+
+const standaloneReading = path.join(scratch, 'standalone-reading');
+cpSync(path.join(installed, 'skills/danseo-reading'), standaloneReading, { recursive: true });
+for (const file of ['scripts/view-core.mjs', 'scripts/view-language.mjs', 'assets/research-language.ko.json']) {
+  assert.deepEqual(readFileSync(path.join(standaloneReading, file)), readFileSync(path.join(standalone, file)));
+}
+for (const language of ['en', 'ko']) {
+  const learning = parseJson<{language: string; title: string}>(readFileSync(path.join(standaloneReading, 'assets/learning-view.example.json'), 'utf8'));
+  learning.language = language;
+  learning.title = '원문 제목 · original title';
+  const input = path.join(consumer, `learning-${language}.json`), output = path.join(consumer, `learning-${language}.html`);
+  writeFileSync(input, JSON.stringify(learning));
+  const receipt = parseJson<{ok: boolean}>(execFileSync(process.execPath, [path.join(standaloneReading, 'scripts/render-learning-view.mjs'), input, '--out', output], {cwd: consumer, encoding: 'utf8'}));
+  assert.equal(receipt.ok, true);
+  const html = readFileSync(output, 'utf8');
+  assert.ok(html.includes(`<html lang="${language}">`));
+  assert.ok(html.includes(language === 'ko' ? '추천 학습 순서' : 'Suggested learning order'));
+  assert.deepEqual(parseJson<unknown>(required(html.match(/id="candidate">(.*?)<\/script>/s)?.[1])), learning);
+  new Script(required([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)?.[1]));
+}
+assert.ok(readFileSync(path.join(installed, 'skills/paper-to-project/references/application-card.md')).byteLength > 0);
+console.log('All three skills packaged; standalone learning en/ko, exact payload and shared language assets passed.');
 
 // Exercise the installed CLI from a consumer outside the source tree.
 const topicDir = path.join(consumer, '한글 주제 폴더');

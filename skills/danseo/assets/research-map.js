@@ -1,20 +1,33 @@
 // Canonical map projection: existing records become selectable elements; no domain writes.
 (() => {
   'use strict';
-  const kind = { cites: 'Cites', extends: 'Extends', compares: 'Compares', 'related-to': 'Related', 'reading-order': 'AI reading order' };
-  function build(data, scene) {
+  const t = window.DanseoText ?? (text => text);
+  const kind = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related'), 'reading-order': t('AI reading order') };
+  function build(data, scene, backgroundId) {
     const elements = [], project = data.mode === 'project-application';
     const addNode = (type, item, index, count, column) => {
       let position;
-      if (scene === 'context') {
+      if (scene === 'background') {
+        position = { x: 140 + column * 330, y: 100 + index * 165 };
+      } else if (scene === 'context') {
         const cols = Math.min(3, count), row = Math.floor(index / cols), col = row % 2 ? cols - 1 - index % cols : index % cols;
         position = { x: 110 + col * 240, y: 70 + row * 155 };
       } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
       else position = count === 2 ? { x: 170 + index * 380, y: 190 } : { x: 360 + Math.cos(index / count * 2 * Math.PI) * 245, y: 230 + Math.sin(index / count * 2 * Math.PI) * 165 };
-      const stateLabel = type === 'paper' ? '\nPaper review · ' + item.review_status : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? 'Unspecified') : '';
+      const stateLabel = type === 'concept' ? t('\nConcept · AI explanation') : type === 'paper' ? t('\nPaper review · ') + item.review_status : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified')) : '';
       elements.push({ group: 'nodes', data: { id: type + ':' + item.id, recordId: item.id, type, label: (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') + (item.short_title ?? item.title) + stateLabel, state: item.review_status ?? item.decision?.status ?? 'context' }, position });
     };
-    if (scene === 'context') {
+    if (scene === 'background') {
+      const background = data.backgrounds.find(item => item.id === backgroundId);
+      const concept = data.concepts.find(item => item.id === background.concept_id);
+      addNode('paper', data.papers.find(item => item.id === background.paper_id), 0, 1, 0);
+      addNode('concept', concept, 0, 1, 1);
+      elements.push({ group: 'edges', data: { id: 'concept-need:' + background.id, source: 'paper:' + background.paper_id, target: 'concept:' + concept.id, type: 'concept-need', recordId: background.id, label: t('Explore · AI'), origin: 'ai', state: 'proposed' } });
+      background.readings.forEach((reading, i, all) => {
+        addNode('paper', data.papers.find(item => item.id === reading.paper_id), i, all.length, 2);
+        elements.push({ group: 'edges', data: { id: 'background-reading:' + background.id + ':' + reading.paper_id, source: 'concept:' + concept.id, target: 'paper:' + reading.paper_id, type: 'background-reading', recordId: background.id, paperId: reading.paper_id, label: t('Read · AI'), origin: 'ai', state: 'proposed' } });
+      });
+    } else if (scene === 'context') {
       data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
       data.project_context.links.forEach((link, i) => elements.push({ group: 'edges', data: { id: 'context:' + i, source: 'topic:' + link.source, target: 'topic:' + link.target, type: 'context-link', recordId: String(i), label: '', origin: 'ai', state: 'proposed' } }));
     } else {
@@ -24,20 +37,21 @@
           addNode('application', item, i, all.length, 1);
           for (const paper of data.papers) {
             const refs = item.claim_refs.filter(ref => ref.paper_id === paper.id);
-            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: 'Evidence reference · ' + refs.length + ' claims', origin: 'reference', state: item.decision.status } });
+            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: t('Evidence reference · ') + refs.length + t(' claims'), origin: 'reference', state: item.decision.status } });
           }
         });
-      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck' : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
+      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? t('AI proposal') : t('Source record')) + t(' · recheck') : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
     }
     return elements;
   }
-  function mount(container, data, scene, onSelect, onFilter = () => {}) {
+  function mount(container, data, scene, onSelect, onFilter = () => {}, backgroundId, paperState) {
     if (typeof cytoscape !== 'function') return null;
-    if (data.mode === 'paper-relations') return mountPapers(container, data, scene, onSelect, onFilter);
-    const cy = cytoscape({ container, elements: build(data, scene), layout: { name: 'preset', fit: true, padding: 32 }, minZoom: .25, maxZoom: 2.2,
+    if (data.mode === 'paper-relations' && scene !== 'background') return mountPapers(container, data, scene, onSelect, onFilter, paperState);
+    const cy = cytoscape({ container, elements: build(data, scene, backgroundId), layout: { name: 'preset', fit: true, padding: 32 }, minZoom: .25, maxZoom: 2.2,
       style: [
         { selector: 'node', style: { shape: 'round-rectangle', width: 176, height: 74, 'background-color': '#ffffff', 'border-width': 1.5, 'border-color': '#9aa9c5', label: 'data(label)', color: '#202631', 'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif', 'font-size': 18, 'font-weight': 600, 'text-wrap': 'wrap', 'text-max-width': 152, 'text-valign': 'center', 'text-halign': 'center', padding: 8 } },
         { selector: 'node[type="application"]', style: { 'background-color': '#edf1ff', 'border-color': '#315be8' } },
+        { selector: 'node[type="concept"]', style: { shape: 'ellipse', 'background-color': '#f4effa', 'border-color': '#7c659d' } },
         { selector: 'edge', style: { width: 2, 'curve-style': 'bezier', 'control-point-step-size': 110, 'target-arrow-shape': 'triangle', 'arrow-scale': 1, 'line-color': '#89958b', 'target-arrow-color': '#89958b', label: 'data(label)', 'font-family': 'Malgun Gothic, sans-serif', 'font-size': 13, 'text-background-color': '#f7f8fb', 'text-background-opacity': 1, 'text-background-padding': 5, 'text-rotation': 'none', color: '#606b7d' } },
         { selector: 'edge[origin="source"][state="source-checked"]', style: { 'line-color': '#245641', 'target-arrow-color': '#245641' } },
         { selector: 'edge[origin="ai"]', style: { 'line-color': '#7c659d', 'target-arrow-color': '#7c659d', 'line-style': 'dashed', color: '#6f508d' } },
@@ -60,14 +74,14 @@
       cy.elements().filter(item => item.data('type') === type && (type === 'reference' ? id === item.data('recordId') + ':' + item.data('paperId') && item.data('paperId') === paperId : item.data('recordId') === id)).addClass('active');
     }, destroy: () => { observer?.disconnect(); container.removeEventListener('wheel', wheel); cy.destroy(); } };
   }
-  function mountPapers(container, data, scene, onSelect, onFilter) {
+  function mountPapers(container, data, scene, onSelect, onFilter, paperState) {
     const presentation = window.DanseoGraph;
     const elements = build(data, scene);
     const relations = new Map(data.relations.map(item => [item.id, item]));
     const layout = presentation.topicLayout(data.papers);
     for (const item of elements) {
       if (item.group === 'nodes') {
-        item.position = layout.positions[item.data.recordId];
+        item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
       } else {
         const relation = relations.get(item.data.recordId);
         item.data.category = presentation.category(relation);
@@ -86,7 +100,7 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
-      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: 'Date not provided' });
+      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: t('Date not provided') });
       cards.set(paper.id, card); world.append(card);
     }
     presentation.drawTopics(world, layout.headings);
@@ -97,7 +111,7 @@
         selection = null; onSelect({ type:'overview', recordId:'all' });
       }
       applyDisplay(); onFilter(edge => presentation.matchesRelation(edge, explorer.filters));
-    });
+    }, paperState?.filters);
     function applyDisplay() {
       cy.edges().forEach(edge => edge.toggleClass('display-hidden', !presentation.shownRelation(relations.get(edge.data('recordId')), explorer.filters, selection)));
       explorer.update(data.papers, data.relations, selection);
@@ -112,7 +126,7 @@
       }
       sync();
     }
-    let frame = null, interacted = false;
+    let frame = null, interacted = !!paperState;
     const sync = () => {
       if (frame !== null) return;
       frame = requestAnimationFrame(() => {
@@ -131,8 +145,13 @@
     cy.on('mouseover', 'node, edge', event => { event.target.addClass('hovered'); container.style.cursor = 'pointer'; sync(); });
     cy.on('mouseout', 'node, edge', event => { event.target.removeClass('hovered'); container.style.cursor = ''; sync(); });
     const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(() => { cy.resize(); if (!interacted) fit(); }) : null;
-    observer?.observe(container); applyDisplay(); fit();
+    observer?.observe(container); applyDisplay();
+    if (paperState) {
+      cy.zoom(paperState.zoom); cy.pan(paperState.pan); sync();
+      onFilter(edge => presentation.matchesRelation(edge, explorer.filters));
+    } else fit();
     return {
+      snapshot: () => ({ filters: { ...explorer.filters }, zoom: cy.zoom(), pan: { ...cy.pan() }, positions: Object.fromEntries(cy.nodes().map(item => [item.id(), { ...item.position() }])) }),
       fit: () => { interacted = true; fit(); },
       zoom: factor => { interacted = true; cy.zoom({ level: Math.max(.25, Math.min(2.5, cy.zoom() * factor)), renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } }); },
       select(type, id) {

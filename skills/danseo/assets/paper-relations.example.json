@@ -1,25 +1,25 @@
 {
   "version": 1,
   "mode": "paper-relations",
-  "title": "논문 사이에서 무엇을 이어 읽을까",
-  "description": "합성 예제 · 실제 연구 결과가 아닙니다. 저장된 관계의 방향과 근거를 함께 읽습니다.",
-  "view_reason": "논문 한 편을 선택하고 나가는 연결과 들어오는 연결을 원래 방향 그대로 비교합니다.",
+  "title": "What should we read next across these papers?",
+  "description": "Synthetic example, not an actual research result. Read each recorded relationship with its direction and evidence.",
+  "view_reason": "Select a paper and compare incoming and outgoing connections in their recorded direction.",
   "start": "P.Score-1",
   "papers": [
     {
       "id": "P.Score-1",
-      "title": "점수의 변화로 보는 예측",
-      "edition": "합성 판본 v1",
+      "title": "Predictions through changing scores",
+      "edition": "Synthetic edition v1",
       "review_status": "source-checked",
       "claims": [
         {
           "id": "C.1",
-          "statement": "합성 분류기에서 입력 변화에 따라 클래스 점수가 달라진다.",
+          "statement": "Class scores change with the input in a synthetic classifier.",
           "conditions": [
-            "클래스 두 개를 비교한 설명용 조건이다."
+            "An illustrative setting comparing two classes."
           ],
           "limitations": [
-            "실제 학습 모델의 측정 결과가 아니다."
+            "Not a measurement from an actual trained model."
           ],
           "evidence": [
             "S.1"
@@ -29,18 +29,18 @@
     },
     {
       "id": "P.Boundary-2",
-      "title": "결정 경계 가까이의 입력",
-      "edition": "합성 판본 v2",
+      "title": "Inputs near a decision boundary",
+      "edition": "Synthetic edition v2",
       "review_status": "needs-recheck",
       "claims": [
         {
           "id": "C.1",
-          "statement": "경계 가까이에 있는 입력은 작은 점수 차이로도 예측이 바뀔 수 있다.",
+          "statement": "For an input near a boundary, a small score difference can change the prediction.",
           "conditions": [
-            "특정 입력과 결정 규칙을 고정한 합성 예시다."
+            "A synthetic example with a fixed input and decision rule."
           ],
           "limitations": [
-            "작은 변화가 언제나 예측을 바꾸는 것은 아니다."
+            "A small change does not always change the prediction."
           ],
           "evidence": [
             "S.2"
@@ -50,7 +50,7 @@
     },
     {
       "id": "P.Isolated",
-      "title": "아직 연결하지 않은 관찰",
+      "title": "An observation with no connections yet",
       "edition": null,
       "review_status": "draft",
       "claims": []
@@ -59,18 +59,18 @@
   "sources": [
     {
       "id": "S.1",
-      "title": "합성 원문 A",
+      "title": "Synthetic source A",
       "url": "https://example.org/score",
       "locator": "§2 · Figure 1",
-      "scope": "합성 원문의 위치 표현 예제. 실제 논문을 확인한 기록이 아니다.",
+      "scope": "Illustrates a synthetic source location, not a record of checking a real paper.",
       "verification": "not-checked"
     },
     {
       "id": "S.2",
-      "title": "합성 원문 B",
+      "title": "Synthetic source B",
       "url": null,
-      "locator": "로컬 합성 자료 · p. 4 · §3",
-      "scope": "관계에만 연결된 claim의 위치와 확인 범위를 표시하는 예제. 실제 대조 선언이 아니다.",
+      "locator": "Local synthetic material · p. 4 · §3",
+      "scope": "Illustrates the location and scope of a claim linked only through a relationship. No actual source comparison is claimed.",
       "verification": "not-checked"
     }
   ],
@@ -83,7 +83,7 @@
       "origin": "source",
       "status": "source-checked",
       "needs_recheck": true,
-      "rationale": "합성 관계: B가 A의 점수 예시를 인용했다는 옛 기록. 판본 변경 후 재확인이 필요하다.",
+      "rationale": "Synthetic relationship: an old record that B cites the score example in A. Recheck after the edition change.",
       "created_by": "synthetic-author",
       "review": {
         "checked_by": "synthetic-reviewer",
@@ -104,10 +104,11 @@
       "origin": "ai",
       "status": "proposed",
       "needs_recheck": true,
-      "rationale": "AI 읽기 순서 제안. 점수 예시 뒤에 결정 경계를 읽으면 연결해 보기 쉽다. 선수 지식이나 방법 계승을 뜻하지 않는다.",
+      "rationale": "AI reading-order suggestion: read the decision boundary after the score example. This implies neither a prerequisite nor method inheritance.",
       "created_by": "synthetic-agent",
       "review": null,
       "evidence_refs": []
     }
-  ]
+  ],
+  "language": "en"
 }

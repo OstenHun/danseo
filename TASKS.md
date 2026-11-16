@@ -10,7 +10,9 @@ Summary: Danseo provides file-based discovery, source collection, paper analysis
 - Read-only research comparison: [comparison](docs/RESEARCH_COMPARISON.md).
 - Standalone HTML with source, count and performance checks: [view contract](skills/danseo/references/research-view.md).
 - Paper-node source shortcuts in standalone HTML: [open the registered original and read its recorded locations](skills/danseo/references/research-view.md#open-the-original-from-a-paper-node).
-- English fixed guidance and requested-language prose: [language rules](skills/danseo/SKILL.md#output-language).
+- Optional concept background maps with selected reading locations and a return path: [concept backgrounds](skills/danseo/references/research-view.md#optional-concept-backgrounds).
+- Korean/English standalone guidance and requested-language prose: [language rules](skills/danseo/SKILL.md#output-language).
+- Complete companion skills: [paper learning](skills/danseo-reading/SKILL.md) and [project application decisions](skills/paper-to-project/SKILL.md), with English instructions and requested-language results.
 
 ## Next areas
 

@@ -1,13 +1,15 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fail, object, text, list, oneOf, ids, unique, httpUrl, escape, cspHash, inlineAssets, runView, cliEntry } from './view-core.mjs';
+import { uiText, languageScript } from './view-language.mjs';
 
 const paragraphs = (value, at) => { list(value, at); value.forEach((v, i) => text(v, `${at}[${i}]`)); };
 export function validateCandidate(data) {
   oneOf(data?.mode, ['project-application', 'paper-relations'], 'mode');
   const projectMode = data.mode === 'project-application';
   const enhanced = data.version === 2;
-  object(data, ['version', 'mode', 'title', 'description', 'view_reason', 'start', 'papers', 'sources', ...(projectMode ? ['project', 'applications'] : ['relations']), ...(enhanced ? ['scope', 'provenance', ...(projectMode ? ['map_view', 'project_context'] : [])] : [])], 'candidate');
+  object(data, ['version', 'mode', 'title', 'description', 'view_reason', 'start', 'papers', 'sources', ...(Object.hasOwn(data, 'language') ? ['language'] : []), ...(projectMode ? ['project', 'applications'] : ['relations']), ...(enhanced ? ['scope', 'provenance', ...(projectMode ? ['map_view', 'project_context'] : ['concepts', 'backgrounds'].filter(key => Object.hasOwn(data, key)))] : [])], 'candidate');
+  if (Object.hasOwn(data, 'language')) oneOf(data.language, ['en', 'ko'], 'candidate.language');
   if (![1, 2].includes(data.version)) fail('candidate.version: expected 1 or 2');
   if (enhanced) {
     text(data.scope, 'scope'); list(data.provenance, 'provenance');
@@ -123,6 +125,35 @@ export function validateCandidate(data) {
       }
       if (relation.status === 'source-checked' && (!relation.review || !relation.evidence_refs.length)) fail('source-checked relation requires review and evidence_refs');
     }
+    if (Object.hasOwn(data, 'concepts') || Object.hasOwn(data, 'backgrounds')) {
+      if (!Object.hasOwn(data, 'concepts') || !Object.hasOwn(data, 'backgrounds')) fail('Provide concepts and backgrounds together');
+      const concepts = unique(data.concepts, 'concepts');
+      unique(data.backgrounds, 'backgrounds');
+      for (const concept of concepts.values()) {
+        object(concept, ['id', 'title', 'summary'], 'concept');
+        text(concept.title, 'concept.title'); text(concept.summary, 'concept.summary');
+      }
+      const pairs = new Set();
+      for (const background of data.backgrounds) {
+        object(background, ['id', 'paper_id', 'concept_id', 'origin', 'status', 'rationale', 'readings'], 'background');
+        if (!papers.has(background.paper_id) || !concepts.has(background.concept_id)) fail('background: unknown paper or concept');
+        const pair = JSON.stringify([background.paper_id, background.concept_id]);
+        if (pairs.has(pair)) fail('background: duplicate paper/concept pair'); pairs.add(pair);
+        oneOf(background.origin, ['ai'], 'background.origin'); oneOf(background.status, ['proposed'], 'background.status');
+        text(background.rationale, 'background.rationale'); list(background.readings, 'background.readings');
+        if (!background.readings.length) fail('background.readings: at least one representative paper required');
+        const seen = new Set();
+        for (const reading of background.readings) {
+          object(reading, ['paper_id', 'rationale', 'evidence', 'return_question'], 'background.reading');
+          if (!papers.has(reading.paper_id) || reading.paper_id === background.paper_id || seen.has(reading.paper_id)) fail('background.reading: invalid or duplicate paper');
+          seen.add(reading.paper_id);
+          text(reading.rationale, 'background.reading.rationale'); text(reading.return_question, 'background.reading.return_question');
+          ids(reading.evidence, sources, 'background.reading.evidence');
+          const allowed = new Set(papers.get(reading.paper_id).claims.flatMap(claim => claim.evidence));
+          if (reading.evidence.some(id => !allowed.has(id))) fail('background.reading: evidence must belong to the representative paper');
+        }
+      }
+    }
   }
   return data;
 }
@@ -130,19 +161,21 @@ export function validateCandidate(data) {
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export function renderCandidate(candidate) {
   validateCandidate(candidate);
-  const { style, script, json } = inlineAssets(candidate, [path.join(directory, '../assets/reader-base.css'), path.join(directory, '../assets/research-view.css'), path.join(directory, '../assets/graph-presentation.css')], [path.join(directory, '../assets/cytoscape.min.js'), path.join(directory, '../assets/graph-presentation.js'), path.join(directory, '../assets/research-map.js'), path.join(directory, '../assets/research-view.js')], 1);
+  const { style, script: assetsScript, json } = inlineAssets(candidate, [path.join(directory, '../assets/reader-base.css'), path.join(directory, '../assets/research-view.css'), path.join(directory, '../assets/graph-presentation.css')], [path.join(directory, '../assets/cytoscape.min.js'), path.join(directory, '../assets/graph-presentation.js'), path.join(directory, '../assets/research-map.js'), path.join(directory, '../assets/research-view.js')], 1);
+  const script = languageScript(candidate.language) + assetsScript;
+  const ui = value => escape(uiText(candidate.language, value));
   const project = candidate.mode === 'project-application';
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="${candidate.language ?? 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-${cspHash(script)}'; style-src 'sha256-${cspHash(style)}'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer"><title>${escape(candidate.title)} · Danseo</title><style>${style}</style></head>
-<body class="${project ? 'project-application' : 'paper-relations'}"><a class="skip" id="skip" href="#item-title">Skip to content</a>
-<header class="topbar"><span class="brand">Danseo<span class="brand-dot">.</span></span><span class="product">RESEARCH DESK</span><span class="local">${project ? 'From papers to projects' : 'Connections between papers'}</span></header>
-<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? 'PROJECT APPLICATION' : 'PAPER RELATIONS'} <span>${project ? 'Application decisions' : 'Paper relation map'}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description">${escape(candidate.description)}</p><p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : 'View scope'}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? 'Explore all input papers and their recorded relations together.')}</p>${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
-<div class="research-workspace"><section class="map-area" aria-label="Map and record list"><div class="map-toolbar"><h2 id="map-heading">Connections</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="Zoom out">−</button><button type="button" id="zoom-in" aria-label="Zoom in">+</button><button type="button" id="fit-map">Fit all</button></div></div><div class="scene-controls" id="scene-controls"></div><p class="map-notice" id="map-notice"></p><div id="research-map" role="img" aria-label="Pan and zoom the relation map. Use the matching record list below for keyboard navigation."></div><p id="map-status" class="map-status" aria-live="polite"></p><p class="map-legend" id="map-legend"></p><section class="map-records" aria-label="Records shown on the map"><nav id="map-node-navigation" aria-label="${project ? 'Projects and papers' : 'Paper list'}"><p class="nav-heading"><span id="node-kind">${project ? 'Projects · papers' : 'Paper'}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>View scope and rationale</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? 'Only records declared in the input are shown.')}</p><div id="provenance"></div></details></section>
-<article class="lesson research detail-area" aria-labelledby="item-title"><div class="lesson-header"><p class="eyebrow" id="position"></p><h2 id="item-title" tabindex="-1"></h2><div id="metadata" class="metadata"></div></div><div id="content"></div><div class="controls"><button id="previous" type="button">← Previous record</button><span id="current-count"></span><button id="next" type="button">Next record →</button></div></article></div>
-<footer><span>Danseo · view derived from research records</span><span>Source verification, project adoption and experiment reproduction are separate.</span></footer></main>
-<noscript><p class="no-script">JavaScript is required to explore records. You can read the original candidate JSON directly.</p></noscript>
+<body class="${project ? 'project-application' : 'paper-relations'}"><a class="skip" id="skip" href="#item-title">${ui("Skip to content")}</a>
+<header class="topbar"><span class="brand">Danseo<span class="brand-dot">.</span></span><span class="product">${ui("RESEARCH DESK")}</span><span class="local">${project ? ui('From papers to projects') : ui('Connections between papers')}</span></header>
+<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description">${escape(candidate.description)}</p><p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : ui('View scope')}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? ui('Explore all input papers and their recorded relations together.'))}</p>${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
+<div class="research-workspace"><section class="map-area" aria-label="${ui("Map and record list")}"><div class="map-toolbar"><h2 id="map-heading">${ui("Connections")}</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="${ui("Zoom out")}">−</button><button type="button" id="zoom-in" aria-label="${ui("Zoom in")}">+</button><button type="button" id="fit-map">${ui("Fit all")}</button></div></div><div class="scene-controls" id="scene-controls"></div><p class="map-notice" id="map-notice"></p><div id="research-map" role="img" aria-label="${ui("Pan and zoom the relation map. Use the matching record list below for keyboard navigation.")}"></div><p id="map-status" class="map-status" aria-live="polite"></p><p class="map-legend" id="map-legend"></p><section class="map-records" aria-label="${ui("Records shown on the map")}"><nav id="map-node-navigation" aria-label="${project ? ui('Projects and papers') : ui('Paper list')}"><p class="nav-heading"><span id="node-kind">${project ? ui('Projects · papers') : ui('Paper')}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>${ui("View scope and rationale")}</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? ui('Only records declared in the input are shown.'))}</p><div id="provenance"></div></details></section>
+<article class="lesson research detail-area" aria-labelledby="item-title"><div class="lesson-header"><p class="eyebrow" id="position"></p><h2 id="item-title" tabindex="-1"></h2><div id="metadata" class="metadata"></div></div><div id="content"></div><div class="controls"><button id="previous" type="button">${ui("← Previous record")}</button><span id="current-count"></span><button id="next" type="button">${ui("Next record →")}</button></div></article></div>
+<footer><span>${ui("Danseo · view derived from research records")}</span><span>${ui("Source verification, project adoption and experiment reproduction are separate.")}</span></footer></main>
+<noscript><p class="no-script">${ui("JavaScript is required to explore records. You can read the original candidate JSON directly.")}</p></noscript>
 <p id="announcement" class="sr-only" aria-live="polite"></p><script type="application/json" id="candidate">${json}</script><script>${script}</script></body></html>`;
 }
 export const run = args => runView(args, validateCandidate, data => {

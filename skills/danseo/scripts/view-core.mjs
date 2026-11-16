@@ -1,4 +1,4 @@
-// Canonical portable view helpers. Synced into both skills by scripts/sync-views.mjs.
+// Portable view helpers. Keep both distributed skill copies byte-identical.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
