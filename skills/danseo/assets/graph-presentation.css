@@ -44,24 +44,5 @@
 .graph-explorer-controls select { box-sizing: border-box; width: 100%; min-height: 42px; border: 1px solid #cbd2df; border-radius: 8px; background: #fff; color: #202631; padding: 8px; font: inherit; font-size: 14px; }
 .graph-explorer .graph-topic-note,.graph-explorer .graph-explorer-status { font-size: 12px; line-height: 1.65; margin: 12px 0 0; word-break: keep-all; overflow-wrap: break-word; }
 .graph-explorer .graph-topic-note { color: #606b7d; }
-.graph-mobile { display: none; }
 .filters label[hidden],.map-link[hidden] { display: none; }
-.graph-explorer button:focus-visible,.graph-explorer select:focus-visible { outline: 2px solid #315be8; outline-offset: 3px; }
-@media(max-width:800px) {
-  .graph-mobile { display: block; margin-top: 24px; }
-  .graph-topic-list { display: grid; gap: 24px; }
-  .graph-topic-section h3,.graph-mobile>h3 { font-size: 15px; margin: 0 0 10px; }
-  .graph-topic-buttons { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
-  .graph-mobile button { text-align: left; background: #fff; border: 1px solid #cbd2df; color: #202631; border-radius: 8px; min-height: 48px; padding: 12px; font: 600 16px/1.5 'Segoe UI','Malgun Gothic',sans-serif; word-break: keep-all; overflow-wrap: anywhere; }
-  .graph-mobile button[aria-pressed=true] { background: #edf1ff; border-color: #315be8; }
-  .graph-mobile-relation { display: block; width: 100%; margin-top: 8px; }
-  .graph-mobile-relation small { display: block; font-size: 12px; font-weight: 400; color: #606b7d; margin-top: 6px; }
-  .graph-mobile>h3 { margin-top: 24px; }
-  .graph-pair { display: grid; gap: 14px; margin-top: 24px; text-align: center; border: 1px solid #dce1eb; border-radius: 12px; padding: 20px; background: #fafbfe; }
-  .graph-pair strong { padding: 16px; border: 1px solid #315be8; border-radius: 8px; background: #fff; font-size: 18px; }
-  .graph-pair span { color: #326952; font-size: 14px; }
-  .graph-pair.ai span { color: #7662a6; }.graph-pair.stale span { color: #a77832; }.graph-pair.pending span { color: #606b7d; }
-  .graph-explorer-controls select { font-size: 16px; }
-  #research-map.paper-map,.graph-section:has(.graph-explorer) .canvas-wrap { display: none; }
-  .map-area:has(.graph-explorer) .map-controls,.map-area:has(.graph-explorer) #map-status { display: none; }
-}
+.graph-explorer select:focus-visible { outline: 2px solid #315be8; outline-offset: 3px; }

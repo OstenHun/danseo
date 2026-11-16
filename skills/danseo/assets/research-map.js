@@ -97,7 +97,7 @@
         selection = null; onSelect({ type:'overview', recordId:'all' });
       }
       applyDisplay(); onFilter(edge => presentation.matchesRelation(edge, explorer.filters));
-    }, (type,id) => onSelect({type,recordId:id}), 'item-title');
+    });
     function applyDisplay() {
       cy.edges().forEach(edge => edge.toggleClass('display-hidden', !presentation.shownRelation(relations.get(edge.data('recordId')), explorer.filters, selection)));
       explorer.update(data.papers, data.relations, selection);
