@@ -39,6 +39,25 @@
       parent.append(detail);
     }
   }
+  function appendPaperSources(parent, paper) {
+    const linked = new Map();
+    for (const claim of paper.claims) for (const id of claim.evidence) {
+      const source = sources.get(id);
+      if (source.url !== null) {
+        if (!linked.has(source.url)) linked.set(source.url, { source, locators: new Set() });
+        linked.get(source.url).locators.add(source.locator);
+      }
+    }
+    if (!linked.size) return;
+    const reading = section('Read the paper', 'paper-source-links');
+    for (const { source, locators } of linked.values()) {
+      const link = node('a', 'map-item', 'Open original source ↗');
+      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      link.setAttribute('aria-label', paper.title + ' · ' + source.title + ' · open original source · new tab');
+      reading.append(link, node('p', 'section-note', 'Read at: ' + [...locators].join(' / ')));
+    }
+    parent.append(reading);
+  }
   function claims(parent, refs) {
     for (const ref of refs) {
       const paper = papers.get(ref.paper_id), claim = paper.claims.find(c => c.id === ref.claim_id);
@@ -126,6 +145,7 @@
       content.append(context, refs, interpretation, observation, checks, decision);
     } else {
       meta.append(badge(reviewLabels[item.review_status], item.review_status === 'needs-recheck'), badge('Edition · ' + (item.edition ?? 'Not recorded')));
+      appendPaperSources(content, item);
       const incident = data.relations.filter(r => r.source === item.id || r.target === item.id);
       const connections = section('Connections for this paper');
       if (!incident.length) connections.append(node('p', 'empty-note', 'No linked relations recorded · this does not establish that no relations exist.'));
@@ -151,6 +171,7 @@
     const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
     byId('position').textContent = 'PAPER · ' + paper.id; byId('item-title').textContent = paper.title;
     meta.append(badge(reviewLabels[paper.review_status], paper.review_status === 'needs-recheck'), badge('Edition · ' + (paper.edition ?? 'Not recorded')));
+    appendPaperSources(content, paper);
     const connected = section('Application records linked by this project');
     const linked = items.filter(app => app.claim_refs.some(ref => ref.paper_id === id));
     if (!linked.length) connected.append(node('p', 'empty-note', 'No application referencing this paper is included in the input scope.'));

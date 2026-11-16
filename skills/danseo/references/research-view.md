@@ -33,6 +33,14 @@ For new multi-paper inputs, use recognizable `short_title`, preserving original 
 
 Verify actual counts, aliases and groups; follow paper → relation → source. Sample status/type filters, empty results, all-connections and keyboard focus. Default reading verification is local desktop at normal size, including overlap/clipping and Korean word wrapping in requested-language prose. Generation or matching asset hashes do not replace rendered/source-semantic checks. Report visual review not run when a browser is unavailable.
 
+## Open the original from a paper node
+
+Select a paper node or its matching list entry, then use **Open original source ↗** under **Read the paper** at the top of its details. Project-application views use the same shortcut when a paper is selected. **Read at** lists the registered sections, pages or figures to find in the source; it does not automatically jump to those locations.
+
+The shortcut opens the exact registered source URL linked by the paper's `claims[].evidence` in a new tab. Repeated URLs share one link while retaining every distinct locator. Null URLs are omitted without inferring an address from the title or DOI. If no linked source has an external URL, the shortcut section is omitted; use the existing evidence details for the recorded local-original guidance and check scope.
+
+Credential-free HTTP(S) URL validation and rejection of unregistered evidence still run before generation. A link does not establish full-paper verification, availability or reader understanding. This applies to standalone research HTML, not the CLI comparison app. Regenerate existing HTML with the updated skill to include it; global installations are managed separately.
+
 ## Prepare candidate input
 
 Use existing authorized CLI/export/graph data and full text. Distinguish recorded history from source checks in this run. Examples are synthetic references: [project application v2](../assets/project-application.v2.example.json), [paper relations v2](../assets/paper-relations.v2.example.json). New views use v2; v1 `.example.json` files test compatibility. Node 22/24 and the complete skill folder suffice, without external npm packages, sibling skills, repository code or a server.
