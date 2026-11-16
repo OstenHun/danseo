@@ -59,8 +59,8 @@ const portableReceipt = parseJson<{ok: boolean; source_semantics: string}>(rende
 assert.equal(portableReceipt.ok, true);
 assert.equal(portableReceipt.source_semantics, 'not-certified');
 const portableHtml = readFileSync(portableOutput, 'utf8');
-assert.match(portableHtml, /선택한 연결만/);
-assert.match(portableHtml, /주제 미분류/);
+assert.match(portableHtml, /Selected connections/);
+assert.match(portableHtml, /Uncategorized/);
 assert.match(portableHtml, /검색 결과 근거의 답변 인용과 충실도 평가/);
 required(portable.papers[0]).topic = '가'.repeat(41);
 writeFileSync(portableInput, JSON.stringify(portable));

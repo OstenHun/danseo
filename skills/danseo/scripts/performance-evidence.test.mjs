@@ -33,7 +33,7 @@ function fixture(t) {
 test('source-table report includes conditions, exceptions and footnotes before HTML output', t=>{
   const f=fixture(t);f.save();const r=run([f.input,'--evidence',f.sidecar,'--out',f.output]);
   assert.equal(r.performance_fields,1);assert.equal(r.source_semantics,'not-certified');
-  assert.match(f.c.papers[0].claims[0].statement,/우세 2, 동률 0, 열세 2, 미보고 0/);
+  assert.match(f.c.papers[0].claims[0].statement,/ahead 2, tied 0, behind 2, not reported 0/);
   assert.match(readFileSync(f.output,'utf8'),/67.2/);assert.match(f.c.papers[0].claims[0].statement,/reproduced baseline/);
 });
 test('the universal superiority assertion is contradicted by both exceptions, before write', t=>{
@@ -69,9 +69,9 @@ test('omitted losing row, swapped column, missing column and changed source cell
 });
 test('ties, missing values and lower-is-better cannot imply strict superiority',t=>{
   const f=fixture(t);const p=structuredClone(f.parsed);p.rows.set(JSON.stringify(['Generator-A','Method']),[70,null]);
-  const report=comparisonText(p,f.comparison);assert.match(report,/동률 1, 열세 1, 미보고 1/);
+  const report=comparisonText(p,f.comparison);assert.match(report,/tied 1, behind 1, not reported 1/);
   assert.throws(()=>comparisonText(p,{...f.comparison,assertion:'all-better'}),/1 losses, 1 ties, 1 missing/);
-  const q=structuredClone(f.parsed);q.table.columns.forEach(c=>c.direction='lower');assert.match(comparisonText(q,f.comparison),/우세 2, 동률 0, 열세 2/);
+  const q=structuredClone(f.parsed);q.table.columns.forEach(c=>c.direction='lower');assert.match(comparisonText(q,f.comparison),/ahead 2, tied 0, behind 2/);
 });
 test('condition matching preserves baseline footnotes, duplicates and invented rows fail',t=>{
   const f=fixture(t);const q=structuredClone(f.comparison);q.pairs[0].baseline='Baseline';assert.throws(()=>comparisonText(f.parsed,q),/missing comparison method/);
@@ -114,6 +114,31 @@ test('direction excerpts cannot truncate another metric name',t=>{
   table.quote=`${table.header}\nGenerator-A\nBaseline 10\nMethod 9\n${table.footer}`;
   table.columns=[{label:'Task-A',metric:'QualityX',direction:'lower',direction_quote:'QualityX lower is better.'}];
   assert.throws(()=>readTable(table,new Map([['S.1',new Map([[2,table.quote+'\nOtherQualityX lower is better.']])]])),/exact single-metric/);
+});
+
+test('all-better failure details list exceptions without successful cells',t=>{
+  const f=fixture(t);
+  assert.throws(()=>comparisonText(f.parsed,{...f.comparison,assertion:'all-better'}),error=>{
+    assert.match(error.message,/all-better contradicted/);
+    assert.match(error.message,/— Behind/);
+    assert.doesNotMatch(error.message,/— Ahead/);
+    return true;
+  });
+});
+
+test('English fixed reports retain Korean and English original metric-direction quotations',t=>{
+  const f=fixture(t),table=structuredClone(f.table);
+  table.header='Task-A\nQualityX';table.conditions=['Generator-A'];
+  table.quote=`${table.header}\nGenerator-A\nBaseline 10\nMethod 9\n${table.footer}`;
+  for(const [direction,tail] of [['higher','높을수록 좋음'],['lower','낮을수록 좋음'],['higher','higher is better'],['lower','lower is better']]) {
+    const quote=`QualityX: ${tail}.`;
+    table.columns=[{label:'Task-A',metric:'QualityX',direction,direction_quote:quote}];
+    const pages=new Map([['S.1',new Map([[2,table.quote+'\n'+quote]])]]);
+    const before=JSON.stringify(table);
+    const parsed=readTable(table,pages);
+    assert.match(comparisonText(parsed,{table_id:table.id,pairs:[{condition:'Generator-A',method:'Method',baseline:'Baseline'}],assertion:'report'}),/Table comparison/);
+    assert.equal(JSON.stringify(table),before);
+  }
 });
 test('out-of-range decimals cannot round distinct source values into a tie',t=>{
   const f=fixture(t);

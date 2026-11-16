@@ -1,12 +1,12 @@
 # Brand assets
 
-Summary: Danseo's brand combines a folded paper with a terminal prompt. SVG and PNG assets are included; historical visual checks are scoped below, and social-preview registration is a separate step.
+Summary: Danseo's mark combines a folded paper and terminal prompt. Use the included SVG/PNG assets and preserve their colors, proportions and attribution.
 
-Created: 2026-10-21 KST / PTP-004. These assets can be used directly from the repository. The maintainer keeps the editable Figma source separately; access to it is not required.
+These assets can be used directly from the repository. The maintainer keeps the editable Figma source separately; access to it is not required.
 
 ## Design direction
 
-The product name is **Danseo (단서)**. The package, CLI, and research skill identifier is `danseo`. See [naming](../../docs/NAMING.md) (Korean) for the name's meaning and the scope of conflict checks.
+The product name is **Danseo (단서)**. The package, CLI, and research skill identifier is `danseo`. Danseo means ‘clue’ in Korean. Name or trademark exclusivity is not established.
 
 The mark represents a developer tool for connecting research with project decisions. A folded paper contains `>_`; an orange path connects evidence to a project. The artwork is not an app screenshot or an experimental result.
 
@@ -44,16 +44,3 @@ The README's `<picture>` selects a banner by viewport width and color scheme. Re
 Edit text and vectors in the relevant Figma frame, then export SVG and PNG at the listed dimensions. Outline SVG text and export PNG at 1×. Recheck regular and compact banners in both color schemes after changes. Break Korean text at word or phrase boundaries, avoiding isolated syllables or particles.
 
 The logo is an original vector design. OpenCodex logos, images, and copy were not reproduced. Graphics use the repository's [MIT License](../../LICENSE). See [font and artwork notices](../../THIRD_PARTY_NOTICES.md#fonts-used-in-brand-assets). Name or trademark exclusivity has not been established.
-
-## Recorded verification
-
-The original brand review recorded:
-
-- Six Figma frames with editable text and vectors, rather than flattened screenshots.
-- Regular banners read at 1600 × 640 in both color schemes, checking titles, subtitles, paths, logo, overlap, and clipping.
-- Compact banners checked at 800 × 640 and a displayed width of 400px in both color schemes; the subtitle reads at roughly 16px.
-- Social preview checked at 1280 × 640 and a displayed width of 640px, including the two Korean lines and CLI description.
-- Icon checked at 512px and 64px.
-- SVG syntax, absence of external references, PNG dimensions, README paths, and package inclusion checked.
-
-That review also checked Korean and English READMEs in a private GitHub light theme and compact-banner selection at 390px. Actual GitHub dark-theme rendering and social-preview registration remained follow-ups in that record. See [release preparation](../../docs/OPEN_SOURCE.md) (Korean). Historical design checks do not replace CLI tests or establish current publication status.

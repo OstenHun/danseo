@@ -12,17 +12,17 @@
 
   function element(id: string): HTMLElement {
     const node = document.getElementById(id);
-    if (!node) throw new Error('화면 요소가 없습니다: ' + id);
+    if (!node) throw new Error('Missing interface element: ' + id);
     return node;
   }
   function input(id: string): HTMLInputElement {
     const node = element(id);
-    if (!(node instanceof HTMLInputElement)) throw new Error('입력 요소가 아닙니다: ' + id);
+    if (!(node instanceof HTMLInputElement)) throw new Error('Expected an input element: ' + id);
     return node;
   }
   function button(id: string): HTMLButtonElement {
     const node = element(id);
-    if (!(node instanceof HTMLButtonElement)) throw new Error('버튼 요소가 아닙니다: ' + id);
+    if (!(node instanceof HTMLButtonElement)) throw new Error('Expected a button element: ' + id);
     return node;
   }
   function text<K extends keyof HTMLElementTagNameMap>(tag: K, value: string, className?: string): HTMLElementTagNameMap[K] {
@@ -34,7 +34,7 @@
 
   const sourceOnly = input('source-only');
   const refreshButton = button('refresh');
-  const labels: Record<string, string> = { cites: '인용', extends: '확장', compares: '비교', 'related-to': '관련', 'reading-order': '읽기 순서' };
+  const labels: Record<string, string> = { cites: 'Cites', extends: 'Extends', compares: 'Compares', 'related-to': 'Related', 'reading-order': 'Reading order' };
   let data: View | undefined;
   let map: MapController | null | undefined;
   let selection: { type: SelectionType; id: string } | undefined;
@@ -57,25 +57,25 @@
   function evidence(paper: Paper, claims: ClaimRow[]): HTMLElement {
     const column = text('article', '', 'evidence-column');
     column.append(text('h3', paper.title));
-    if (!claims.length) column.append(text('p', '이 기준으로 확인한 근거 없음'));
+    if (!claims.length) column.append(text('p', 'No checked evidence for this criterion'));
     for (const row of claims) {
       const { claim, review } = row;
       // The server emits only supported rows. Optional inferred fields still
       // require a real check before constructing links or dereferencing support.
-      if (!claim || !review || !ready(paper)) throw new Error('현재 근거의 원문·검토 정보를 확인할 수 없습니다.');
+      if (!claim || !review || !ready(paper)) throw new Error('Unable to verify the source and review details for the current evidence.');
       const article = text('div', '', 'claim');
-      article.append(text('p', claim.statement), text('p', '조건 · ' + (claim.conditions ?? '기록 없음')),
-        text('p', '한계 · ' + (claim.limits ?? '기록 없음')));
+      article.append(text('p', claim.statement), text('p', 'Conditions · ' + (claim.conditions ?? 'Not recorded')),
+        text('p', 'Limits · ' + (claim.limits ?? 'Not recorded')));
       const locators = claim.locators.map(locator => locator.type === 'pdf-page-range'
-        ? `PDF ${locator.start}–${locator.end}쪽` : `${locator.type} ${locator.value ?? ''}`).join(' · ');
+        ? `PDF pages ${locator.start}–${locator.end}` : `${locator.type} ${locator.value ?? ''}`).join(' · ');
       article.append(text('p', row.source.edition + ' · ' + locators, 'metadata'),
-        text('p', '주장 ' + row.paper_id + '/' + row.claim_id + ' · 현재 원문 지지', 'metadata'));
+        text('p', 'Claim ' + row.paper_id + '/' + row.claim_id + ' · currently source-supported', 'metadata'));
       const checkedPages = [...new Set(review.evidence.map(item => item.pdf_page))];
-      for (const item of review.evidence) article.append(text('p', `원문 대조 · PDF ${item.pdf_page}쪽 · ${item.section}`, 'metadata'));
+      for (const item of review.evidence) article.append(text('p', `Source check · PDF page ${item.pdf_page} · ${item.section}`, 'metadata'));
       const links = text('div', '', 'evidence-links');
-      links.append(link('해당 판본 PDF 열기', paper, 'pdf', claim.locators.find(locator => locator.type === 'pdf-page-range')?.start ?? checkedPages[0]),
-        link('주제별 분석 문서', paper, 'analysis'));
-      for (const page of checkedPages) links.append(link(`PDF 대조 ${page}쪽`, paper, 'pdf', page));
+      links.append(link('Open this edition PDF', paper, 'pdf', claim.locators.find(locator => locator.type === 'pdf-page-range')?.start ?? checkedPages[0]),
+        link('Topic analysis document', paper, 'analysis'));
+      for (const page of checkedPages) links.append(link(`Checked PDF page ${page}`, paper, 'pdf', page));
       article.append(links);
       column.append(article);
     }
@@ -83,17 +83,17 @@
   }
   function paperById(view: View, id: string): Paper {
     const paper = view.papers.find(item => item.paper_id === id);
-    if (!paper) throw new Error('관계의 논문이 없습니다: ' + id);
+    if (!paper) throw new Error('Missing relation paper: ' + id);
     return paper;
   }
   function criterionClaims(criterion: View['criteria'][number], paper: Paper): ClaimRow[] {
     const group = criterion.groups.find(item => item.key === paper.key);
-    if (!group) throw new Error('비교 기준의 논문이 없습니다: ' + paper.key);
+    if (!group) throw new Error('Missing criterion paper: ' + paper.key);
     return group.claims;
   }
   function emptyDetails(): void {
-    element('details').replaceChildren(text('h2', '비교 기준을 선택하세요'),
-      text('p', '논문·기준·관계를 선택하면 현재 확인 가능한 근거를 보여줍니다.'));
+    element('details').replaceChildren(text('h2', 'Select a comparison criterion'),
+      text('p', 'Select a paper, criterion or relation to inspect currently available evidence.'));
   }
   function show(type: SelectionType, id: string, focus = true): void {
     const view = data;
@@ -106,8 +106,8 @@
       if (!relation) { selection = undefined; emptyDetails(); return; }
       panel.append(text('h2', (labels[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label),
         text('p', paperById(view, relation.source).title + ' → ' + paperById(view, relation.target).title),
-        text('p', relation.rationale), text('p', '작성 · ' + relation.created_by + (relation.review
-          ? ' / ' + (relation.status === 'source-checked' ? '원문 대조' : '이전 대조 기록') + ' · ' + relation.review.checked_by + ' · ' + relation.review.checked_at : ''), 'metadata'));
+        text('p', relation.rationale), text('p', 'Created by · ' + relation.created_by + (relation.review
+          ? ' / ' + (relation.status === 'source-checked' ? 'Source check' : 'Previous source check') + ' · ' + relation.review.checked_by + ' · ' + relation.review.checked_at : ''), 'metadata'));
       const columns = text('div', '', 'evidence-columns');
       for (const paper of view.papers.filter(item => [relation.source, relation.target].includes(item.paper_id ?? ''))) {
         columns.append(evidence(paper, view.claims.filter(claim => claim.key === paper.key
@@ -117,7 +117,7 @@
     } else if (type === 'criterion') {
       const criterion = view.criteria.find(item => item.id === id);
       if (!criterion) { selection = undefined; emptyDetails(); return; }
-      panel.append(text('h2', criterion.title), text('p', 'AI 분류 · ' + criterion.rationale, 'badge'));
+      panel.append(text('h2', criterion.title), text('p', 'AI grouping · ' + criterion.rationale, 'badge'));
       const columns = text('div', '', 'evidence-columns');
       for (const paper of view.papers) columns.append(evidence(paper, criterionClaims(criterion, paper)));
       panel.append(columns);
@@ -126,7 +126,7 @@
       if (!paper) { selection = undefined; emptyDetails(); return; }
       panel.append(text('h2', paper.title));
       for (const criterion of view.criteria) panel.append(text('h3', criterion.title),
-        text('p', 'AI 분류 · ' + criterion.rationale, 'badge'), evidence(paper, criterionClaims(criterion, paper)));
+        text('p', 'AI grouping · ' + criterion.rationale, 'badge'), evidence(paper, criterionClaims(criterion, paper)));
     }
     document.querySelectorAll<HTMLButtonElement>('[data-selection]').forEach(node =>
       node.setAttribute('aria-pressed', String(node.dataset.selection === type + ':' + id)));
@@ -159,9 +159,9 @@
     choices('criteria', view.criteria, 'criterion', criterion => criterion.title);
     choices('relations', relations, 'relation', relation => relation.origin_label + ' · ' + (labels[relation.kind] ?? relation.kind)
       + ' · ' + paperById(view, relation.source).number + ' → ' + paperById(view, relation.target).number);
-    element('empty-relations').textContent = relations.length ? '' : sourceOnly.checked ? '현재 유효한 원문 관계가 없습니다.'
-      + (view.relations.length ? ' 필터를 풀면 미대조 관계·제안을 확인할 수 있습니다.' : '') : '현재 확인 가능한 연구 간 관계가 없습니다.';
-    element('status').textContent = `논문 ${view.papers.length}편 · 기준 ${view.criteria.length}개 · 연구 간 관계 ${relations.length}개. 현재 파일로 확인했습니다.`;
+    element('empty-relations').textContent = relations.length ? '' : sourceOnly.checked ? 'No currently valid source relations.'
+      + (view.relations.length ? ' Clear the filter to inspect unchecked relations and proposals.' : '') : 'No research relations are currently available.';
+    element('status').textContent = `Papers: ${view.papers.length} · criteria: ${view.criteria.length} · research relations: ${relations.length}. Checked against current files.`;
     map?.destroy();
     map = window.DanseoMap.mount(element('map'), { ...view, relations }, 'comparison', mapSelected);
     if (selection) show(selection.type, selection.id, false);
@@ -180,7 +180,7 @@
     refreshButton.disabled = true;
     element('error').hidden = true;
     clearEvidence();
-    element('status').textContent = '현재 근거를 확인하는 중입니다.';
+    element('status').textContent = 'Checking current evidence.';
     element('empty-relations').textContent = '';
     try {
       const response = await fetch('data', { cache: 'no-store' });
@@ -195,11 +195,11 @@
       for (const held of view.held) element('held').append(text('p', (held.paper_id ?? held.key)
         + (held.claim_id ? '/' + held.claim_id : '') + ' · ' + held.reason));
       for (const held of view.held_relations) element('held').append(text('p', held.id + ' · ' + held.reason));
-      if (!element('held').childNodes.length) element('held').append(text('p', '보류한 근거 없음'));
+      if (!element('held').childNodes.length) element('held').append(text('p', 'No held evidence'));
       render(view);
     } catch (error) {
       clearEvidence();
-      element('status').textContent = '현재 근거를 표시할 수 없습니다.';
+      element('status').textContent = 'Unable to display current evidence.';
       element('error').textContent = error instanceof Error ? error.message : String(error);
       element('error').hidden = false;
     } finally {

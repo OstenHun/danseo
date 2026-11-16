@@ -1,76 +1,88 @@
-# 논문 한 편 분석하고 이어 읽기
+# Analyze a paper and resume reading
 
-요약: 선택한 PDF 판본을 공통 Paper 카드와 주제별 Markdown 문서에 연결한다. 답과 메모를 이어 쓰고, 현재 원문 지지 검토가 있는 비교 후보 주장만 다음 단계에 넘긴다. 실제 독해와 판정은 에이전트가 맡는다.
+Summary: Link a selected PDF edition to a shared Paper card and topic Markdown analysis. Resume answers and notes; only currently source-supported comparison candidates proceed to the next stage.
 
-## 처음 열기
+<a id="처음-열기"></a>
 
-`topic sources --dir <주제 폴더>`의 `ready`에서 번호·선택 회차·실제 판본·PDF 위치·SHA-256을 읽는다. 동의 대기·거절 초고, 없거나 변경된 PDF는 분석할 수 없다. CLI는 실행할 때마다 2단계의 제목·저자·판본 대조를 다시 수행한다.
+<a id="원문을-읽고-답-쓰기"></a>
 
-에이전트가 명시한 개인 workspace에서 같은 판본의 Paper를 먼저 찾는다. 없으면 기존 native 카드 형식으로 작성해 `workspace.json`의 `records`에 등록한다. Paper만 보관하는 workspace는 `projects: []`를 쓸 수 있다. 기존 카드·주장 ID·본문·사용자 메모를 보존하고 다른 판본의 카드를 덮어쓰지 않는다. 기존 전역 skill 설치본은 바꾸지 않는다.
+<a id="새-대화와-판본-변경"></a>
+
+<a id="주장-검토와-4단계-입력"></a>
+
+<a id="의존성과-확인-범위"></a>
+
+## Open for the first time
+
+Read the paper number, selection round, actual edition, PDF path and SHA-256 from `topic sources --dir <topic-folder>` → `ready`. Pending/refused drafts and missing/changed PDFs are ineligible. Every invocation repeats stage-2 title, author and edition checks.
+
+Find a same-edition Paper in the specified private workspace. If absent, prepare it in the existing native card format and register it in `workspace.json` → `records`. A Paper-only workspace may use `projects: []`. Preserve existing cards, claim IDs, body text and user notes; never overwrite another edition. Do not update global skill installations.
 
 ```sh
-node dist/cli.js topic analysis-open --dir <주제 폴더> --id 2 --workspace <공통 카드 폴더> --paper <Paper ID>
+node dist/cli.js topic analysis-open --dir <topic-folder> --id 2 --workspace <card-workspace> --paper <Paper-ID>
 ```
 
-처음 연결할 때 카드 위치와 ID를 함께 지정한다. `source.version`은 `ready.file.edition`과 같아야 하고, `source.path`의 PDF 해시는 수집한 PDF와 일치해야 한다. 같은 파일을 다른 경로에서 연결할 수 있다. 해시가 같다는 사실은 문장의 원문 지지를 뜻하지 않는다.
+For the first connection, provide workspace and ID together. `source.version` must equal `ready.file.edition`, and the PDF at `source.path` must hash to the collected PDF. Identical bytes may be linked at another path; matching hashes do not establish claim support.
 
-출력에는 주제 질문·선택 이유·PDF와 실제 판본·Paper 연결·분석 문서 전문·문서 해시가 있다. `topic show`의 `analyses`와 `analysis-list`에서 문서 위치를 찾는다. 손상되거나 읽을 수 없는 문서는 해당 논문에 `needs-recheck`와 이유를 표시하며 다른 논문의 조회·비교 입력은 계속 처리한다. 목록은 탐색용이며 원문의 현재성은 `analysis-open`에서 확인한다. 같은 판본을 다시 열기만 하면 파일을 쓰지 않는다.
+Output includes the topic question, selection reason, PDF/edition, Paper connection, full analysis document and document hash. Find paths in `topic show` → `analyses` or `analysis-list`. Unreadable/damaged documents mark that paper `needs-recheck` with a reason while other papers remain queryable. Lists are navigational; `analysis-open` verifies current sources. Reopening the same edition alone does not write a file.
 
-## 원문을 읽고 답 쓰기
+## Read sources and write answers
 
-먼저 전체 연구 질문·방법·주요 결과를 짧은 한 문단으로 쓴다. 이어 주제와 관련된 절·표에서 무엇을 어떤 조건으로 비교했는지 설명한다. 수치는 단위·표본·모델·평가 조건과 PDF의 실제 쪽·절·표 번호를 붙인다. 추출문에서 열·주석이 모호하면 해당 PDF 페이지를 직접 열어 읽는다. 관련 표가 없으면 절을 쓰고, 논문의 한계와 이번에 읽지 못한 범위를 구별한다.
+Use the [skill output-language rule](../skills/danseo/SKILL.md#output-language): an explicit language request wins, otherwise preserve the current work's chosen language, or use the new request's language. Source language does not choose answer language. Fixed document headings are English; supplied answer text is preserved.
 
-Paper의 `claims`에는 저자가 보고한 문장·`conditions`·`limits`·`locators`를 적는다. 주제에 따른 답·AI 해석·사용자 메모·남은 질문은 해당 주제의 분석 문서에 둔다. 저자 주장과 AI 해석, 프로젝트 실측, 채택 결정을 섞지 않는다. 수동 카드 변경은 그 workspace의 기존 저장·검토 절차를 따른다. 이 CLI는 카드를 자동 요약하거나 덮어쓰지 않는다.
+Write one short paragraph on research question, method and main results. Then explain topic-relevant sections/tables: compared objects, conditions, values, units, samples, models and actual PDF page/section/table numbers. Read the PDF page when columns or footnotes are ambiguous. Use a section if no relevant table exists; distinguish paper limitations from unread scope.
 
-예를 들어 다음 JSON을 개인 파일로 준비한다. 예문은 실제 논문의 결과가 아니다.
+Store author-reported statements, `conditions`, `limits` and `locators` in Paper `claims`. Keep topic answers, AI interpretation, user notes and open questions in the topic analysis document. Do not mix author claims, AI interpretation, project measurements and adoption decisions. Manual card changes follow that workspace's existing save/review procedure; this CLI does not summarize or overwrite cards automatically.
+
+Prepare a private answer JSON file. This synthetic example is not a real paper result; replace prose with requested-language content while retaining keys/IDs.
 
 ```json
 {
-  "overview": "연구 질문과 비교 방법, 주요 결과를 한 문단으로 적는다.",
-  "question": "두 방법은 결과를 어떻게 평가했나?",
-  "answer": "해당 판본의 평가 절과 표에서 확인한 대상·조건·결과·단위를 설명한다. 원문으로 답할 수 없는 범위는 미확인으로 남긴다.",
-  "interpretation": "AI 해석: 이 주제에서 답할 수 있는 범위와 전이할 수 없는 조건을 적는다.",
-  "remaining_questions": "추가로 확인할 질문이나 미확인 범위를 적는다. 없으면 없다고 적는다.",
-  "resume": "다음에 읽을 PDF 쪽·절·표와 확인할 항목을 적는다.",
+  "overview": "One paragraph on the research question, comparison method and main findings.",
+  "question": "How did the two methods evaluate their results?",
+  "answer": "Describe the subjects, conditions, results and units verified in this edition. Keep unsupported scope unknown.",
+  "interpretation": "AI interpretation: state what this topic can answer and which conditions do not transfer.",
+  "remaining_questions": "Record further questions or unknowns, or explicitly state that none remain.",
+  "resume": "Record the next PDF page, section or table and what to check.",
   "claim_ids": ["c1"],
   "comparison_claims": ["c1"]
 }
 ```
 
 ```sh
-node dist/cli.js topic analysis-save --dir <주제 폴더> --id 2 --sha <열 때 받은 문서 해시> --input <답 JSON>
+node dist/cli.js topic analysis-save --dir <topic-folder> --id 2 --sha <opened-document-hash> --input <answer-JSON>
 ```
 
-답은 같은 문서의 끝에 붙는다. 판본별 첫 답은 `overview`가 필요하며 후속 답은 생략할 수 있다. `claim_ids`는 이번 답에서 사용한 Paper의 실제 주장 ID다. `comparison_claims`는 이번 주제에서 비교할 현재 후보 목록 전체이며 앞선 답의 후보를 유지하거나 빈 배열로 철회할 수 있다. 두 목록은 각각 현재 Paper의 ID와 대조한다. 후보 지정은 검토 완료가 아니다. CLI는 JSON 구조와 참조를 검사하며 답의 사실성·수치의 의미·독해 품질을 자동 인증하지 않는다.
+Answers append to the same document. The first answer for each edition requires `overview`; later answers may omit it. `claim_ids` names actual Paper claims used in this answer. `comparison_claims` is the complete current topic candidate list; preserve previous candidates or withdraw them with an empty array. Both are checked against current Paper IDs. Being a candidate is not review completion. The CLI checks JSON/references, not factuality, numerical meaning or reading quality.
 
-## 새 대화와 판본 변경
+## New chats and edition changes
 
 ```sh
-node dist/cli.js topic analysis-open --dir <같은 주제 폴더> --id 2
+node dist/cli.js topic analysis-open --dir <same-topic-folder> --id 2
 ```
 
-새 프로세스에서도 지난 답·사용자 메모·남은 질문·다음 원문 위치를 읽고 새 질문의 답을 덧붙인다. A → B → A를 열어도 문서는 논문마다 하나다. 다른 주제에서 같은 Paper를 연결하면 공통 주장은 재사용하고 답은 그 주제의 별도 문서에 남는다.
+In a new process, read previous answers, user notes, open questions and reading position before appending. A → B → A still uses one document per paper. Another topic reuses shared Paper claims with its own separate answers.
 
-2단계에서 다른 판본을 분석 가능 원문으로 선택하면 그 판본의 Paper를 명시해 다시 연다. 같은 문서에 새 판본 구간과 연결 이력이 추가되며 이전 답·Paper는 보존한다. 새 구간의 비교 후보는 비어 있고, 새 판본에서 다시 확인한 답과 주장만 추가한다. 파일 변경 자체는 새 판본 확인을 대신하지 않는다.
+When stage 2 selects a different ready edition, explicitly connect that edition's Paper. The same analysis document gains a new edition section/history while preserving earlier answers/Paper. New-edition comparison candidates start empty; add only newly checked claims. A file change alone is not edition verification.
 
-저장할 때 주제 잠금, 읽은 문서 해시, 교체 직전 재검사를 사용한다. 변경 전 파일은 내용 해시가 붙은 `.bak`으로 보존한다. 다른 편집기의 메모가 바뀌면 다시 열어 대조한다. 손상 문서·다른 백업·링크 파일은 덮어쓰지 않는다. 비협조적인 외부 편집기와 최종 교체 순간의 경쟁까지 보장하지 않는다. 남은 잠금은 다른 Danseo 프로세스가 종료됐는지 확인하고 원본을 비교한 후 처리한다.
+Saving uses a topic lock, opened-document hash and a final pre-replacement check. Preserve the original in a content-hashed `.bak`. Reopen changed editor notes; do not overwrite damaged documents, differing backups or linked files. This does not cover every race with uncooperative editors at final replacement. Handle leftover locks only after stopping other Danseo processes and comparing originals.
 
-## 주장 검토와 4단계 입력
+## Claim reviews and stage-4 input
 
-원문 대조는 기존 주장별 고정 입력·검토 결과 형식을 쓴다. [검토 JSON 계약](CLAIM_REVIEWS.md)을 따른다. 실제 해당 PDF 페이지를 읽고 문장·조건·원문 위치를 대조한 검토자가 판정·이유·원문 위치·필수 수정을 기록한다. 자체 대조를 독립 검토로 부르지 않는다.
+Use existing frozen claim-input/result formats in the [review JSON contract](CLAIM_REVIEWS.md). A reviewer actually reads the PDF pages, compares statements/conditions/locations, and records verdicts, reasons, evidence and required changes. Self-checking is not independent review.
 
 ```sh
-node dist/cli.js topic comparison-input --dir <주제 폴더>
+node dist/cli.js topic comparison-input --dir <topic-folder>
 ```
 
-`claims`는 현재 선택한 논문에서 이 주제가 고른 후보 중 최신 검토가 `supported`이고 현재 내용에 유효한 주장만 담는다. Paper 전체의 `source-checked`만으로는 포함되지 않는다. PDF, 판본·URL, 연결 추출문, 주장·조건·한계·원문 위치가 검토 입력과 다르면 `held`에 남는다. 일부 지지·충돌·확인 불가·미대조·필수 수정 남음·검토 파일 손상·동시각의 서로 다른 검토도 보류한다. 내용이 이전 상태로 돌아와도 그 뒤에 더 최신 검토가 있으면 예전 지지 판정으로 되돌아가지 않는다. 최신 검토 자체의 내용과 일치하는 경우에만 그 검토를 적용한다.
+`claims` contains only this topic's selected candidates whose latest review is `supported` and valid for current content. Whole-Paper `source-checked` is insufficient. Changes to PDF, edition/URL, linked text, statement, conditions, limits or locators put claims in `held`. Partial support, contradictions, insufficient/unchecked evidence, required changes, damaged review files and distinct same-time reviews are also held. Restoring old content does not revive old support when a newer review exists; only content matching the latest review can use that review.
 
-수집 목록과 선택·초고 동의는 같은 주제 잠금 안에서 읽고, 비교 입력의 PDF 처리는 잠금을 푼 뒤 시작한다. 다른 Danseo 저장이 진행 중이면 `EDIT_BUSY`를 표시하므로 저장이 끝난 뒤 다시 시도한다. 분석 열기·저장은 이미 보유한 잠금을 재사용한다. 검토 PDF 해시는 이때 선택한 PDF 해시와도 직접 일치해야 하므로, 같은 경로가 처리 중 다른 PDF로 바뀌어도 다른 파일의 검토를 선택한 파일에 붙이지 않는다.
+Selections, source records and draft consent are read under one topic lock; PDF processing begins after releasing it. Concurrent Danseo saves return `EDIT_BUSY`; retry after saving finishes. Analysis open/save reuses its held lock. Reviewed PDF hashes must directly match the selected PDF hash, preventing a different PDF swapped at the same path from inheriting the selected file's review.
 
-각 주장에는 Paper/claim ID, 전체 조건·원문 위치, PDF 판본·해시·경로, 이 주제의 분석 문서와 해시, 검토 판정이 들어간다. `held`는 다음에 확인할 이유를 제공한다. 이 결과에는 개인 원문 경로와 검토 메타데이터가 있으므로 그대로 PR·공유 자료에 올리지 않는다. 4단계는 이 입력을 받을 때 다시 생성해 현재성을 확인한다. 이 PR은 비교 기준·그래프·논문 사이 관계를 만들지 않는다.
+Each claim carries Paper/claim ID, full conditions/locations, PDF edition/hash/path, topic analysis path/hash and verdict. `held` explains next checks. Output includes private paths/review metadata; do not publish it unchanged in PRs or shared materials. Stage 4 regenerates this input to verify freshness. This stage does not itself construct criteria, graphs or paper relations.
 
-## 의존성과 확인 범위
+## Dependencies and verification scope
 
-3단계는 2단계 [초안 PR #2](https://github.com/OstenHun/danseo/pull/2)의 `0d16b28`에서 분리했고, 진행 중 갱신된 `0903667`의 판본 표시 수정을 반영했다. `sourceCollection`은 `topic sources`와 같은 재검증 결과를 제공한다. `topic.json`과 `sources.json` 저장 계약은 그대로 유지한다. 2단계 head가 바뀌거나 병합되면 병합 커밋과 입력 계약을 대조하고, 재개·초고 제외·변경 근거 제외·패키지 검사를 다시 실행한 뒤 base를 조정한다.
+`sourceCollection` provides the same revalidation as `topic sources`; the `topic.json`/`sources.json` storage contracts remain unchanged. Changes to upstream contracts require resume, draft-exclusion, changed-evidence and package checks. Earlier branch/PR details remain in Git history.
 
-자동 검사와 실제 PDF 동선, 최신 CI·독립 코드 리뷰·남은 확인은 [PTP-011](../TASKS.md#ptp-011--논문별-분석과-재개)에서 연결한다. 새 CLI 프로세스 재개와 사람이 새 채팅에서 진행하는 동선은 다른 검증이다. macOS 앱의 폴더 권한 UI·사용자 이해·학습 효과를 CI 통과로 대신하지 않는다.
+Current scope is listed under [PTP-011](../TASKS.md#ptp-011--논문별-분석과-재개); detailed execution records stay local. New CLI-process resumption differs from a person continuing in a new chat. CI does not establish macOS folder-permission UX, reader understanding or learning benefit.

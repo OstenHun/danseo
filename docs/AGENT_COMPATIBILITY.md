@@ -1,42 +1,51 @@
-# Agent 연결과 호환성
+# Agent connection and compatibility
 
-요약: 파일·shell 도구를 가진 agent는 Danseo CLI와 skill을 명시적으로 읽어 연결할 수 있다. 연결 성공·skill 자동 발견·원문 독해·답변 품질은 서로 다른 확인이며 사용 효과는 아직 검증하지 않았다.
+Summary: Agents with file and shell tools can explicitly read Danseo's skill and call its CLI. Connection, automatic skill discovery, source reading and answer quality require different evidence.
 
-갱신: 2026-11-16 KST. 아래 CLI 연결 기록은 2026-10-21의 범위이며, 독립 논문 그래프의 최신 세 호스트 확인은 별도 기록을 따른다.
+<a id="독립-논문-그래프의-기본-구성"></a>
 
-## 독립 논문 그래프의 기본 구성
+<a id="연결-방식"></a>
 
-Codex·Claude·Argon의 새 설정에서 같은 실제 논문 12편을 새로 생성했다. 별도 디자인 지시 없이 공통 생성기·주제 배치·짧은 이름·원문/AI 구분과 생성 전 검사가 적용됐다. 자동 검증에서 남은 의미 오류와 추가 대조 교정, 실제 화면 범위는 [그래프 기본 구성 검증](GRAPH_DEFAULTS.md)에 기록했다. 단일 실행을 모든 새 채팅·모델 버전의 준수 보증으로 일반화하지 않는다.
+<a id="확인한-범위"></a>
 
-## 연결 방식
+<a id="확인-순서"></a>
 
-| 환경 | 연결 | 한계 |
+<a id="별도-검증이-필요한-것"></a>
+
+## Standalone graph defaults
+
+The [view contract](../skills/danseo/references/research-view.md) owns shared generators, topic layout, short names and reading checks. Source/AI and performance evidence procedures apply across hosts. A documented procedure does not guarantee every future model follows it.
+
+## Connection methods
+
+| Environment | Connection | Boundary |
 | --- | --- | --- |
-| 로컬 코딩 agent | 도구 경로·workspace·프로젝트 ID·skill 경로를 전달하고 CLI 호출 | 호스트의 파일·shell 권한 필요 |
-| 일반 채팅 | 사람이 만든 Markdown 근거 묶음과 현재 질문·필요한 원문 제공 | 채팅이 로컬 경로를 읽을 수 있다고 가정하지 않음 |
-| 자체 agent 호스트 | JSON·Markdown·종료 코드를 도구 결과로 전달 | API·모델 SDK·권한 연결은 호스트 책임 |
+| Local coding agent | Tool path, workspace, project ID, skill path and CLI | Host file/shell permission required |
+| Ordinary chat | Person supplies Markdown evidence bundle, current question and necessary sources | Do not assume access to local paths |
+| Custom agent host | Forward JSON/Markdown/exit codes as tool results | Host owns APIs/model SDKs/permissions |
 
-[한국어 CLI](CLI.md#첫-실행)와 [English setup](CLI.en.md#connect-your-own-workspace)에 연결값을 설명했다. 저장소의 [skill](../skills/danseo/SKILL.md)을 명시적으로 읽는 방식부터 시작하며 전역 설치나 자동 발견을 전제로 하지 않는다.
+See [first-run values](CLI.md#first-run) and [setup](CLI.en.md#connect-your-own-workspace). Begin with explicit [skill](../skills/danseo/SKILL.md) reading; do not assume global installation or automatic discovery. Repository updates do not replace installed skills. Fixed guidance is English; [generated prose](../skills/danseo/SKILL.md#output-language) follows requested language. No language selector or translation service is bundled.
 
-## 확인한 범위
+## Observed scope
 
-설치·빌드·자료 등록이 준비된 환경에서 두 로컬 코딩 agent의 CLI 호출과 카드 읽기를 확인했다. 한 실행은 원문 텍스트까지 접근했고, 다른 실행은 PDF 읽기에 실패하고 답변 일부가 근거·CLI 동작과 달랐다. 단일 실행을 provider나 모델의 우열 비교로 일반화하지 않는다.
+In a prepared installation/build/data environment, two local agents called CLI and read cards. One accessed original text; another failed to read a PDF and made some unsupported source/CLI claims. This is not a provider/model ranking. Private prompts/responses/authentication are not shareable examples.
 
-개인 실행의 입력·응답·인증 과정은 공유 예제가 아니다. 외부에서 재현 가능한 기본 동작은 [합성 예제](../examples/minimal/workspace.json), 자동 테스트와 CI로 확인한다. 새 장치 설치, 자동 skill 발견, 실제 사람의 사용성, 독립 답변 품질 평가는 미검증이다.
+Public reproducibility uses [synthetic records](../examples/minimal/workspace.json), automated tests and CI. New-device onboarding, automatic discovery, human usability and independently scored answer quality remain unverified.
 
-## 확인 순서
+## Verification order
 
-1. 명령 실행: 실제 exit code, stdout·stderr, draft 포함 조건을 확인한다.
-2. 근거 읽기: 현재 질문 절, Application과 Paper의 조건·한계·미확인을 읽는다.
-3. 원문 복귀: 필요한 판본·페이지·표·절에 접근한다. 텍스트 확인과 화면 확인을 나눈다.
-4. 답변 대조: claim ID별로 범위·표본·지표·방법을 유지했는지 확인한다.
+1. Execution: inspect actual exit code/stdout/stderr and draft inclusion.
+2. Evidence reading: current question section, Application/Paper conditions, limits and unknowns.
+3. Original sources: actual edition/page/table/section; separate text and visual coverage.
+4. Answer agreement: retain each claim ID's scope, sample, metric and method.
 
-URL에 접근했다는 이유로 PDF를 읽었다고 표시하지 않는다. 원문 접근 실패는 근거 부재가 아니며 동일 실패를 반복하지 않는다. 호스트가 전달한 전체 파일과 export에 포함된 현재 질문 절의 범위를 구분한다.
+URL access is not PDF reading; access failure does not prove no evidence and should not be repeated unchanged. Distinguish a full file supplied by the host from the selected question section in export.
 
-## 별도 검증이 필요한 것
+## Checks still requiring separate evidence
 
-- 자동 skill 발견: 호스트별 설치 위치·버전·설정을 격리해 검사한다.
-- 새 사용자 설정: 기존 빌드·경로·로그인에 기대지 않는 첫 실행을 관찰한다.
-- 사용 효과: 같은 입력·예산의 비교와 독립 채점을 사용한다. [평가 계획](../evals/README.md)을 따른다.
+- Automatic discovery: isolate host installation/version/settings.
+- New-user setup: observe first use without relying on old builds, paths or login.
+- Usefulness: compare identical inputs/budgets with independent scoring using the [evaluation plan](../evals/README.md).
+- Requested-language compliance: inspect actual host-generated prose; preserving supplied Korean/English text in a renderer does not prove model compliance.
 
-CLI는 자체 모델 호출이나 외부 전송을 하지 않는다. 외부 agent의 provider·도구 권한·자료 전달은 각 호스트의 설정을 따른다.
+CLI performs no model calls or external transmission. Each host owns provider settings, tool permissions and material transfer.

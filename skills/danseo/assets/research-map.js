@@ -1,7 +1,7 @@
 // Canonical map projection: existing records become selectable elements; no domain writes.
 (() => {
   'use strict';
-  const kind = { cites: '인용', extends: '확장', compares: '비교', 'related-to': '관련', 'reading-order': 'AI 읽기 순서' };
+  const kind = { cites: 'Cites', extends: 'Extends', compares: 'Compares', 'related-to': 'Related', 'reading-order': 'AI reading order' };
   function build(data, scene) {
     const elements = [], project = data.mode === 'project-application';
     const addNode = (type, item, index, count, column) => {
@@ -11,7 +11,7 @@
         position = { x: 110 + col * 240, y: 70 + row * 155 };
       } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
       else position = count === 2 ? { x: 170 + index * 380, y: 190 } : { x: 360 + Math.cos(index / count * 2 * Math.PI) * 245, y: 230 + Math.sin(index / count * 2 * Math.PI) * 165 };
-      const stateLabel = type === 'paper' ? '\n전체 검토 · ' + item.review_status : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? '미지정') : '';
+      const stateLabel = type === 'paper' ? '\nPaper review · ' + item.review_status : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? 'Unspecified') : '';
       elements.push({ group: 'nodes', data: { id: type + ':' + item.id, recordId: item.id, type, label: (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') + (item.short_title ?? item.title) + stateLabel, state: item.review_status ?? item.decision?.status ?? 'context' }, position });
     };
     if (scene === 'context') {
@@ -24,10 +24,10 @@
           addNode('application', item, i, all.length, 1);
           for (const paper of data.papers) {
             const refs = item.claim_refs.filter(ref => ref.paper_id === paper.id);
-            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: '근거 참조 · ' + refs.length + '개 주장', origin: 'reference', state: item.decision.status } });
+            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: 'Evidence reference · ' + refs.length + ' claims', origin: 'reference', state: item.decision.status } });
           }
         });
-      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? 'AI 제안' : '원문 기록') + ' · 재확인' : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
+      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck' : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
     }
     return elements;
   }
@@ -86,7 +86,7 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
-      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: '날짜 미제공' });
+      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: 'Date not provided' });
       cards.set(paper.id, card); world.append(card);
     }
     presentation.drawTopics(world, layout.headings);

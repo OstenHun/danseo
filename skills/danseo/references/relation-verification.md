@@ -1,58 +1,66 @@
-# 관계 원문 검증
+# Verify paper relations against sources
 
-요약: 관계 생성·수정·HTML 요청에는 현재 에이전트가 후보와 연결 주장을 원문에 재대조한다. 직접 관계와 AI 해석을 나누고 오류를 수정한 뒤 구조·화면을 확인한다. 접근 실패와 미확인을 검증 완료로 기록하지 않는다.
+Summary: Recheck candidate relations and linked claims against original sources, separate direct relations from AI interpretations, and verify final structure and rendering. Access failures remain explicit.
 
-## 적용과 완료 기준
+<a id="적용과-완료-기준"></a>
 
-별도의 “검증해줘” 요청 없이 실행한다. 기존 초안·다른 모델의 감사·검토 상태도 입력 자료이며 이번 대조를 대신하지 않는다. 현재 에이전트가 후보 작성과 구분되는 검증 단계에서 원문을 다시 읽는다. 이를 독립 검토라고 부르지 않는다. 별도 모델·구독·설치·외부 전송은 이 절차가 새로 허가하지 않는다.
+<a id="1-입력과-근거-고정"></a>
 
-관계별 확인 결과와 수정·미확인 상태가 남고, 최종 후보와 화면이 같은 결과를 표시해야 완료다. 관계 없음도 유효하다. 접근할 수 없는 원문을 억지로 보충하거나 모든 논문을 처음부터 끝까지 읽어 범위를 넓히지 않는다.
+<a id="2-후보-작성-뒤-원문에-재대조"></a>
 
-관계 HTML 저장에는 [개요·수량 검사](evidence-gate.md)를 추가로 실행한다. 개요의 원문/AI 설명과 기록·쌍 수량은 자기 검토 문장만으로 통과시키지 않는다. 이 기계 검사는 아래 의미 대조를 대체하지 않는다.
+<a id="3-판정과-상태-반영"></a>
 
-성능 우열을 말하는 연결 주장·관계 이유에는 [표 조건·예외 검증](performance-verification.md)을 기본 적용한다. 모든 생성기·데이터셋에서의 우월 주장에 동률·열세·미보고 예외가 없는지 계산하고, 각주와 평가 조건을 보존한다. 표 근거와 필드 검토가 없으면 HTML 생성이 차단된다.
+<a id="4-검증-기록과-생성"></a>
 
-## 1. 입력과 근거 고정
+## Scope and completion
 
-사용자가 지정한 원문 판본·PDF 또는 공식 본문과 후보를 사용한다. 로컬 파일은 실제 SHA-256을 구하고, 웹 본문은 URL·판본·확인 위치를 기록한다. 기존 초안은 보존하며 허용된 출력 위치에 파생 후보를 만든다. 기존 카드·workspace 쓰기는 요청 범위에 있을 때만 한다.
+Apply this without a separate verification request. Existing drafts, another model's audit and review statuses are inputs, not substitutes. The current agent rereads sources in a verification step separate from drafting; this is self-checking, not independent review. This procedure grants no new model/subscription/installation/transmission permission.
 
-각 관계에 대해 양 끝 Paper ID, 방향, kind, rationale, evidence_refs를 따라 연결 주장과 조건·한계·locator를 읽는다. 관계에 연결된 주장도 검증 대상이다. 인용문이 존재하는지만 검사하고 그 주장을 지지한다고 결론 내리지 않는다.
+Complete only when each relation has a checked/corrected/unknown outcome and final candidate/rendering agree. No relations is a valid result. Do not invent inaccessible evidence or expand into reading every paper end-to-end. Before saving relationship HTML, also run the [overview/count gate](evidence-gate.md). Machine checks do not replace semantic comparison.
 
-## 2. 후보 작성 뒤 원문에 재대조
+For comparative performance claims in rationales or linked claims, apply the [table/exception procedure](performance-verification.md). Check ties, losses and missing values before saying a method wins across every generator/dataset. Preserve footnotes and evaluation conditions. Missing table evidence/field review blocks HTML generation.
 
-관계별로 다음을 실제 원문에 대조한다. 같은 원문 위치는 재사용할 수 있지만 각 관계의 의미 판단을 생략하지 않는다.
+## 1. Freeze inputs and evidence
 
-- **인용:** 본문 인용과 참고문헌의 논문 정체성을 확인한다. 단순 공동 인용·제목 유사성을 두 논문 사이 인용으로 바꾸지 않는다.
-- **확장·계승:** 원문이 특정 대상 논문의 무엇을 직접 확장한다고 밝히는지 확인한다. 공통 문제·지표·평가 규약·데이터셋 사용, 제3 논문의 벤치마크 확장, 시간상 후속이라는 사실만으로 직접 계승을 확정하지 않는다. 개념적 확장 해석은 AI 제안으로 남긴다.
-- **비교:** 실제 비교 대상·실험 절·표를 확인한다. 논문별 모델·데이터·지표·분할·baseline이 다른 표의 수치를 동일 조건의 우열로 해석하지 않는다. 표와 본문 수치가 다르면 조건을 먼저 확인하고 남은 차이를 보존한다.
-- **연결 주장:** 주체·대상, 타깃/비타깃·처리/대조군, 증가/감소와 편중 방향, 수치의 분모·단위·조건을 대조한다. 수학 기호는 정의와 식에서 집합·변수·지표·목적함수를 구분한다. 개요 문장만 읽고 주장 전체를 확인했다고 쓰지 않는다.
-- **읽기 순서·유사성:** 실제 근거 주장 참조와 추천 이유를 연결하되 AI 해석임을 유지한다. 저자가 정한 선수 지식·사용자 이해 상태로 승격하지 않는다. 근거가 부족하면 빈 참조와 그 이유를 남기고 가짜 claim을 만들지 않는다.
+Use specified editions, PDFs or official full text and the candidate. Compute actual local SHA-256; record URL, edition and verified locations for web text. Preserve drafts and create derived candidates only in authorized locations. Write existing cards/workspaces only within the requested scope.
 
-짧은 발췌는 실제 확인한 절·쪽과 함께 보존한다. 다단 편집·수식·표 추출이 애매하면 해당 PDF 화면 또는 같은 판본의 공식 본문을 확인한다. 끊어진 추출문을 이어 만든 문장을 직접 인용으로 쓰지 않는다. 단순 공백 정규화와 내용 교정을 구분한다. 인용문 일치·파일 해시·구조 검사는 의미 대조의 대체물이 아니다.
+For every relation, follow endpoint Paper IDs, direction, kind, rationale and evidence_refs into claims, conditions, limits and locators. Linked claims are also review targets. An existing quotation does not by itself support a claim.
 
-긴 Claim은 핵심 절별로 대조한다. 특히 “어느 집단에 이득이 편중된다” 같은 방향 주장은 **최종 후보의 해당 문구 → 원문이 지칭하는 집단과 방향 → 같은 조건의 수치 쌍 또는 원문 발췌**를 검증 기록에 나란히 적는다. 원문에서 다른 집단의 이득이 양수라는 사실만 확인해 편중 방향까지 맞다고 처리하지 않는다. 수식·비교에서도 정의와 수치를 확인한 뒤 그 의미가 최종 문장에 정확히 반영됐는지 별도로 판단한다.
+## 2. Recheck after drafting
 
-관계 rationale에 수학 기호를 썼다면 검증 기록에 **기호 → 최종 rationale의 실제 문구 → 원문 정의·쪽/식 → 일치 여부**를 짧은 표로 남긴다. 집합을 목적함수라고 부르는 등 개념 유형이 다르면 rationale을 수정한 뒤 표의 최종 문구도 갱신한다. 원문 정의만 올바르게 적고 후보의 잘못된 표현을 그대로 두면 실패다. 정의를 확인할 수 없는 기호는 뜻을 단정하지 말고 관계 설명에서 빼거나 미확인으로 표시한다.
+Compare each relation with the original. Reuse source locations where appropriate without skipping per-relation meaning checks:
 
-## 3. 판정과 상태 반영
+- **Cites:** verify in-text citation and bibliography identity. Co-citation/title similarity does not establish a citation between the two papers.
+- **Extends:** check what the author explicitly extends from that particular paper. Shared problems, metrics, evaluation protocols or datasets, extending a third paper's benchmark, or later chronology do not establish direct inheritance. Keep conceptual-extension interpretations as AI proposals.
+- **Compares:** verify actual subjects, sections and tables. Do not rank results with different models/data/metrics/splits/baselines as if conditions match. Check conditions before reconciling text/table differences; preserve unresolved discrepancies.
+- **Linked claims:** check subject/object, target/non-target or treatment/control, increase/decrease and concentration direction, denominator, units and conditions. For notation, distinguish sets, variables, metrics and objectives using definitions/equations. Reading an overview does not verify the whole claim.
+- **Reading order/similarity:** connect actual claim references and reasons while retaining AI origin. Do not promote them to author prerequisites or reader understanding. Keep empty references with an explanation instead of inventing claims.
 
-- 직접 근거를 확인한 새 관계만 `origin: source`, `status: source-checked`로 기록한다. 확인한 claim/locator와 실제 주체·실제 확인 시각을 남긴다. 시각은 확인 시점의 clock/명령 반환값을 그대로 사용하며 추정하거나 반올림해 만들지 않는다. 시각을 얻지 못하면 임의로 만들지 않고 `status: proposed`, `review: null`로 두며 확인 메타데이터 미완료를 적는다.
-- 추론으로 유지할 관계는 `origin: ai`, `status: proposed`, `review: null`로 기록한다. 근거 참조가 있다는 이유로 원문 관계로 승격하지 않는다. 지지되지 않은 관계를 무조건 AI로 바꾸어 살리지 말고, 해석으로도 타당하지 않으면 제외한다.
-- 잘못된 연결 주장·조건은 파생 후보에서 고치거나 제외한다. 원문 확인이 막힌 새 관계·주장은 미확인이라고 명시하고 source-checked로 만들지 않는다. 원문 접근 실패가 반증은 아니다.
-- 기존 검토 이력은 삭제하지 않는다. 현재 대조에서 오류·불충분 근거를 발견한 파생 관계는 상태와 rationale을 수정하고 변경 이유를 기록한다. 단순 접근 실패만으로 과거 검토를 거짓으로 단정하지 않는다. 이번 확인이 막혔거나 미완료여서 기존 source-checked를 보존할 경우 `needs_recheck: true`와 이번 확인 범위를 표시한다. 파생 후보에서 실제 재대조를 완료하고 관련 경고를 해소했으면 `needs_recheck: false`로 표시하며 이번 근거를 남긴다. 원본 workspace 이력·의존 상태 수정은 별도 요청 범위와 기존 계약을 따른다.
-- relation뿐 아니라 root description/view_reason/scope, Paper notes, Claim statement/conditions/limitations에도 같은 판단을 반영한다. 상세에서는 AI라고 하면서 개요에서는 원문 확인된 계승이라고 단정하지 않는다. 관계 대조로 Paper 전체 draft나 사용자의 이해 상태를 승격하지 않는다.
+Preserve short excerpts with actual sections/pages. Inspect PDF pages or official same-edition full text for ambiguous columns, equations or extraction. Do not join broken extracts into invented direct quotations. Distinguish whitespace normalization from correcting source content. Matching quotations, hashes and structures do not replace meaning checks.
 
-## 4. 검증 기록과 생성
+For long claims, check each key clause. For statements that benefits concentrate in one group, record **final wording → original group/direction → same-condition values or excerpt** together. A positive effect in another group does not establish concentration direction. After verifying equations/numbers, separately judge whether final prose accurately conveys them.
 
-파일을 만드는 작업에는 후보 옆에 짧은 `verification.md`를 남긴다. standalone 후보가 없는 workspace 관계 저장 작업에서는 허용된 해당 작업의 기록 폴더를 사용한다. 기존 같은 목적의 검증 기록이 있으면 재사용한다. 별도 core schema나 필수 JSON 형식은 없다. 다음 내용이 있으면 충분하다.
+When rationale uses mathematical notation, record **symbol → actual final rationale wording → original definition/page/equation → agreement** in a short table. Correct category mistakes such as calling a set an objective, then update the final-wording column. Correct definitions in an audit do not excuse incorrect candidate prose. Remove unsupported symbol meanings or mark them unknown.
 
-- 입력 판본·경로/URL·가능한 실제 해시, 최종 후보 해시.
-- 각 관계 ID와 연결 주장 ID, 읽은 원문 쪽/절/표·짧은 발췌, 직접 관계/AI 해석 판정과 이유, 발견한 오류·수정 또는 미확인.
-- 실제 검토 주체·시각·텍스트/화면 확인 범위. 자기 검토와 별도 검토자를 구분한다.
-- 구조 검사 결과, 실제 HTML 확인 결과 또는 이용 불가 사유. 원문 의미·구조·화면의 완료 여부를 나누어 적는다.
+## 3. Apply outcomes and status
 
-수정 후 저장된 최종 후보를 다시 읽어 검증 기록의 각 판정·수정 내용과 해당 Claim 문구·relation·개요가 일치하는지 확인한다. 감사 문서만 고치고 후보에는 이전 오류가 남는 경우를 통과시키지 않는다. 그 뒤 최종 후보 해시를 기록한다.
+- New directly verified relations may use `origin: source`, `status: source-checked`, with actual claims/locators, checker and observed check time. Use a clock/command result exactly; do not guess or round a timestamp. Without observed time, keep `status: proposed`, `review: null` and disclose incomplete metadata.
+- Interpretive relations use `origin: ai`, `status: proposed`, `review: null`. Evidence references alone do not promote them. Remove unsupported relations that are not defensible interpretations rather than retaining everything as AI.
+- Correct/remove wrong claims or conditions in derived candidates. Inaccessible new claims remain unknown, not source-checked; access failure is not contradiction.
+- Preserve review history. For new errors/insufficient evidence, adjust derived status/rationale and record why. Access failure alone does not make an old review false. If retaining prior source-checked status after an incomplete current check, set `needs_recheck: true` and report current scope. Clear it only after actual rechecking/resolving related warnings, retaining this run's evidence. Original-workspace history/dependency changes follow existing contracts and scope.
+- Apply the same outcomes to root description/view_reason/scope, Paper notes and claim statements/conditions/limitations. An AI relation in details must not become confirmed source inheritance in the overview. Relation checking never promotes whole-Paper draft or reader understanding.
 
-workspace 관계 저장만 요청했다면 설치본에서 제공하는 구조·관계 검사 명령을 help로 확인해 실행하며 standalone 후보·HTML을 추가로 만들지 않는다. 독립 HTML 요청에는 포함된 생성기의 `--check`와 HTML 생성을 실행한다. 새 필드를 후보에 넣거나 스타일을 다시 만들지 않는다. 화면 요청에는 [화면 검수](research-view.md#생성과-검수)에 따라 실제 노드·선택·원문/AI 상태와 근거 패널을 확인한다. 브라우저를 쓸 수 없으면 생성까지만 완료로 보고하고 화면 확인은 미실행으로 남긴다. 의미·화면 미확인이 있어도 가능한 결과는 전달하되 “검증 완료”로 묶어 말하지 않는다.
+## 4. Record and generate
 
-최종 답변에는 수정한 점, 원문 관계와 AI 제안, 남은 미확인, 화면·검증 기록 경로를 간단히 연결한다. 이 기본 절차는 오류를 찾고 드러내기 위한 것이며 에이전트의 무오류나 모든 호스트의 강제 실행을 보장하지 않는다.
+For file output, reuse or create short `verification.md` beside the candidate. For workspace-only relation updates, use the existing authorized task-record folder; do not force standalone output. No new core schema/mandatory JSON form is needed. Include:
+
+- Edition, path/URL, available actual hashes and final candidate hash.
+- Relation/claim IDs, pages/sections/tables, short excerpts, direct/AI outcome and reason, errors/fixes/unknowns.
+- Actual checker/time and text/visual coverage; distinguish self-check from independent review.
+- Structural result, actual HTML reading or why unavailable; separate semantic, structural and visual completion.
+
+Write agent-authored explanations in the [requested language](../SKILL.md#output-language); retain original quotes/IDs. Reread the saved final candidate against every recorded correction/outcome and its claims, relations and overview. An updated audit with stale candidate errors fails. Then record the final candidate hash.
+
+For workspace-only storage, inspect installed help and run supported structural/relation checks without adding HTML. For standalone HTML, run the bundled check/generator without adding unknown fields or redesigning styles. Inspect actual nodes, selection, source/AI statuses and evidence panel using [rendered checks](research-view.md#generation-and-reading). If browser access is unavailable, report generation complete and visual review not run. Deliver useful partial results with explicit unknowns rather than blanket verification claims.
+
+Final responses briefly link fixes, source relations/AI proposals, unknowns, output and verification record. This workflow exposes errors; it does not guarantee infallibility or enforcement across every host.

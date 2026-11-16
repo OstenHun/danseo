@@ -1,4 +1,6 @@
-# Danseo
+<div align="center">
+
+<h1>Danseo</h1>
 
 <picture>
   <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
@@ -15,11 +17,13 @@
 
 한국어 · [English](README.md) · [Skill 설치](#skill-설치) · [논문 그래프 요청](#논문-그래프-생성-요청) · [빠른 시작](#빠른-시작) · [문서](docs/README.ko.md) · [기여하기](CONTRIBUTING.md)
 
+</div>
+
 요약: 기존 AI 에이전트와 논문을 찾고, 고른 논문의 원문·답변·비교 근거를 로컬 파일로 연결한다. CLI와 읽기 전용 연구 비교 화면을 제공하는 개발 프리뷰다.
 
 논문을 읽고 나면 결과가 나온 조건, 확인한 원문 위치, 내 프로젝트에 적용할 수 있는지를 다음 대화에서도 이어 볼 수 있어야 한다.
 
-Danseo(단서)는 그 판단에 필요한 실마리를 남긴다. 논문 자체의 주장과 프로젝트별 적용 판단을 나누고, 같은 논문의 근거를 여러 프로젝트에서 참조한다. [이름과 표기](docs/NAMING.md)
+Danseo(단서)는 그 판단에 필요한 실마리를 남긴다. 논문 자체의 주장과 프로젝트별 적용 판단을 나누고, 같은 논문의 근거를 여러 프로젝트에서 참조한다.
 
 ## 논문을 찾는 순간부터 비교할 때까지
 
@@ -124,7 +128,7 @@ macOS·Linux에서는 `/Users/me/research/my-topic/papers` 또는 `/home/me/rese
 
 Danseo의 기본 흐름은 **원문·판본 확인 → 관계와 근거 작성 → 원문/AI 구분 → 개요·수량 검사 → 공통 HTML 생성 → 실제 화면 확인**이다. 원문 관계에는 페이지·절 등 확인 위치를 남기고, AI가 제안한 연결은 제안 상태로 유지한다. HTML과 함께 후보 JSON·검증 근거 파일을 보존하므로 이후 수정에서도 같은 생성기를 쓸 수 있다. [원문 검증 절차](skills/danseo/references/relation-verification.md) · [자동 검사 범위](skills/danseo/references/evidence-gate.md)
 
-디자인과 검증 절차를 매번 따로 요청하지 않아도 된다. 로컬 PC의 논문 탐색·연구·학습을 위한 데스크톱 화면을 기본으로 검수하며, 모바일 검수는 요청하거나 실제 사용 범위에 포함될 때만 추가한다. 짧은 논문 이름·주제별 배치·선택한 논문의 연결을 기본으로 사용하며, 근거 상태와 관계 종류를 걸러 보거나 전체 연결을 켤 수 있다. 모바일은 주제별 논문 목록과 선택 관계의 방향·원문 근거를 보여준다. 전체 제목과 관계 데이터는 상세에 보존하며 주제 분류는 AI의 편집상 해석으로 구분한다. 자동 skill 선택은 호스트 설정에 따라 다르므로 발견되지 않으면 위의 명시 호출을 사용한다.
+디자인과 검증 절차를 매번 따로 요청하지 않아도 된다. PC·노트북에서 사용하는 데스크톱 화면을 기준으로 검수한다. 짧은 논문 이름·주제별 배치·선택한 논문의 연결을 기본으로 사용하며, 근거 상태와 관계 종류를 걸러 보거나 전체 연결을 켤 수 있다. 전체 제목과 관계 데이터는 상세에 보존하며 주제 분류는 AI의 편집상 해석으로 구분한다. 자동 skill 선택은 호스트 설정에 따라 다르므로 발견되지 않으면 위의 명시 호출을 사용한다.
 
 정상 결과에서는 논문 노드와 연결을 선택해 근거·조건·원문/AI 표시를 확인할 수 있다. 검사 실패는 원문과 입력을 고친 뒤 다시 확인하며, 브라우저 도구가 없어 실제 화면을 확인하지 못했다면 그 범위를 밝힌다. **자동 검사 통과는 모든 관계 해석이 타당하다는 인증이 아니다.** 원문 의미 대조와 화면 확인은 별도 단계다.
 
@@ -196,16 +200,16 @@ node ./dist/cli.js export --workspace ./examples/minimal --project demo --applic
 
 | 시작할 곳 | 내용 |
 | --- | --- |
-| [한국어 CLI](docs/CLI.md) · [English guide](docs/CLI.en.md) | 설치, 주제 흐름, workspace와 에이전트 연결 |
-| [분석과 재개](docs/PAPER_ANALYSIS.md) · [연구 비교](docs/RESEARCH_COMPARISON.md) | 논문별 답변, 비교 기준과 원문 확인 |
-| [Agent skill](skills/danseo/SKILL.md) · [호환성](docs/AGENT_COMPATIBILITY.md) | 근거 읽기와 도구별 확인 범위 |
-| [문서 색인](docs/README.ko.md) · [공개 준비](docs/OPEN_SOURCE.md) | 데이터 모델·설계, 검증 근거와 공개 범위 |
+| [CLI 안내](docs/CLI.md) · [시작하기](docs/CLI.en.md) | 설치와 주제별 흐름 |
+| [분석](docs/PAPER_ANALYSIS.md) · [비교](docs/RESEARCH_COMPARISON.md) | 논문 답변과 원문 근거 |
+| [Skill](skills/danseo/SKILL.md) · [연동](docs/AGENT_COMPATIBILITY.md) | 근거 읽기와 연결 조건 |
+| [문서 목록](docs/README.ko.md) · [공개 범위](docs/OPEN_SOURCE.md) | 데이터 형식과 공유 조건 |
 
 ## 개발 상태
 
-`0.1.0-dev.1` 개발 프리뷰다. CLI와 파일 형식은 바뀔 수 있다. 공개 후보에는 탐색·수집·분석·비교와 기존 카드 내보내기를 포함한다. 카드 편집기·별도 학습 HTML skill·자동 실험·사이트 제출·MCP 서버는 포함하지 않는다. 연구 비교 웹앱은 데스크톱용이다. 독립 논문 관계 HTML은 데스크톱과 모바일 구성을 제공한다.
+`0.1.0-dev.1` 개발 프리뷰다. CLI와 파일 형식은 바뀔 수 있다. 공개 후보에는 탐색·수집·분석·비교와 기존 카드 내보내기를 포함한다. 카드 편집기·별도 학습 HTML skill·자동 실험·사이트 제출·MCP 서버는 포함하지 않는다. 연구 비교 웹앱은 데스크톱용이다. 독립 논문 관계 HTML도 PC·노트북 사용을 대상으로 한다.
 
-자동 검사와 설치본 확인은 실제 사람의 사용·학습 효과와 구분한다. [런타임별 실행 근거](docs/RUNTIME_SUPPORT.md) · [실행 목록](TASKS.md)
+자동 검사와 설치본 확인은 실제 사람의 사용·학습 효과와 구분한다. [지원 환경](docs/RUNTIME_SUPPORT.md) · [현재 범위와 후속 작업](TASKS.md)
 
 ## 기여와 라이선스
 

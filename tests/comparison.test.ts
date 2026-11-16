@@ -63,9 +63,9 @@ test('topic criteria expose only current support, preserve conditions, missing s
   assert.equal(f.ok(f.topic,'compare','--json').claims.length,2);
 });
 test('wrong topic, unselected paper and duplicate criterion never leak another topic answer',async t=>{
-  const f=await fixture(t);f.comparison.question='Different topic';f.saveComparison();await assert.rejects(buildComparison(f.topic),/현재 주제/);
-  f.comparison.question='How did the two studies evaluate results?';required(f.comparison.criteria[0]).refs.push({key:'OUTSIDE',claim_id:'c1'});f.saveComparison();await assert.rejects(buildComparison(f.topic),/선택하지 않은/);
-  required(f.comparison.criteria[0]).refs.pop();f.comparison.criteria.push(required(f.comparison.criteria[0]));f.saveComparison();await assert.rejects(buildComparison(f.topic),/중복/);
+  const f=await fixture(t);f.comparison.question='Different topic';f.saveComparison();await assert.rejects(buildComparison(f.topic),/current topic/);
+  f.comparison.question='How did the two studies evaluate results?';required(f.comparison.criteria[0]).refs.push({key:'OUTSIDE',claim_id:'c1'});f.saveComparison();await assert.rejects(buildComparison(f.topic),/only papers selected/);
+  required(f.comparison.criteria[0]).refs.pop();f.comparison.criteria.push(required(f.comparison.criteria[0]));f.saveComparison();await assert.rejects(buildComparison(f.topic),/duplicat|Multiple/);
 });
 test('locator/conditions changes and newest negative reviews remove support and dependent relations after reopen',async t=>{
   const f=await fixture(t);required(required(f.b.data.claims[0]).locators[0]).start=2;required(required(f.b.data.claims[0]).locators[0]).end=2;f.b.save();let data=await buildComparison(f.topic);
@@ -76,13 +76,13 @@ test('locator/conditions changes and newest negative reviews remove support and 
 });
 test('changed and missing PDFs keep selected papers but withdraw their verified comparison evidence',async t=>{
   const f=await fixture(t),path=f.a.data.source.path;writeFileSync(path,'changed');let data=await buildComparison(f.topic);
-  assert.equal(data.papers.length,2);assert.equal(data.claims.length,1);assert.equal(data.relations.length,0);assert.ok(data.held.some(h=>h.key==='A'&&/再|재확인/.test(h.reason)));
+  assert.equal(data.papers.length,2);assert.equal(data.claims.length,1);assert.equal(data.relations.length,0);assert.ok(data.held.some(h=>h.key==='A'&&/Recheck/.test(h.reason)));
   unlinkSync(path);data=await buildComparison(f.topic);assert.equal(data.claims.length,1);assert.equal(required(required(data.criteria[0]).groups[0]).claims.length,0);
 });
 test('changing relation reason/direction or source claim invalidates its pinned dependency snapshot',async t=>{
   const f=await fixture(t);required(f.relations[0]).rationale+=' changed';f.saveRelations();let data=await buildComparison(f.topic);
   assert.deepEqual(data.relations.map(r=>r.id),['suggestion']);assert.equal(required(data.held_relations[0]).id,'cites');
-  required(f.relations[0]).source=f.a.id;required(f.relations[0]).target=f.b.id;f.saveRelations();await assert.rejects(buildComparison(f.topic),/출발 논문/);
+  required(f.relations[0]).source=f.a.id;required(f.relations[0]).target=f.b.id;f.saveRelations();await assert.rejects(buildComparison(f.topic),/source paper/);
 });
 test('new support for changed conditions/limits does not reapprove an old relationship',async t=>{
   const f=await fixture(t);
@@ -97,7 +97,7 @@ test('new support for changed conditions/limits does not reapprove an old relati
 test('unreviewed source proposal is labeled as such and never qualifies for source-only',async t=>{
   const f=await fixture(t);required(f.relations[0]).status='proposed';delete required(f.relations[0]).review;f.saveRelations();
   const data=await buildComparison(f.topic),proposal=required(data.relations.find(r=>r.id==='cites'));
-  assert.equal(proposal.origin_label,'원문 제안 · 미대조');
+  assert.equal(proposal.origin_label,'Source proposal · unchecked');
   assert.equal(data.relations.filter(r=>r.origin==='source'&&r.status==='source-checked'&&!r.needs_recheck).length,0);
 });
 test('deleting a previously pinned claim holds dependent relations and keeps unrelated comparison readable',async t=>{
@@ -111,13 +111,13 @@ test('deleting a previously pinned claim holds dependent relations and keeps unr
   assert.equal(legacy.held_relations.length,2,'legacy relationships with deleted refs also fail closed locally');
 });
 test('AI cannot be source-checked, absent/foreign claim refs and self-relations are rejected',async t=>{
-  const f=await fixture(t);required(f.relations[1]).status='source-checked';required(f.relations[1]).review=required(f.relations[0]).review;f.saveRelations();await assert.rejects(buildComparison(f.topic),/원문 관계/);
-  required(f.relations[1]).status='proposed';required(required(f.relations[1]).evidence_refs[0]).claim_id='missing';f.saveRelations();await assert.rejects(buildComparison(f.topic),/등록되지 않은 주장/);
-  required(f.relations[1]).evidence_refs=[];required(f.relations[1]).source=required(f.relations[1]).target;f.saveRelations();await assert.rejects(buildComparison(f.topic),/방향/);
+  const f=await fixture(t);required(f.relations[1]).status='source-checked';required(f.relations[1]).review=required(f.relations[0]).review;f.saveRelations();await assert.rejects(buildComparison(f.topic),/source relation/);
+  required(f.relations[1]).status='proposed';required(required(f.relations[1]).evidence_refs[0]).claim_id='missing';f.saveRelations();await assert.rejects(buildComparison(f.topic),/unregistered claim/);
+  required(f.relations[1]).evidence_refs=[];required(f.relations[1]).source=required(f.relations[1]).target;f.saveRelations();await assert.rejects(buildComparison(f.topic),/direction/);
 });
 test('source relationship review dates use the same real-calendar validation as claim reviews',async t=>{
   const f=await fixture(t);required(required(f.relations[0]).review).checked_at='2025-02-30T00:00:00Z';f.saveRelations();
-  await assert.rejects(buildComparison(f.topic),/시각/);
+  await assert.rejects(buildComparison(f.topic),/time/);
 });
 test('a long valid topic question keeps its exact question contract in comparison configuration',async t=>{
   const f=await fixture(t),topicPath=join(f.topic,'topic.json'),topic=parseJson<Awaited<ReturnType<typeof selectedTopic>>>(readFileSync(topicPath,'utf8'));
@@ -154,7 +154,7 @@ test('loopback serves fresh scoped data and exact PDF/document; denies path/host
   try{second=await serveComparison(f.topic);}finally{console.log=log;}t.after(()=>second.close());
   assert.ok(url);
   const root=await fetch(url);assert.equal(root.status,200);assert.match(root.headers.get('content-security-policy') ?? '',/frame-ancestors 'none'/);
-  assert.match(await root.text(),/비교 기준/);let data=parseJson<Comparison>(await(await fetch(url+'data')).text());assert.equal(data.claims.length,2);
+  assert.match(await root.text(),/comparison criterion/);let data=parseJson<Comparison>(await(await fetch(url+'data')).text());assert.equal(data.claims.length,2);
   const parallel=await Promise.all([fetch(url+'data'),fetch(url+'data')]);assert.deepEqual(parallel.map(r=>r.status),[200,200]);
   assert.deepEqual(Buffer.from(await(await fetch(url+'file/1/pdf/'+required(required(data.papers[0]).source).sha256)).arrayBuffer()),readFileSync(f.a.data.source.path));
   assert.match(await(await fetch(url+'file/1/analysis/'+required(data.papers[0]).document_sha256)).text(),/How was the result evaluated/);

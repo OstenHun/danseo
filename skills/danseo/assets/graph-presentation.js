@@ -2,9 +2,9 @@
 (() => {
   'use strict';
   const card = Object.freeze({ width: 184, height: 108, column: 216, row: 132 });
-  const kindNames = Object.freeze({ cites: '인용', extends: '방법 확장', compares: '비교', 'related-to': '관련성', 'reading-order': '읽기 순서' });
+  const kindNames = Object.freeze({ cites: 'Cites', extends: 'Method extension', compares: 'Compares', 'related-to': 'Relatedness', 'reading-order': 'Reading order' });
   const colors = Object.freeze({ source: '#326952', ai: '#7662a6', stale: '#a77832', pending: '#7b8493' });
-  const reviewNames = { draft: '논문 검토 중', 'source-checked': '논문 대조 기록', 'needs-recheck': '논문 재확인' };
+  const reviewNames = { draft: 'Paper review in progress', 'source-checked': 'Paper source-check record', 'needs-recheck': 'Paper needs rechecking' };
   function shortTitle(paper) {
     const title = paper.short_title || paper.title;
     const prefix = title.split(/[:：]/)[0].trim();
@@ -13,7 +13,7 @@
   function topicLayout(papers) {
     const groups = new Map();
     for (const paper of papers) {
-      const topic = paper.topic || '주제 미분류';
+      const topic = paper.topic || 'Uncategorized';
       if (!groups.has(topic)) groups.set(topic, []);
       groups.get(topic).push(paper);
     }
@@ -48,8 +48,8 @@
   }
   function relationState(edge) {
     const state = category(edge);
-    if (state === 'stale') return (edge.origin === 'ai' ? 'AI 제안' : '원문 기록') + ' · 재확인';
-    return state === 'ai' ? 'AI 제안' : state === 'source' ? '원문 대조' : '원문 미확인';
+    if (state === 'stale') return (edge.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck';
+    return state === 'ai' ? 'AI proposal' : state === 'source' ? 'Source check' : 'Source unchecked';
   }
   // Both adapters use the same controls and touch/keyboard alternative to a tiny canvas.
   function explorer(host, onChange, onSelect, detailId) {
@@ -57,9 +57,9 @@
     const filters = { category: 'all', kind: 'all', mode: 'focus' };
     const selects = {};
     for (const [key, label, choices] of [
-      ['category', '근거 상태', [['all','모든 상태'],['source','원문 대조'],['ai','AI 제안'],['stale','재확인'],['pending','원문 미확인']]],
-      ['kind', '관계 종류', [['all','모든 종류'], ...Object.entries(kindNames)]],
-      ['mode', '연결선', [['focus','선택한 연결만'],['all','전체 연결']]]
+      ['category', 'Evidence status', [['all','All statuses'],['source','Source check'],['ai','AI proposal'],['stale','Recheck'],['pending','Source unchecked']]],
+      ['kind', 'Relation type', [['all','All types'], ...Object.entries(kindNames)]],
+      ['mode', 'Connections', [['focus','Selected connections'],['all','All connections']]]
     ]) {
       const field = element('label', ''), select = element('select', '');
       field.append(element('span', '', label)); select.setAttribute('aria-label', label);
@@ -69,7 +69,7 @@
       field.append(select); controls.append(field);
     }
     const status = element('p', 'graph-explorer-status'); status.setAttribute('aria-live','polite');
-    const note = element('p', 'graph-topic-note', '주제 묶음은 편집상 해석이며 인용·계승 순서를 뜻하지 않습니다. 논문을 선택해 연결을 펼치세요.');
+    const note = element('p', 'graph-topic-note', 'Topic groups are editorial interpretations, not citation or method-extension order. Select a paper to show its connections.');
     const mobile = element('div', 'graph-mobile');
     root.append(controls, note, status, mobile); host.append(root);
     function update(papers, edges, selection) {
@@ -77,10 +77,10 @@
       const focusTargets = new Map();
       const eligible = edges.filter(edge => matchesRelation(edge, filters));
       const shown = edges.filter(edge => shownRelation(edge, filters, selection));
-      status.textContent = `논문 ${papers.length}편 · 필터 관계 ${eligible.length} / ${edges.length}개 · 지도 연결선 ${shown.length}개` + (!selection && filters.mode === 'focus' ? ' · 논문 선택 후 표시' : '');
+      status.textContent = `Papers: ${papers.length} · filtered relations: ${eligible.length} / ${edges.length} · map connections: ${shown.length}` + (!selection && filters.mode === 'focus' ? ' · select a paper to show connections' : '');
       mobile.replaceChildren();
       const groups = new Map();
-      for (const paper of papers) { const key = paper.topic || '주제 미분류'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(paper); }
+      for (const paper of papers) { const key = paper.topic || 'Uncategorized'; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(paper); }
       const names = new Map(papers.map(p => [p.id, shortTitle(p)]));
       const topicList = element('div', 'graph-topic-list');
       for (const [title, group] of groups) {
@@ -99,13 +99,13 @@
       if (chosen) {
         const pair = element('div','graph-pair ' + category(chosen));
         pair.append(element('strong','',names.get(chosen.source)),element('span','',`↓ ${kindNames[chosen.kind]} · ${relationState(chosen)}`),element('strong','',names.get(chosen.target)));
-        pair.tabIndex=-1; pair.setAttribute('aria-label','선택한 관계'); focusTargets.set('relation:' + chosen.id,pair);
-        const jump = element('button','','선택한 근거 보기 ↓'); jump.type='button';
+        pair.tabIndex=-1; pair.setAttribute('aria-label','Selected relation'); focusTargets.set('relation:' + chosen.id,pair);
+        const jump = element('button','','View selected evidence ↓'); jump.type='button';
         jump.addEventListener('click',()=>document.getElementById(detailId)?.focus()); pair.append(jump);
         mobile.append(pair);
       }
       const links = selection?.type === 'paper' ? eligible.filter(e=>e.source===selection.id||e.target===selection.id) : filters.mode === 'all' ? eligible : [];
-      if (selection?.type === 'paper') mobile.append(element('h3','',names.get(selection.id) + ' · 연결 ' + links.length + '개'));
+      if (selection?.type === 'paper') mobile.append(element('h3','',names.get(selection.id) + ' · connections: ' + links.length + ''));
       for (const edge of links) {
         const button = element('button','graph-mobile-relation',`${names.get(edge.source)} → ${names.get(edge.target)} · ${kindNames[edge.kind]}`);
         button.type='button'; button.append(element('small','',relationState(edge)));
@@ -142,7 +142,7 @@
     node.style.width = card.width + 'px';
     node.style.height = card.height + 'px';
     const top = element('div', 'graph-paper-top');
-    top.append(element('span', 'graph-paper-type', '논문'), element('span', 'graph-paper-review', reviewNames[paper.reviewStatus] ?? '논문 상태 미확인'));
+    top.append(element('span', 'graph-paper-type', 'Paper'), element('span', 'graph-paper-review', reviewNames[paper.reviewStatus] ?? 'Paper status unknown'));
     const title = element('p', 'graph-paper-title', shortTitle(paper));
     title.title = paper.title;
     const date = element('p', 'graph-paper-date', paper.dateLabel);

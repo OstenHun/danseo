@@ -57,10 +57,10 @@ async function readJson(file: string): Promise<unknown> {
   let raw: Buffer;
   try { raw = await readFile(file); }
   catch (error) {
-    throw new DanseoError('TOPIC_FILE', `파일을 읽을 수 없습니다: ${file} (${(error as NodeJS.ErrnoException).code})`, 3);
+    throw new DanseoError('TOPIC_FILE', `Unable to read file: ${file} (${(error as NodeJS.ErrnoException).code})`, 3);
   }
   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw)); }
-  catch { return invalid(`올바른 UTF-8 JSON 파일인지 확인하세요: ${file}`); }
+  catch { return invalid(`Check that this is valid UTF-8 JSON: ${file}`); }
 }
 
 // A number is assigned on first appearance. The selection points to the edition shown when chosen.
@@ -72,7 +72,7 @@ function overview(topic: Topic) {
     const papers = search.papers.map(paper => {
       const url = new URL(paper.source).href;
       if (seen.has(paper.key) || (sourceKeys.has(url) && sourceKeys.get(url) !== paper.key))
-        invalid('중복된 논문 또는 다른 번호에 등록된 출처입니다. 기존 key를 확인하세요.');
+        invalid('Duplicate paper or source registered under another number. Check the existing key.');
       seen.add(paper.key);
       sourceKeys.set(url, paper.key);
       const number = catalog.get(paper.key)?.number ?? catalog.size + 1;
@@ -83,18 +83,18 @@ function overview(topic: Topic) {
   });
   const selected = topic.selected.map(choice => {
     const paper = searches[choice.round - 1]?.papers.find(row => row.key === choice.key);
-    if (!paper) invalid('선택한 판본과 검색 기록의 연결이 손상되었습니다.');
+    if (!paper) invalid('The selected edition is no longer connected correctly to its search record.');
     return { ...paper, round: choice.round, note: choice.note };
   });
-  if (new Set(selected.map(row => row.key)).size !== selected.length) invalid('중복 선택 기록입니다.');
+  if (new Set(selected.map(row => row.key)).size !== selected.length) invalid('Duplicate selection records.');
   return { catalog, result: { question: topic.question, searches, selected } };
 }
 
 async function readTopic(root: string): Promise<Topic> {
   const path = join(root, 'topic.json');
-  if (!await exists(path)) invalid(`저장된 주제가 없습니다. 주제 폴더를 확인하거나 init으로 시작하세요: ${root}`);
+  if (!await exists(path)) invalid(`No saved topic exists. Check the topic folder or start with init: ${root}`);
   const data = await readJson(await writableFile(root, path));
-  if (!validTopic(data)) invalid('주제 파일의 형식 또는 버전을 확인하세요.');
+  if (!validTopic(data)) invalid('Check the topic-file format and version.');
   return data;
 }
 
@@ -108,7 +108,7 @@ export async function runTopic(args: string[]) {
   catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (!(error instanceof DanseoError) && code && /^E[A-Z]+$/.test(code)) {
-      throw new DanseoError('TOPIC_FILE', `주제 파일에 접근할 수 없습니다: ${(error as Error).message}`, 3);
+      throw new DanseoError('TOPIC_FILE', `Unable to access the topic file: ${(error as Error).message}`, 3);
     }
     throw error;
   }
@@ -146,7 +146,7 @@ async function executeTopic(args: string[]) {
   try {
     let topic: Topic;
     if (action === 'init') {
-      if (await exists(path)) invalid('이미 생성한 주제입니다. show로 다시 여세요.');
+      if (await exists(path)) invalid('This topic already exists. Reopen it with show.');
       topic = { version: 1, question: values.question!.trim(), searches: [], selected: [] };
     } else {
       topic = await readTopic(root);
@@ -166,18 +166,18 @@ async function executeTopic(args: string[]) {
       if (!values.ids || !/^\d+(,\d+)*$/.test(values.ids) || (values.note !== undefined && !values.note.trim())) invalid(topicHelp);
       const round = values.round === undefined ? undefined : Number(values.round);
       if (round !== undefined && (!Number.isSafeInteger(round) || round < 1 || round > topic.searches.length))
-        invalid('등록되지 않은 검색 회차입니다.');
+        invalid('The search round is not registered.');
       const byNumber = new Map([...current.catalog.values()].map(row => [row.number, row]));
       for (const number of new Set(values.ids.split(',').map(Number))) {
         const row = byNumber.get(number);
-        if (!row) invalid(`등록되지 않은 논문 번호: ${number}`);
+        if (!row) invalid(`Unregistered paper number: ${number}`);
         if (round !== undefined && !topic.searches[round - 1]!.papers.some(paper => paper.key === row.paper.key))
-          invalid(`지정한 회차에 없는 논문 번호: ${number}`);
+          invalid(`Paper number absent from the specified round: ${number}`);
         if (action === 'unselect') topic.selected = topic.selected.filter(choice => choice.key !== row.paper.key);
         else if (!topic.selected.some(choice => choice.key === row.paper.key)) {
           if (round === undefined && topic.searches.some(search => search.papers.some(paper =>
             paper.key === row.paper.key && (paper.edition !== row.paper.edition || paper.source !== row.paper.source))))
-            invalid(`출처나 판본이 다른 후보입니다. ${number}번을 본 --round를 지정하세요.`);
+            invalid(`This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`);
           topic.selected.push({ key: row.paper.key, round: round ?? row.round, note: values.note });
         }
       }

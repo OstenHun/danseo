@@ -31,7 +31,7 @@ test('source-bound counts render; receipt never certifies semantics; no overwrit
   const f = fixture(t);
   const receipt = run([f.input, '--evidence', f.sidecar, '--out', f.output]);
   assert.equal(receipt.count_fields, 1); assert.equal(receipt.source_semantics, 'not-certified');
-  assert.match(readFileSync(f.output, 'utf8'), /17개 레코드, 15개 문서, 60개 쌍/);
+  assert.match(readFileSync(f.output, 'utf8'), /17 Records, 15 Documents, 60 Pairs/);
   const before = hash(readFileSync(f.output));
   assert.throws(() => run([f.input, '--evidence', f.sidecar, '--out', f.output]), /EEXIST/);
   assert.equal(hash(readFileSync(f.output)), before);
@@ -44,7 +44,7 @@ for (const key of ['description', 'view_reason', 'scope']) test(`contradictory $
 });
 
 test('overview updates when state changes; AI cannot claim source-checked', t => {
-  const f = fixture(t); assert.match(f.candidate.description, /원문 확인 관계 0개/);
+  const f = fixture(t); assert.match(f.candidate.description, /source-checked relations: 0/);
   f.candidate.relations[0].needs_recheck = false;
   assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /description/);
   Object.assign(f.candidate, overviewFor(f.candidate));

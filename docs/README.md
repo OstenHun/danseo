@@ -1,50 +1,38 @@
 # Documentation
 
-Summary: Start with the English README and CLI guide. This index separates current workflows from detailed formats and historical plans, and labels references that remain in Korean.
+Summary: English guides cover installation, topic workflows, formats and evidence checks. Research prose follows the requested language; fixed guidance is English and internal execution records stay local.
 
-English · [한국어](README.ko.md) · [Project overview](../README.md)
+[Project overview](../README.md) · [한국어 안내](README.ko.md)
 
 ## Start here
 
-| Guide | Purpose | Language |
-| --- | --- | --- |
-| [Install the skill](../README.md#install-the-skill) | Install the complete portable skill for your agent | English |
-| [CLI and agent guide](CLI.en.md) | Source installation, private workspaces, discovery → collection → analysis → comparison | English |
-| [Skill overview](../skills/danseo/README.md) | Evidence reading and standalone relationship HTML | English |
-| [Contributing](../CONTRIBUTING.md) · [Security](../SECURITY.md) | Development checks, private-material boundaries, and reporting | English |
-| [Evaluation plan](../evals/README.md) | Separate product behavior from practical benefits | English |
-| [Brand assets](../assets/brand/README.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md) | Artwork, dependency notices, and licenses | English |
+| Guide | Purpose |
+| --- | --- |
+| [Install the skill](../README.md#install-the-skill) | Complete portable folder, host paths and first request |
+| [CLI setup](CLI.en.md) | Build and connect private topics/workspaces |
+| [Full CLI reference](CLI.md) | Commands, inputs, outputs and limits |
+| [Topic workflow](TOPIC_WORKFLOW.md) | Discovery → collection → analysis → comparison |
+| [Skill overview](../skills/danseo/README.md) | Portable and CLI paths |
 
-The skill instructions, application labels, some diagnostics, and fixtures still contain Korean. The published source includes the research skill and a read-only comparison app; a card editor and separate learning-HTML skill are outside this candidate.
+## Research records and views
 
-## Detailed workflow references
+- [Paper analysis](PAPER_ANALYSIS.md): answers, notes, editions and resumption.
+- [Claim review JSON](CLAIM_REVIEWS.md): frozen inputs, results, hashes and current support.
+- [Research comparison](RESEARCH_COMPARISON.md): criteria, provenance filters and local read-only evidence viewer.
+- [Card model](CARD_MODEL.md) and [repository boundaries](STRUCTURE.md): records, ownership and storage.
+- [Standalone view contract](../skills/danseo/references/research-view.md): candidate formats and rendered checks.
+- [Source verification](../skills/danseo/references/relation-verification.md), [overview/count gate](../skills/danseo/references/evidence-gate.md) and [performance verification](../skills/danseo/references/performance-verification.md): source/AI distinctions, counts, table conditions and exceptions.
 
-These references are currently **in Korean**.
+## Language and permissions
 
-- [Full CLI reference](CLI.md): commands, workspace configuration, errors, and outputs.
-- [Paper analysis and resumption](PAPER_ANALYSIS.md): follow-up questions in the same document, Paper reuse across topics, and current comparison claims.
-- [Research comparison](RESEARCH_COMPARISON.md): paper/criterion selection, source evidence, AI reasons, and relationship provenance filters.
-- [Claim-level reviews](CLAIM_REVIEWS.md): pinned inputs, results, PDF hashes, and source-support judgments.
-- [Research skill](../skills/danseo/SKILL.md): agent source-reading and verification procedures.
-- [Agent compatibility](AGENT_COMPATIBILITY.md): tested integrations and remaining checks.
-- [Default graph presentation](GRAPH_DEFAULTS.md) · [Performance evidence](PERFORMANCE_EVIDENCE.md): graph defaults, source-table conditions, exceptions, and scoped verification.
+Fixed viewer labels, diagnostics and active skill guidance are English. Agent-authored prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language); original titles, quotations, IDs and saved research text are preserved. There is no language selector or translation service. Explicit Korean README editions and synthetic research content remain available.
 
-## Developing Danseo
+The repository provides one research skill and an optional local read-only comparison viewer. It does not bundle a card editor or separate learning skill. Keep private papers, workspaces, learner answers, raw logs and internal execution/review notes local. Public examples are synthetic; tests do not prove reader understanding or usefulness.
 
-These references are currently **in Korean**.
+## Development and contribution
 
-- [Runtime support](RUNTIME_SUPPORT.md): supported/recommended versions, checks, updates, and end-of-support criteria.
-- [Naming](NAMING.md): the meaning of Danseo, identifiers, and name-conflict search scope.
-- [Task list](../TASKS.md): canonical development tracking; preserve `PTP-*` identifiers.
-- [Card model](CARD_MODEL.md) · [Repository structure](STRUCTURE.md): data formats, ownership, and storage boundaries.
-- [PRD](PRD.md): requirements and future scope, which extend beyond implemented features.
-- [Topic workflow](TOPIC_WORKFLOW.md): discovery, source collection, analysis, and comparisons.
-- [Project setup](PROJECT_SETUP.md) · [Distribution records](OPEN_SOURCE.md): operating and publication history.
-
-## Design and historical records
-
-The [reuse review](REUSE.md), [technical direction](TECH_DIRECTION.md), [proposed usage flow](USAGE_FLOW.md), [bootstrap record](BOOTSTRAP.md), and [CLI implementation record](CLI_IMPLEMENTATION.md) are preserved in Korean. Read each with its date and unverified scope. Historical statements about missing features or undecided licensing may not describe the current source.
-
-Distribution and task records also preserve dated private or unreleased snapshots alongside later public-transition entries. Read their dates before interpreting an older status as current.
-
-References to `work/` identify private local evidence excluded from distribution. Public reproduction material consists of [synthetic examples](../examples/minimal/workspace.json) and tests. Private experiments are not public evaluation results.
+- [Contributing](../CONTRIBUTING.md) and [runtime support](RUNTIME_SUPPORT.md): builds, tests, packaging and supported execution.
+- [Agent compatibility](AGENT_COMPATIBILITY.md): integration boundaries and remaining checks.
+- [Product scope](PRD.md), [current roadmap](../TASKS.md) and [evaluation plan](../evals/README.md): shipped behavior, future work and unmeasured benefits.
+- [Distribution boundaries](OPEN_SOURCE.md) and [security](../SECURITY.md): public/private material and reporting.
+- [Brand assets](../assets/brand/README.md) and [third-party notices](../THIRD_PARTY_NOTICES.md): artwork and attribution.

@@ -4,9 +4,11 @@ Summary: Use your existing agent to read evidence, manage research records throu
 
 ## What is included
 
-[SKILL.md](SKILL.md) is the canonical agent procedure. It connects discovery, source collection, analysis, claim review, comparison, and source verification. The instructions and detailed references currently contain Korean; this overview and the [CLI guide](../../docs/CLI.en.md) are in English.
+[SKILL.md](SKILL.md) is the canonical agent procedure. It connects discovery, source collection, analysis, claim review, comparison, and source verification. The instructions, detailed usage references and [CLI guide](../../docs/CLI.en.md) are in English.
 
 `agents/openai.yaml` provides display metadata, not an autonomous agent or model configuration.
+
+Fixed viewer controls and diagnostics are English. [Agent-authored prose](SKILL.md#output-language) follows an explicit language request, otherwise the current work's language or the new request's language. Original titles, quotes, identifiers and saved records remain unchanged. The renderer displays supplied text; it does not translate or detect languages and has no language switch.
 
 ## Install and connect
 
@@ -22,6 +24,6 @@ Preserve the recorded reading scope and source-recheck conditions. Keep author c
 
 ## Standalone research HTML
 
-The bundled generators support paper relationships and project-application views using common assets. For relationship mode, perform [source verification](references/relation-verification.md), then pass the [overview and quantity checks](references/evidence-gate.md) before saving. Performance comparisons also follow the [table-condition and exception procedure](references/performance-verification.md). These detailed instructions are currently in Korean.
+The bundled generators support paper relationships and project-application views using common assets. For relationship mode, perform [source verification](references/relation-verification.md), then pass the [overview and quantity checks](references/evidence-gate.md) before saving. Performance comparisons also follow the [table-condition and exception procedure](references/performance-verification.md). Follow the same evidence gates in every output language.
 
 The [research-view contract](references/research-view.md) describes input formats. Automated checks, source-meaning review, actual rendered reading, and user understanding are separate evidence. The full CLI's read-only topic comparison app is a separate workflow; it is not a card editor or a separate learning-HTML skill.
