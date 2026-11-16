@@ -9,6 +9,7 @@ Summary: Danseo provides file-based discovery, source collection, paper analysis
 - Shared Paper records, topic answers and resumption: [analysis](docs/PAPER_ANALYSIS.md).
 - Read-only research comparison: [comparison](docs/RESEARCH_COMPARISON.md).
 - Standalone HTML with source, count and performance checks: [view contract](skills/danseo/references/research-view.md).
+- Paper-node source shortcuts in standalone HTML: [open the registered original and read its recorded locations](skills/danseo/references/research-view.md#open-the-original-from-a-paper-node).
 - English fixed guidance and requested-language prose: [language rules](skills/danseo/SKILL.md#output-language).
 
 ## Next areas
