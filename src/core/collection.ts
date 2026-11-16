@@ -42,25 +42,25 @@ function invalid(message: string): never { throw new DanseoError('SOURCE', messa
 const managedName = (hash: string) => `source-${hash}.pdf`;
 function filePath(root: string, file: FileRecord) {
   if (file.origin === 'existing') {
-    if (!isAbsolute(file.path)) invalid('기존 원문 경로가 손상되었습니다.');
+    if (!isAbsolute(file.path)) invalid('The existing source path is damaged.');
     return file.path;
   }
-  if (file.path !== managedName(file.sha256) && !new RegExp('^source-' + file.sha256 + '-[a-f0-9-]{36}\\.pdf$').test(file.path)) invalid('주제 원문 경로가 손상되었습니다.');
+  if (file.path !== managedName(file.sha256) && !new RegExp('^source-' + file.sha256 + '-[a-f0-9-]{36}\\.pdf$').test(file.path)) invalid('The topic source path is damaged.');
   return join(root, file.path);
 }
 async function readBook(root: string, path: string): Promise<Book> {
   if (!await exists(path)) return { version: 1, rows: [] };
   const data: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(await readFile(await writableFile(root, path))));
-  if (!valid(data)) invalid('원문 목록의 형식과 버전을 확인하세요.');
+  if (!valid(data)) invalid('Check the source-list format and version.');
   const selections = new Set<string>();
   for (const row of data.rows) {
     const id = JSON.stringify([row.key, row.round]);
-    if (selections.has(id)) invalid('중복된 선택 기록입니다.');
+    if (selections.has(id)) invalid('The selection records contain duplicates.');
     selections.add(id);
     const hashes = new Set<string>();
     for (const file of row.files) {
       filePath(root, file);
-      if (hashes.has(file.sha256) || file.draft !== (file.decision !== null)) invalid('원문 판본 기록이 손상되었습니다.');
+      if (hashes.has(file.sha256) || file.draft !== (file.decision !== null)) invalid('The source edition record is damaged.');
       hashes.add(file.sha256);
     }
   }
@@ -101,9 +101,9 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
       files.push({ ...file, path: filePath(root, file), status });
     }
     const ready = files.findLast(f => f.status === 'ready') ?? files.findLast(f => f.status === 'accepted');
-    const next = ready ? '분석 가능' : files.some(f => f.status === 'pending') ? '이 초고로 분석할까요?'
-      : files.some(f => f.status === 'needs-recheck') ? '원문 파일이나 판본 근거를 다시 확인하고 등록하세요.'
-      : '출판본 PDF를 제공하거나 이 논문만 다시 시도하세요.';
+    const next = ready ? 'Ready for analysis' : files.some(f => f.status === 'pending') ? 'Analyze this draft edition?'
+      : files.some(f => f.status === 'needs-recheck') ? 'Check and register the source file and edition evidence again.'
+      : 'Provide the published PDF or retry this paper only.';
     rows.push({ paper, files, failure: row?.failure, next, ready });
   }
   return { question: topic.question, rows, ready: rows.flatMap(row => row.ready ? [{ paper: row.paper, file: row.ready }] : []) };
@@ -118,7 +118,7 @@ async function collect(root: string, book: Book, row: Row, paper: SelectedPaper,
   const sameEdition = (f: FileRecord) => editionKey(f.edition) === editionKey(evidence.edition);
   const correctingToDraft = previous && !previous.draft && evidence.draft;
   if (previous && !correctingToDraft && (!sameEdition(previous) || (previous.draft && !evidence.draft))) {
-    throw Error('같은 파일에 서로 다른 판본 또는 출판본 구분이 지정되었습니다.');
+    throw Error('The same file has conflicting edition or publication classifications.');
   }
   // Compare the candidate before reusing another copy of the same edition.
   await verifyPdf(bytes, paper, evidence);
@@ -160,9 +160,9 @@ async function collect(root: string, book: Book, row: Row, paper: SelectedPaper,
         } finally { await rm(temp, { force: true }); }
       }
     }
-    if (await realpath(path) !== path) throw Error('원문 경로가 변경되었습니다.');
+    if (await realpath(path) !== path) throw Error('The source path changed.');
     const saved = await pdfBytes(path);
-    if (sha256(saved) !== hash) throw Error('저장 위치의 파일 내용이 다릅니다. 기존 파일을 확인하세요.');
+    if (sha256(saved) !== hash) throw Error('The destination file has different contents. Check the existing file.');
     await verifyPdf(saved, paper, evidence);
     const file: FileRecord = { ...evidence, path: input.existing ? inputPath : name, sha256: hash,
       origin: input.existing ? 'existing' : input.url ? 'public' : 'provided',
@@ -208,7 +208,7 @@ export async function runCollection([action = '', ...args]: string[]) {
     const book = await readBook(root, path);
     if (action !== 'sources') {
       const paper = topic.selected.find(p => p.number === Number(v.id) && p.round === Number(v.round));
-      if (!paper) invalid('현재 선택한 논문 번호와 선택 회차를 확인하세요.');
+      if (!paper) invalid('Check the currently selected paper number and selection round.');
       const row: Row = findRow(book, paper) ?? { key: paper.key, round: paper.round, files: [] };
       if (!book.rows.includes(row)) book.rows.push(row);
       let created: string | undefined;
@@ -217,8 +217,8 @@ export async function runCollection([action = '', ...args]: string[]) {
         row.failure = { source: v.url ?? paper.source, reason: v.reason };
       } else if (action === 'decide') {
         const file = row.files.find(f => f.draft && f.sha256 === v.sha);
-        if (!file || !['accept', 'decline'].includes(v.answer ?? '')) invalid('표시한 초고의 해시와 응답을 확인하세요.');
-        if (!await stillVerified(root, paper, file)) invalid('초고 파일과 판본을 다시 확인하세요.');
+        if (!file || !['accept', 'decline'].includes(v.answer ?? '')) invalid('Check the displayed draft hash and response.');
+        if (!await stillVerified(root, paper, file)) invalid('Check the draft file and edition again.');
         file.decision = v.answer === 'accept' ? 'accepted' : 'declined';
       } else {
         const page = Number(v.page ?? 1);

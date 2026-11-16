@@ -7,7 +7,7 @@
   type MapSelection = import('../web/browser-types.js').MapSelection;
   type MapController = import('../web/browser-types.js').MapController;
   type NodeItem = { id: string; title: string; short_title?: string; review_status?: string; decision?: { status: string; action?: string } };
-  const kind: Record<string, string> = { cites: '인용', extends: '확장', compares: '비교', 'related-to': '관련', 'reading-order': 'AI 읽기 순서' };
+  const kind: Record<string, string> = { cites: 'Cites', extends: 'Extends', compares: 'Compares', 'related-to': 'Related', 'reading-order': 'AI reading order' };
   function isComparison(data: MapData): data is import('../web/browser-types.js').ComparisonView {
     return data.mode === 'research-comparison';
   }
@@ -23,7 +23,7 @@
         position = { x: 110 + col * 240, y: 70 + row * 155 };
       } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
       else position = count === 2 ? { x: 170 + index * 380, y: 190 } : { x: 360 + Math.cos(index / count * 2 * Math.PI) * 245, y: 230 + Math.sin(index / count * 2 * Math.PI) * 165 };
-      const stateLabel = data.mode === 'research-comparison' ? '' : type === 'paper' ? '\n전체 검토 · ' + item.review_status : type === 'application' ? '\n' + item.decision?.status + ' · ' + (item.decision?.action ?? '미지정') : '';
+      const stateLabel = data.mode === 'research-comparison' ? '' : type === 'paper' ? '\nPaper review · ' + item.review_status : type === 'application' ? '\n' + item.decision?.status + ' · ' + (item.decision?.action ?? 'Unspecified') : '';
       const node: MapElement = { group: 'nodes', data: { id: type + ':' + item.id, recordId: item.id, type, label: (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') + (item.short_title ?? item.title) + stateLabel, state: item.review_status ?? item.decision?.status ?? 'context' }, position };
       elements.push(node);
       return node;
@@ -38,7 +38,7 @@
         node.position = { x: 520, y: 90 + i * 170 };
         item.groups.forEach(group => {
           const paper = data.papers.find(p => p.key === group.key);
-          if (!paper) throw new Error('비교 기준의 논문이 없습니다.');
+          if (!paper) throw new Error('The comparison criterion has no matching paper.');
           if (group.claims.length) elements.push({ group: 'edges', data: { id: 'group:' + item.id + ':' + paper.id,
             source: 'paper:' + paper.id, target: 'criterion:' + item.id, type: 'grouping', recordId: item.id,
             label: '', origin: 'ai', state: 'proposed' } });
@@ -53,23 +53,23 @@
           origin: relation.origin, state: relation.status } });
       });
     } else if (scene === 'context') {
-      if (!data.project_context) throw new Error('프로젝트 문맥이 없습니다.');
+      if (!data.project_context) throw new Error('Project context is missing.');
       data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
       data.project_context.links.forEach((link, i) => elements.push({ group: 'edges', data: { id: 'context:' + i, source: 'topic:' + link.source, target: 'topic:' + link.target, type: 'context-link', recordId: String(i), label: '', origin: 'ai', state: 'proposed' } }));
     } else {
       data.papers.forEach((item, i, all) => addNode('paper', item, i, all.length, 0));
       if (data.mode === 'project-application') {
-        if (!data.applications) throw new Error('프로젝트 적용 목록이 없습니다.');
+        if (!data.applications) throw new Error('The project application list is missing.');
         data.applications.forEach((item, i, all) => {
           addNode('application', item, i, all.length, 1);
           for (const paper of data.papers) {
             const refs = item.claim_refs.filter(ref => ref.paper_id === paper.id);
-            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: '근거 참조 · ' + refs.length + '개 주장', origin: 'reference', state: item.decision.status } });
+            if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: 'Evidence reference · ' + refs.length + ' claims', origin: 'reference', state: item.decision.status } });
           }
         });
       } else {
-        if (!data.relations) throw new Error('연구 관계 목록이 없습니다.');
-        data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? 'AI 제안' : '원문 기록') + ' · 재확인' : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
+        if (!data.relations) throw new Error('The paper relation list is missing.');
+        data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck' : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
       }
     }
     return elements;

@@ -12,7 +12,7 @@ export async function workspaceLock(root: string) {
   let file;
   try { file = await open(path, 'wx', 0o600); }
   catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new DanseoError('EDIT_BUSY', '다른 저장이 진행 중입니다. 잠시 뒤 다시 시도하세요. 잠금 파일이 남았다면 다른 Danseo 프로세스를 종료하고 원본을 확인한 뒤 workspace.json.danseo-lock만 제거하세요.');
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new DanseoError('EDIT_BUSY', 'Another write is in progress. Retry shortly. If a lock remains, stop other Danseo processes, inspect the originals, then remove only workspace.json.danseo-lock.');
     throw error;
   }
   return async () => { await file.close(); await unlink(path); };
@@ -23,7 +23,7 @@ export async function writableFile(workspace: string, file: string) {
   const info = await lstat(file);
   if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`) ||
       path !== resolve(file) || !info.isFile() || info.isSymbolicLink() || info.nlink !== 1) {
-    throw new DanseoError('EDIT_PATH', 'workspace 안의 일반 파일만 저장할 수 있습니다. 외부 경로·링크 파일은 기존 편집기를 사용하세요.');
+    throw new DanseoError('EDIT_PATH', 'Only regular files inside the workspace can be written. Use your existing editor for external paths or linked files.');
   }
   return path;
 }

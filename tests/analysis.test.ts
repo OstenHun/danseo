@@ -48,7 +48,7 @@ test('changed, missing, pending and declined PDFs never start analysis', t => {
   const f = setup(t);
   const source = f.a.data.source.path, bytes = readFileSync(source);
   writeFileSync(source, 'changed');
-  assert.match(f.run(f.topic, 'analysis-open', '--id', '1', '--workspace', f.workspace, '--paper', f.a.id).stderr, /분석 가능한 원문/);
+  assert.match(f.run(f.topic, 'analysis-open', '--id', '1', '--workspace', f.workspace, '--paper', f.a.id).stderr, /No source is ready for analysis/);
   assert.equal(readdirSync(f.topic).filter(x => x.startsWith('analysis-')).length, 0);
   writeFileSync(source, bytes);
   const draft = f.collect(f.topic, 'A', 'Preprint v2', 'draft');
@@ -89,11 +89,11 @@ test('a revised edition preserves the old answer and removes previous comparison
 test('concurrent memo edits, bad references, and malformed documents preserve original bytes', t => {
   const f = setup(t), doc = f.open();
   const noOverview = f.json(join(f.root, 'no-overview.json'), answer({ overview: undefined }));
-  assert.match(f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', noOverview).stderr, /짧은 개요/);
+  assert.match(f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', noOverview).stderr, /short overview/);
   appendFileSync(doc.document, '\nNew user memo\n');
   const before = readFileSync(doc.document);
   const input = f.json(join(f.root, 'input.json'), answer());
-  assert.match(f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', input).stderr, /다시 열고/);
+  assert.match(f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', input).stderr, /Reopen the analysis document/);
   assert.deepEqual(readFileSync(doc.document), before);
   const latest = f.ok(f.topic, 'analysis-open', '--id', '1');
   f.json(input, answer({ claim_ids: ['missing'], comparison_claims: ['missing'] }));
@@ -108,12 +108,12 @@ test('only current source-supported candidates pass; conditions, statement and l
   const f = setup(t); f.save(f.open()); f.review();
   let result = f.ok(f.topic, 'comparison-input');
   assert.deepEqual(result.claims.map(x => x.claim_id), ['c1']);
-  assert.equal(required(result.held.find(x => x.claim_id === 'c2')).reason, '원문 대조 기록 없음');
+  assert.equal(required(result.held.find(x => x.claim_id === 'c2')).reason, 'No source-check record');
   const c = required(f.a.data.claims[0]), original = structuredClone(c);
   for (const change of [() => c.statement += ' changed', () => c.conditions += ' changed', () => required(c.locators[0]).start = required(c.locators[0]).end = 2]) {
     change(); f.a.save();
     result = f.ok(f.topic, 'comparison-input'); assert.equal(result.claims.length, 0);
-    assert.match(required(result.held.find(x => x.claim_id === 'c1')).reason, /다릅니다/);
+    assert.match(required(result.held.find(x => x.claim_id === 'c1')).reason, /differ/);
     Object.assign(c, structuredClone(original)); f.a.save();
   }
   assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
@@ -153,7 +153,7 @@ test('duplicate latest support cannot conceal a third same-instant contradicted 
   f.review(f.a, 'contradicted', '2026-11-10T21:00:00+09:00');
   const report = f.ok(f.topic, 'comparison-input');
   assert.equal(report.claims.length, 0);
-  assert.match(required(report.held.find(h => h.claim_id === 'c1')).reason, /중복/);
+  assert.match(required(report.held.find(h => h.claim_id === 'c1')).reason, /duplicat|Multiple/);
 });
 
 test('connected extracted text requires matching review hash and becomes stale when changed or absent', t => {
@@ -188,7 +188,7 @@ test('later stale review keeps A→B→A on hold and empty candidates withdraw p
   f.save(doc, answer({ overview: undefined, comparison_claims: [] }));
   const report = f.ok(f.topic, 'comparison-input');
   assert.equal(report.claims.length, 0);
-  assert.equal(required(report.held.find(x => x.key === 'A')).reason, '비교 후보 주장 없음');
+  assert.equal(required(report.held.find(x => x.key === 'A')).reason, 'No candidate claims for comparison');
 });
 
 test('a new answer cites only its evidence while preserving earlier topic comparison candidates', t => {
@@ -209,7 +209,7 @@ test('a damaged B document keeps topic selections and healthy A comparison input
   assert.equal(required(f.ok(f.topic, 'analysis-list').find(x => x.key === 'A')).state, 'available');
   const comparison = f.ok(f.topic, 'comparison-input');
   assert.deepEqual(comparison.claims.map(x => x.claim_id), ['c1']);
-  assert.match(required(comparison.held.find(x => x.key === 'B')).reason, /연결 정보/);
+  assert.match(required(comparison.held.find(x => x.key === 'B')).reason, /connection metadata/);
   assert.notEqual(f.run(f.topic, 'analysis-open', '--id', '2').status, 0);
   assert.equal(read(b.document), 'Damaged B; preserve notes');
 });
@@ -219,7 +219,7 @@ test('review timestamps without a timezone cannot decide the newest verdict', t 
   f.review(f.a, 'supported', '2026-11-10T12:00:00');
   const report = f.ok(f.topic, 'comparison-input');
   assert.equal(report.claims.length, 0);
-  assert.match(required(required(report.held.find(x => x.claim_id === 'c1')).warnings).join(' '), /UTC 오프셋/);
+  assert.match(required(required(report.held.find(x => x.claim_id === 'c1')).warnings).join(' '), /UTC offset/);
 });
 
 test('revision limit is validated before publishing or backing up a replacement', t => {
@@ -232,7 +232,7 @@ test('revision limit is validated before publishing or backing up a replacement'
   writeFileSync(doc.document, `---\n${JSON.stringify(state)}\n---\n` + raw.slice(required(match[0]).length));
   const before = readFileSync(doc.document), files = readdirSync(f.topic);
   const result = f.run(f.topic, 'analysis-open', '--id', '1', '--workspace', f.workspace, '--paper', f.a.id);
-  assert.notEqual(result.status, 0); assert.match(result.stderr, /판본 이력 한도/);
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /revision-history limit/);
   assert.deepEqual(readFileSync(doc.document), before);
   assert.deepEqual(readdirSync(f.topic), files);
 });
@@ -243,7 +243,7 @@ test('a mismatched existing backup refuses saving without changing the document'
   writeFileSync(doc.document + '.' + doc.document_sha256 + '.bak', 'different backup');
   const input = f.json(join(f.root, 'backup-answer.json'), answer());
   const result = f.run(f.topic, 'analysis-save', '--id', '1', '--sha', doc.document_sha256, '--input', input);
-  assert.notEqual(result.status, 0); assert.match(result.stderr, /백업이 다릅니다/);
+  assert.notEqual(result.status, 0); assert.match(result.stderr, /backup differs/);
   assert.deepEqual(readFileSync(doc.document), before);
 });
 
@@ -309,7 +309,7 @@ syncBuiltinESMExports();
 `);
     assert.deepEqual(readFileSync(source), replacement);
     assert.equal(report.claims.length, 0);
-    assert.match(required(report.held.find(x => x.claim_id === 'c1')).reason, /선택한 원문 해시/);
+    assert.match(required(report.held.find(x => x.claim_id === 'c1')).reason, /source hash selected/);
   } finally { writeFileSync(source, original); }
 });
 

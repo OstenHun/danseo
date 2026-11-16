@@ -7,7 +7,7 @@ export const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).dige
 
 export async function pdfBytes(path: string) {
   const info = await lstat(path);
-  if (!info.isFile() || info.size > 64 * 1024 * 1024) throw Error('64 MiB 이하의 일반 PDF 파일을 제공하세요.');
+  if (!info.isFile() || info.size > 64 * 1024 * 1024) throw Error('Provide a regular PDF file of at most 64 MiB.');
   return readFile(path);
 }
 
@@ -46,7 +46,7 @@ function withoutBibliographicHeader(block: string, runs: string[]) {
 
 export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: Edition) {
   if (bytes.subarray(0, 5).toString() !== '%PDF-' || !/%%EOF\s*$/.test(bytes.subarray(-1024).toString('latin1'))) {
-    throw Error('PDF 헤더 또는 끝 표시가 없습니다. 초록 HTML이나 중단된 다운로드인지 확인하세요.');
+    throw Error('The PDF header or end marker is missing. Check for abstract HTML or an interrupted download.');
   }
   const pdf = await getDocumentProxy(new Uint8Array(bytes), {
     stopAtErrors: true, useSystemFonts: false, verbosity: 0
@@ -84,14 +84,14 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       + tokens.join('[^\\p{L}\\p{N},;&]*') + '(?![\\p{L}\\p{N}])', 'iu').exec(front) : null);
     const exact = exactMatches.map(match => match?.index ?? -1);
     const known = exact.filter(index => index >= 0);
-    if (!known.length) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
+    if (!known.length) throw Error('Unable to match the first-page authors with the selected authors.');
     // Establish the complete title using an exact coauthor before permitting
     // omitted initials. A title fragment that resembles a name is not proof.
     const titleEnd = Math.min(...known);
     const titleBlock = front.slice(0, titleEnd);
     const withoutHeader = withoutBibliographicHeader(titleBlock, runs);
     if (!matchesTitle(paper, titleBlock, sameArxiv) && !matchesTitle(paper, withoutHeader, sameArxiv)) {
-      throw Error('첫 쪽 제목과 선택 당시 제목이 일치하지 않습니다.');
+      throw Error('The first-page title differs from the selected title.');
     }
     const occupied = exactMatches.flatMap(match => match ? [{ start: match.index, end: match.index + match[0].length }] : []);
     const byline = authorTokens.map((tokens, index) => {
@@ -111,24 +111,24 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       }
       return -1;
     });
-    if (byline.some(index => index < 0)) throw Error('첫 쪽 저자 표기와 선택 당시 저자를 대조할 수 없습니다.');
+    if (byline.some(index => index < 0)) throw Error('Unable to match the first-page authors with the selected authors.');
     const text = evidence.page === 1 ? first : (await pageRuns(evidence.page)).map(item => item.str).join(' ');
     const quote = words(evidence.proof).join(' ');
     if (!quote || !(' ' + words(text).join(' ') + ' ').includes(' ' + quote + ' ')) {
-      throw Error('지정한 쪽에서 판본 근거를 찾지 못했습니다.');
+      throw Error('No edition evidence was found on the specified page.');
     }
     const edition = words(evidence.edition).join(' ');
     if (stamp) {
       if (evidence.edition.toLowerCase() !== 'arxiv:' + stamp ||
           !evidence.proof.toLowerCase().includes(stamp) ||
           (ids.length > 0 && !sameArxiv)) {
-        throw Error('arXiv 표기의 논문 ID와 실제 v번호를 판본 및 근거에 그대로 적으세요.');
+        throw Error('Record the exact arXiv paper ID and v-number in the edition and evidence.');
       }
-      if (!evidence.draft) throw Error('arXiv 원문은 초고로 등록하고 이 판본에 대한 결정을 받으세요.');
+      if (!evidence.draft) throw Error('Register an arXiv source as a draft and obtain a decision for this edition.');
     } else {
-      if (/^arxiv:/i.test(evidence.edition)) throw Error('첫 쪽에서 해당 arXiv 판본 표기를 확인할 수 없습니다.');
+      if (/^arxiv:/i.test(evidence.edition)) throw Error('Unable to verify this arXiv edition on the first page.');
       const marked = ' ' + words(evidence.proof).join(' ') + ' ';
-      if (!edition || !marked.includes(' ' + words(evidence.edition).join(' ') + ' ')) throw Error('판본 이름이 해당 쪽의 근거 표기에 포함되어야 합니다.');
+      if (!edition || !marked.includes(' ' + words(evidence.edition).join(' ') + ' ')) throw Error('The edition name must appear in the evidence on the specified page.');
       // Proof may quote a venue also printed on an author manuscript. Check cover markings
       // outside the paper title, including footer markings after the abstract.
       const header = matchesTitle(paper, titleBlock, sameArxiv) ? '' : titleBlock.slice(0, titleBlock.length - withoutHeader.length);
@@ -147,7 +147,7 @@ export async function verifyPdf(bytes: Buffer, paper: SelectedPaper, evidence: E
       const draft = label.test([header, evidence.edition, evidence.proof].join(' ')) ||
         lines.some(line => !titleBlock.includes(line) && (explicitStatus.test(line.trim()) || versionLabel.test(line.trim())));
       if (!evidence.draft && (edition !== editionKey(paper.edition) || draft)) {
-        throw Error('선택한 판본과 다릅니다. 대체 초고이면 초고로 등록하세요.');
+        throw Error('The edition differs from the selection. Register a substitute draft as a draft.');
       }
     }
   } finally { await pdf.loadingTask.destroy(); }

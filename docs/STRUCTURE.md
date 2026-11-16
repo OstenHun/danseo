@@ -1,43 +1,57 @@
-# 폴더와 데이터 경계
+# Repository and data boundaries
 
-요약: CLI·공통 core·schema·skill과 읽기 전용 비교 화면을 한 패키지로 관리한다. 주제·원문·분석은 개인 폴더에 보관한다. 카드 편집기·외부 어댑터는 이번 공개 후보에 포함하지 않는다.
+Summary: One package holds CLI, core, schemas, skill and comparison viewer. Private topics, originals and analysis stay outside public code; editors and adapters are excluded.
 
-현재 구현은 아래 CLI·core·비교 서버/화면과 공통 지도다. workspace.json이 카드·프로젝트·주장 검토·관계 연결을 소유하며 주제 폴더가 선택·수집·분석 기록을 보관한다. 이후의 웹 편집기·가져오기 설계는 현재 배포 기능과 구분한다. 실제 형식은 [CLI](CLI.md), [분석](PAPER_ANALYSIS.md), [연구 비교](RESEARCH_COMPARISON.md)를 따른다.
+Current implementation comprises CLI/core, comparison server/UI and shared map. `workspace.json` owns card/project/review/relation connections; topic folders own discovery, selection, collection and analysis. Later editing/import proposals are not distributed features. See [CLI](CLI.md), [analysis](PAPER_ANALYSIS.md) and [comparison](RESEARCH_COMPARISON.md).
 
-## 저장소 구성
+<a id="저장소-구성"></a>
+
+<a id="논문-자료-공간과-원문-보관--최소안"></a>
+
+<a id="등록요약인덱스템플릿"></a>
+
+<a id="긴-논문을-정리하는-흐름--설계안"></a>
+
+<a id="로컬-실행과-배포의-차이"></a>
+
+## Repository layout
 
 ```text
 danseo/
 ├─ README.md / AGENTS.md / TASKS.md
-├─ docs/                   # MVP·구조·재사용 판단의 정본
+├─ docs/                   # Usage guides, formats and evidence-check contracts
 ├─ src/
-│  ├─ cli.ts               # 명령·옵션·출력·종료 코드
-│  ├─ core/               # 카드·주제·원문·분석·검토·관계·비교
-│  ├─ web/                # 읽기 전용 비교 서버·HTML/CSS·TypeScript
-│  └─ views/              # 공통 지도 TypeScript와 읽기 스타일
-├─ schemas/                # 카드·workspace·관계 JSON Schema
-├─ scripts/                # 빌드·문서 검사 도구 TypeScript
-├─ skills/danseo/           # 배포 skill과 표시 metadata
-├─ examples/minimal/       # 실행 가능한 합성 workspace
-├─ evals/                  # 활용 효과 비교 계획; 정답·실행은 로컬 분리
-├─ tests/                  # TypeScript 회귀·helper·설치 패키지 검사
-├─ workspaces/             # 개인 로컬 자료, Git 제외
-└─ work/                   # 출처 연결·이전 검토·개인 실행, Git 제외
+│  ├─ cli.ts               # Commands, options, output, exit codes
+│  ├─ core/                # Cards, topics, sources, analysis, reviews, relations
+│  ├─ web/                 # Read-only comparison server and browser UI
+│  └─ views/               # Shared map and reading styles
+├─ schemas/                # Card/workspace/relation JSON Schema
+├─ scripts/                # TypeScript build/documentation tools
+├─ skills/danseo/           # Portable instructions, generators and assets
+├─ examples/minimal/       # Runnable synthetic workspace
+├─ evals/                  # Evaluation plan; answers/runs remain private
+├─ tests/                  # TypeScript regressions, helpers, package checks
+├─ workspaces/             # Private local data, Git-excluded
+└─ work/                   # Private work records and execution evidence
 ```
 
-독립 패키지·별도 상시 서비스로 나누지 않는다. CLI가 옵션·출력을, core가 파일·모델 규칙을 다루고 비교 서버는 loopback 읽기 전용 화면을 제공한다. 빌드는 build-tools/·dist/·build/에 출력하며 개발 도구·테스트 출력은 배포하지 않는다. [빌드와 검사](../CONTRIBUTING.md#공통-테스트-fixture-수정).
+No separate package/permanent service is required. CLI owns options/output, core owns file/model rules, and the comparison server exposes a read-only loopback view. Build outputs: `build-tools/`, `dist/`, `build/`; development tools/tests are not distributed. See [build contracts](../CONTRIBUTING.md#editing-shared-test-fixtures).
 
-docs·TASKS·evals는 공유 가능한 제품 문서와 계획이다. 개인 실행 로그·실제 연구 자료·정답은 여기에 두지 않는다. npm의 files 허용 목록은 dist·schema·skill·합성 예제와 공개 문서·브랜드·고지만 포함하며 소스 저장소의 모든 파일을 자동 배포하지 않는다. 실제 tarball 목록과 설치 CLI를 검사한다.
+Docs/TASKS/evals are shareable product material/plans, not private logs, original papers or answer keys. The npm files allowlist includes built assets, schemas, skill, synthetic examples and public docs/brand/notices, rather than every repository file. Verify the actual tarball and installed CLI.
 
-## 원본은 하나만
+<a id="원본은-하나만"></a>
 
-- 새 제품 코드·공통 형식·배포용 skill의 향후 정본은 이 저장소다.
-- 연구 질문·원문 검토·학습·실험 기록은 각 대상 프로젝트가 정본이다.
-- 현재 설치된 전역 skill은 그대로 유지한다. 저장소 skill이 검증된 뒤 명시적인 설치 절차로 버전을 연결한다. 자동 동기화는 하지 않는다.
-- 그래프와 비교 표는 카드의 파생 뷰다. 별도 data.js/graph.json을 수동으로 함께 고치는 구조를 제품에 계승하지 않는다.
-- 기존 개인 프로토타입은 참고 자료다. 개인 경로·데이터를 포함한 전체 폴더를 제품 코드로 복사하지 않는다.
+## One authoritative source
 
-## 개인 workspace 초안
+- This repository owns product code, common formats and distributed skill.
+- Target projects own questions, source review, learning and experiment records.
+- Existing global skills stay unchanged until an explicit installation/update; there is no automatic sync.
+- Graphs/comparisons derive from cards; do not manually maintain parallel data.js/graph.json truth.
+- Personal prototypes are references, not whole folders to copy with private paths/data.
+
+<a id="개인-workspace-초안"></a>
+
+## Private workspace sketch
 
 ```text
 workspace/
@@ -47,46 +61,38 @@ workspace/
 └─ relations.yaml
 ```
 
-Markdown의 frontmatter와 본문을 한 문서의 구조/설명으로 사용한다는 제안이다. 읽기·저장 round-trip에서 내용을 보존하는지 PTP-001에서 검증한다. 캐시·검색 색인은 삭제 후 재생성 가능한 파생물로 두고 정본으로 삼지 않는다. 경로·ID·외부 참조의 최종 스키마는 아직 안정 계약이 아니다.
+Frontmatter and body hold one record's structure/explanation. Round-trip preservation belongs to PTP-001. Any future cache/index is disposable derived data; paths/IDs/external references remain a draft compatibility contract.
 
-## 논문 자료 공간과 원문 보관 — 최소안
+## Paper storage and original files
 
-여기서 논문 저장소는 사용자 로컬 workspace 안의 자료 공간이다. 별도 GitHub 저장소·DB·서버를 뜻하지 않는다. `papers/`에 논문 기록을 두고 여러 `projects/`가 같은 기록을 참조한다. 제품 코드와 개인 연구 자료는 기존 경계대로 분리한다.
+The paper library is a local workspace, not a separate GitHub repository/database/server. Papers may be shared across projects. Registering a URL or existing PDF/Zotero attachment does not require downloading. Use explicit imports when offline access/edition retention matters; optional `sources/<paper-id>/<version>.pdf` is a layout suggestion, not a reason to create empty folders or move originals automatically.
 
-PDF 다운로드는 논문 등록의 필수 조건이 아니다. 원문 URL만으로 등록하거나 이미 있는 PDF/Zotero 첨부의 위치를 연결할 수 있다. 오프라인 읽기·안정적인 판본 보관·반복 열람이 필요하면 명시적인 파일 가져오기로 보관한다. 선택적으로 `sources/<paper-id>/<version>.pdf`를 사용할 수 있지만 실제 파일이 생기기 전 빈 폴더나 다운로드 작업을 만들지 않는다. 원본을 기존 위치에서 자동 이동하지 않는다.
+Detailed source checks need actual access to relevant edition text/tables/figures. Successful registration or an existing PDF does not establish reading/review. URL-only unread sources remain unchecked; no-download workflows cannot promise offline access or link durability. [Zotero's stored/linked attachments](https://www.zotero.org/support/attaching_files) illustrate this separation; direct integration is unimplemented.
 
-원문을 깊이 확인할 때는 해당 판본의 관련 본문·표·그림에 접근할 수 있어야 한다. 등록 성공이나 PDF 파일 존재는 읽기·검토 성공을 뜻하지 않는다. URL만 있고 내용을 읽지 못한 경우는 원문 미확인으로 남는다. 다운로드를 하지 않는 방식은 오프라인 접근과 링크 지속성을 보장하지 않는다.
+## Registration, summaries, indexes and templates
 
-원문 위치와 정리 기록을 분리하는 참고 사례는 [Zotero의 서지 항목과 저장/연결 첨부](https://www.zotero.org/support/attaching_files)다. 이 프로젝트의 Zotero 직접 연동은 아직 구현하지 않았다.
+1. Register title/source with a stable ID and draft status; metadata generation is a design direction, not an included card editor.
+2. Add relevant claims/locators/conditions/limits when a question needs them. Bulk summarizing the whole library is not a prerequisite.
+3. Link project questions, existing experiments and decisions through Applications without forcing one for every paper.
 
-## 등록·요약·인덱스·템플릿
+A proposed index derives IDs/titles/sources/status/references; people should not maintain a second index manually. Begin with scans if implemented, adding disposable caches only when needed. No indexer, embeddings/vector DB/full-text chunk store is included. Revisit when keyword/filter navigation actually fails.
 
-1. **등록:** 제목과 원문 위치로 논문을 목록에 올린다. ID와 draft 상태는 도구가 생성하는 방향이다.
-2. **필요한 근거 정리:** 실제 질문에 사용할 때 관련 주장·locator·조건·한계를 Paper에 추가한다. 가진 논문 전체를 일괄 요약하는 선행 작업은 요구하지 않는다.
-3. **적용:** 해당 프로젝트의 질문·기존 실험·판단을 Application에 연결한다. 읽은 논문마다 Application을 억지로 만들지 않는다.
+Small Paper/Application Markdown templates can guide conditions, history, question, observations, rationale and next checks. Never invent facts to fill blanks or add a template engine. Current required fields belong to [CARD_MODEL](CARD_MODEL.md#minimum-first-version) and schemas.
 
-첫 인덱스는 Paper의 ID·제목·원문·검토 상태와 Application 참조를 스캔한 파생 목록이다. 사람은 별도 색인 문서를 이중 관리하지 않는다. 최초에는 실행 시 스캔으로도 시작할 수 있고 필요해지면 재생성 가능한 캐시를 둔다. 임베딩·벡터 DB·전문 청크 색인은 첫 버전 요구가 아니다. 키워드/필터로 실제 질문을 찾기 어려울 때 후속 검토한다. 아직 인덱서 구현은 없다.
+## Reading long papers: design guidance
 
-템플릿은 Paper와 Application 두 종류의 작은 Markdown 틀로 시작한다. Paper 본문은 조건·한계와 확인 이력, Application 본문은 질문·현재 관찰·판단 이유·다음 확인을 안내한다. 빈칸을 채우기 위해 사실을 만들지 않으며 별도 템플릿 엔진을 도입하지 않는다. 구현된 필수 필드는 [CARD_MODEL](CARD_MODEL.md#첫-버전-최소안)과 schema를 따른다.
+Keep full originals; summaries guide returns to sources rather than replacing them. Existing agents/Markdown suffice without adding a required automatic PDF-processing dependency.
 
-## 긴 논문을 정리하는 흐름 — 설계안
+1. Identify edition/access coverage and locations of problem, method, experiments, results, limits and appendices. A location guide is not completed reading.
+2. Read meaningful section/experiment units; keep table headers, units, footnotes and metric definitions together. Inspect equations/figures on original pages. Preserve neighboring context when splitting sections.
+3. Record used claims/locators with conditions, comparators, limits and unknowns. Keep conflicts; do not smooth failed extraction or uncertain numbers into facts.
+4. Cross-check main text/appendix and table/prose values, samples, models and setup; distinguish condition differences from unresolved discrepancies.
+5. Write a short conclusion/limits guide with source locations. Avoid repeated summaries of summaries; return to evidence for numbers/methods and show read/unread scope.
 
-긴 논문의 전문은 원본으로 보존하고 정리본은 원문을 찾아가는 안내로 사용한다. 모든 문장을 압축한 단일 요약을 정본으로 삼지 않는다. 먼저 전체를 얕게 살펴 안내를 만들고 실제 질문에 필요한 구간을 깊게 읽는다. 첫 버전은 기존 agent와 Markdown으로 수행할 수 있으며 자동 PDF 처리기를 제품 필수 의존성으로 추가하지 않는다.
+An optional Paper body can use overview → conditions/evidence → limits/conflicts → check scope/history, without mandatory new overview/coverage fields. Registration-only records need not fill every section. A full-review request includes appendices and cannot be completed with unverified scope. [Review states](CARD_MODEL.md#history-and-current-review-state) remain separate.
 
-1. **구조 파악:** 판본과 접근 가능한 전체 범위를 확인하고 문제·방법·실험·결과·한계·부록의 위치를 짧게 적는다. 처음에는 읽을 위치 안내일 뿐 내용 확인 완료가 아니다.
-2. **의미 단위 독해:** 절·실험 단위로 읽는다. 표는 제목·행/열 이름·단위·각주·관련 지표 정의와 함께 보며, 수식과 그림은 필요한 원문 화면으로 확인한다. 긴 절을 나누어도 앞뒤 문맥과 원문 위치를 유지한다.
-3. **근거 정리:** 사용할 주장에 요지·locator를 붙이고 조건·비교군·한계·미확인을 본문에 남긴다. 여러 절의 결과가 충돌하면 둘 다 유지한다. 추출 실패나 미확인 숫자를 매끄러운 문장으로 보충하지 않는다.
-4. **교차 확인:** 본문과 부록, 표와 서술의 수치·지표·표본·모델·실험 설정을 비교한다. 조건 차이로 설명되는 값과 설명되지 않은 불일치를 구분한다.
-5. **읽기용 요약:** 앞의 기록에서 핵심 결론과 한계를 짧게 정리하고 원문 위치로 연결한다. 요약의 요약만 반복하지 않으며 수치·방법을 재사용할 때 근거로 돌아간다. 확인한 절·표와 미확인 부분을 짧게 표시한다.
+Agents choose relevant sections from the overview, then read evidence/conditions. Missing answers require source return. Split over-limit material with explicit omissions/remaining checks. Accuracy/cost/optimal length remain unmeasured. [Lost in the Middle](https://aclanthology.org/2024.tacl-1.9/) motivates distinguishing accepted context length from information use under its studied conditions, not general claims about all current models. [Docling's model](https://docling-project.github.io/docling/concepts/docling_document/) is a possible future importer reference; adoption/extraction accuracy is unverified.
 
-Paper 본문의 선택 템플릿은 `전체 안내 → 조건과 근거 → 한계·불일치 → 확인 범위·이력` 정도로 시작한다. 별도 overview/coverage 구조 필드를 강제하지 않는다. 등록만 한 논문에는 이 절들을 모두 채울 필요가 없다. 전체 정리를 요청한 경우에는 부록을 포함한 범위를 체크하며 미확인 부분이 남았으면 전체 검토 완료라고 부르지 않는다. 현재 review 상태는 [카드 모델](CARD_MODEL.md#이전-확인-이력과-현재-검토-상태)이 소유한다.
+## Local execution versus deployment
 
-agent는 전체 안내에서 관련 절을 고르고 해당 근거·조건을 읽은 뒤 답을 만든다. 카드에 답이 없으면 원문으로 돌아간다. 문맥 한도를 넘는 입력은 생략 범위와 남은 확인을 알리고 나눠 처리한다. 이 흐름의 정확성·비용과 최적 분량은 아직 실측하지 않았다.
-
-참고로 [Lost in the Middle](https://aclanthology.org/2024.tacl-1.9/)은 당시 실험한 모델/과제에서 입력의 중간에 있는 정보를 활용하는 성능 저하를 관찰했다. 현재 모든 모델의 성능을 일반화하는 근거는 아니지만 긴 입력 수용과 정보 활용을 구분할 이유가 된다. [Docling의 문서 모델](https://docling-project.github.io/docling/concepts/docling_document/)은 텍스트·표·그림, 절 계층, 배치와 출처 정보를 보존한다. 향후 가져오기 도구 후보로 참고하되 설치·선정·추출 정확도 검증은 아직 하지 않았다. 추출 구조와 연구 내용의 정확성은 별개다.
-
-## 로컬 실행과 배포의 차이
-
-편집·저장이 필요한 제품은 단순 정적 HTML보다 로컬 파일 접근이 필요하다. 사용자 workspace를 명시적으로 고른 로컬 실행기를 우선 검토한다. 이 선택은 cloud server 도입을 뜻하지 않는다. 외부 장치 연결·인증·공개 API는 별도 범위다.
-
-개발에는 Windows PowerShell을 사용하고 Windows·Ubuntu CI를 실행한다. 확인한 OS·Node 계열은 [런타임 지원](RUNTIME_SUPPORT.md)에 연결한다. 특정 agent 내부 runtime 경로나 maintainer의 개인 절대 경로를 설치 조건으로 요구하지 않는다.
+File-writing proposals require explicit local workspace access; this does not imply cloud hosting. Cross-device access, authentication and public APIs are separate scope. Develop with native Windows PowerShell and supported CI; see [runtime support](RUNTIME_SUPPORT.md). Never require a maintainer's private runtime/path. Fixed UI guidance is English, while supplied/generated research prose follows the [output-language rule](../skills/danseo/SKILL.md#output-language).

@@ -10,13 +10,13 @@ export function overviewFor(candidate) {
   const ai = relations.filter(r => r.origin === 'ai');
   const pending = relations.length - checked.length - ai.length;
   return {
-    description: `논문 ${candidate.papers.length}편 · 원문 확인 관계 ${checked.length}개 · AI 제안 ${ai.length}개 · 미확인 관계 ${pending}개.`,
-    view_reason: '원문 확인 관계와 AI 제안을 구분해 선택합니다. AI 제안은 저자가 주장한 관계로 취급하지 않습니다.',
-    scope: '입력에 포함된 논문과 관계만 표시합니다. 원문 확인 범위와 미확인 사항은 각 근거의 scope에서 확인합니다. 원문 확인은 논문 재현이나 사용자 이해를 뜻하지 않습니다.',
+    description: `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · AI proposals: ${ai.length} · unchecked relations: ${pending}.`,
+    view_reason: 'Select source-checked relations and AI proposals separately. AI proposals are not treated as relations asserted by the authors.',
+    scope: 'Only input papers and relations are shown. Check each evidence scope for source coverage and unknowns. Source checking does not establish reproduction or reader understanding.',
   };
 }
 
-const units = { records: '레코드', documents: '문서', pairs: '쌍' };
+const units = { records: 'Records', documents: 'Documents', pairs: 'Pairs' };
 const normalize = value => value.normalize('NFKC').replace(/\s+/g, ' ').trim();
 function containsQuote(page, quote) {
   const haystack = normalize(page), needle = normalize(quote);
@@ -45,7 +45,7 @@ export function countMentions(value) {
 }
 
 export function countText(binding) {
-  return `원문 수량 (${binding.source_id}, p. ${binding.page}): ${binding.items.map(i => `${i.value}개 ${units[i.unit]}`).join(', ')}.`;
+  return `Source count (${binding.source_id}, p. ${binding.page}): ${binding.items.map(i => `${i.value} ${units[i.unit]}`).join(', ')}.`;
 }
 
 function visibleCountFields(candidate) {

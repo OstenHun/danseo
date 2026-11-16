@@ -1,178 +1,163 @@
-# 최소 CLI 사용법
+# CLI reference
 
-요약: Node.js 22·24에서 논문 탐색·수집·분석을 기록하고 현재 근거를 비교·내보낸다. 새 설치에는 24를 권장한다. 자체 LLM은 없으며 비교 화면을 열 때만 로컬 읽기 전용 서버를 실행한다.
+Summary: Record discovery, collection and analysis, then compare or export current evidence on Node 22/24. Danseo has no model; only the optional local comparison viewer starts a read-only server.
 
-[English setup](CLI.en.md)
+For installation and a complete first topic, see the [setup guide](CLI.en.md). For answers and continued reading, see [paper analysis](PAPER_ANALYSIS.md). `analysis-open/save/list` connects Papers to topic documents; `comparison-input` prepares currently supported claims for stage 4.
 
-선택한 원문에서 논문별 답을 쓰거나 이어 읽을 때는 [논문 한 편 분석하고 이어 읽기](PAPER_ANALYSIS.md)를 따른다. `topic analysis-open/save/list`가 Paper와 주제별 문서를 연결하고 `comparison-input`이 현재 원문 지지 주장만 4단계 입력으로 준비한다.
+<a id="주제-채팅에서-논문-찾기"></a>
 
-## 주제 채팅에서 논문 찾기
+<a id="페이지별-원문-텍스트-연결"></a>
 
-준비된 도구의 `skills/danseo/SKILL.md`와 개인 주제 폴더를 검색 가능한 채팅 에이전트에 알려준다. “이 폴더에서 연구 질문에 맞는 논문을 찾아줘”, “1번과 3번 담아줘”, “조건을 좁혀 더 찾아줘”처럼 요청한다. 새 채팅에서는 같은 폴더를 지정해 “내가 고른 논문과 출처를 보여줘”라고 한다. 주제 기록은 `topic.json` 한 파일에 들어가며 Paper 카드와 `workspace.json`이 없어도 시작할 수 있다.
+## Find papers in a topic chat
 
-에이전트는 실제 논문을 검색하고 CLI는 검색 회차와 선택을 디스크에 저장한다. 도구 루트에서 실행하는 명령은 다음과 같다.
+Give a search-capable agent the tool's `skills/danseo/SKILL.md` and a private topic folder. Ask it to find papers, select displayed numbers or refine conditions. In a new chat, name the same folder to restore selections/sources. `topic.json` stores the topic without requiring Paper cards or `workspace.json`. The agent searches; the CLI persists rounds and selections.
 
 ```powershell
-node ./dist/cli.js topic init --dir ./workspaces/topics/example --question '내 연구 질문'
+node ./dist/cli.js topic init --dir ./workspaces/topics/example --question 'My research question'
 node ./dist/cli.js topic search --dir ./workspaces/topics/example --input ./workspaces/topics/example/batch.json
 node ./dist/cli.js topic select --dir ./workspaces/topics/example --round 1 --ids 1
 node ./dist/cli.js topic show --dir ./workspaces/topics/example
 ```
 
-아래는 개인 주제 폴더의 `batch.json` 형식을 보여주는 합성 예시다. 개인 검색 입력도 Git에서 제외한 주제 폴더에 저장한다. 실제 회차에는 확인한 후보 3~5편을 넣고, 적합한 논문이 부족하면 그 수만 저장한다. 빈 검색도 질문과 함께 남길 수 있다.
+Synthetic `batch.json` (keep private search inputs in a Git-excluded topic folder):
 
 ```json
-{"query":"이번 검색에 사용한 질문","papers":[
-  {"key":"example-a","title":"합성 논문 A","authors":"예시 저자","year":2025,
-   "source":"https://example.org/a","edition":"예시 1판","reason":"연구 질문에 관련된 이유","scope":"abstract"}
+{"query":"Question used for this search","papers":[
+  {"key":"example-a","title":"Synthetic paper A","authors":"Example author","year":2025,
+   "source":"https://example.org/a","edition":"Example edition 1","reason":"Relevance to the research question","scope":"abstract"}
 ]}
 ```
 
-같은 폴더에서 새 입력 파일로 `search`를 실행하면 이전 회차에 이어진다. 직전 요청을 똑같이 재시도하면 같은 회차를 반환한다. 다른 검색 뒤 원래 질문을 다시 검색하면 새 회차로 기록한다. 논문 번호는 주제 안에서 고정된다.
+Include 3–5 verified candidates when available; fewer or empty searches are valid with the search question. A new input appends a round. An immediate identical retry returns the same round; repeating it after a different search creates a new round. Paper numbers are stable within the topic.
 
-`show`의 `searches`에는 회차별 후보가, `selected`에는 선택한 전체 목록이 있다. 출처나 판본이 여러 개인 논문을 새로 고를 때는 본 회차를 `--round`로 지정한다. 이미 담은 번호를 다시 담으면 최초 선택의 판본·출처·메모를 유지한다. 바꾸려면 `unselect --ids`로 해제한 뒤 원하는 회차에서 다시 고른다. 처음 사용하는 채팅 에이전트에는 [Danseo 스킬](../skills/danseo/SKILL.md)을 지정한다.
+`show.searches` contains candidates per round; `selected` contains all selections. Specify the displayed `--round` when a paper has multiple sources/editions. Reselecting an already-selected number preserves its first selected edition/source/note. To change it, `unselect --ids` then select the intended round. Start by explicitly reading the [skill](../skills/danseo/SKILL.md).
 
-## 고른 논문의 원문 모으기
+<a id="고른-논문의-원문-모으기"></a>
 
-같은 개인 주제 폴더로 “고른 논문 원문을 모아줘”라고 요청한다. 에이전트는 `topic sources`에서 선택 당시 출처와 회차를 읽고, 이미 열 수 있는 파일과 아직 필요한 파일을 확인한다. 공개 PDF는 에이전트의 다운로드 도구로 받는다. 사용자가 알려준 기존 파일은 그 위치에서 열고, 새로 받은 파일은 주제 폴더에 보관한다.
+## Collect selected originals
 
-아래 예시의 `$topic`은 개인 주제 폴더다. 제목·저자는 선택 회차에서 가져온다. 에이전트는 원문 표지의 제목과 저자, 판본 표기와 출처 페이지를 대조한 후 실제 표기를 입력한다.
+Ask the agent to collect selected originals in the same folder. `topic sources` restores selected sources/rounds, ready files and missing files. The agent downloads public PDFs with its own tools. Open user-specified existing files in place; store new managed files in the topic folder.
+
+In these examples, `$topic` is the private topic folder. Take title/authors from the selection and verify the cover, edition marking and official source page before supplying actual values.
 
 ```powershell
 node ./dist/cli.js topic sources --dir $topic
 node ./dist/cli.js topic collect --dir $topic --id 1 --round 1 --pdf ./download.pdf --url https://example.org/paper.pdf --kind published --edition 'Journal 2024' --proof 'Journal 2024'
 node ./dist/cli.js topic collect --dir $topic --id 2 --round 1 --existing ./owned.pdf --kind draft --edition 'Preprint v2' --proof 'Preprint v2'
-node ./dist/cli.js topic unavailable --dir $topic --id 3 --round 1 --reason '초록만 열림' --url https://example.org/abstract
+node ./dist/cli.js topic unavailable --dir $topic --id 3 --round 1 --reason 'Only the abstract is accessible' --url https://example.org/abstract
 ```
 
-`--proof`에는 판본을 식별하는 본문 표기를, `--page`에는 그 PDF 쪽 번호를 적는다(기본 1). 출판본은 선택한 판본 이름이 본문 표기에 있어야 한다. arXiv 표기가 있는 파일은 `--kind draft`로 등록하고 `--edition`과 `--proof`에 본문의 전체 식별자(예: `arXiv:2203.14465v2`)를 사용한다. 제목·저자를 첫 쪽 텍스트에서 확인할 수 없는 파일, 64 MiB 초과, 암호·스캔 등 추출할 수 없는 원문은 사유와 함께 보류한다. 입력 PDF는 일반 파일이어야 한다.
+`--proof` is the exact edition-identifying text; `--page` is its 1-based PDF page (default 1). Published editions must appear in that marking. Register arXiv PDFs with `--kind draft`, using the complete actual identifier such as `arXiv:2203.14465v2` in edition/proof. Hold unreadable identity, files over 64 MiB, encrypted/scanned sources or other extraction failures with reasons. PDFs must be regular files.
 
-`rows`에서 확인한 파일 경로·해시·판본과 실패 사유를 볼 수 있다. 초고는 출처·판본을 보여주고 “이 초고로 분석할까요?”라고 묻는다. 명시한 답에만 아래 명령을 실행한다. 거절은 `decline`, 미응답은 `pending`으로 둔다. 결정은 선택 회차와 파일 해시에 연결된다.
+`rows` shows paths, hashes, editions and failures. Show draft source/edition and ask explicit consent in the requested language. Use `decide` only for an explicit answer: refusal is `decline`, silence remains `pending`. Decisions bind to the selection round and file hash.
 
 ```powershell
-node ./dist/cli.js topic decide --dir $topic --id 2 --round 1 --sha <표시한-초고-해시> --answer accept
+node ./dist/cli.js topic decide --dir $topic --id 2 --round 1 --sha <displayed-draft-hash> --answer accept
 node ./dist/cli.js topic collect --dir $topic --id 3 --round 1 --pdf ./late.pdf --kind published --edition 'Journal 2024' --proof 'Journal 2024'
 ```
 
-새 채팅에서 같은 폴더로 `sources`를 실행하면 `ready`에 분석 가능한 판본과 선택 이유가 나온다. 기존 파일이 사라지거나 바뀌면 `needs-recheck`로 표시한다. 실패는 `rows[].failure`를 확인한다. 수집 시도를 기록하면 실패 사유가 있어도 JSON과 종료 코드 0을 반환한다. 폴더 자체에 쓸 권한이 없으면 목록 갱신도 실패하므로 채팅에 사유를 남기고 저장 권한을 얻은 뒤 같은 항목을 재시도한다. `sources.json`과 `source-<SHA-256>.pdf`는 개인 주제 폴더에서 관리한다.
+In a new chat/process, `sources.ready` restores eligible editions/reasons. Missing/changed files become `needs-recheck`; inspect `rows[].failure`. A recorded collection attempt may return JSON/exit 0 with a failure reason: inspect the content. If the folder itself is unwritable, recording also fails; report the reason, obtain appropriate storage access and retry only that item. `sources.json` and managed `source-<SHA-256>.pdf` remain private.
 
-## 첫 실행
+<a id="첫-실행"></a>
 
-이 절이 첫 실행 명령과 agent 연결 입력의 정본이다. 지원하는 Node.js 22.x·24.x와 빌드가 준비됐다면 아래에서 시작한다. 준비되지 않았다면 [설치와 빌드](#설치와-빌드)를 먼저 읽는다.
+## First run
 
-Agent에게 다음 네 값을 전달한다. 기존 handoff나 프로젝트 지침에 있으면 다시 입력하지 않는다.
+This section owns connection inputs and initial commands. Start here when supported Node 22/24 and the build are ready; otherwise read [installation](#installation-and-build).
+
+Give the agent these four values, reusing existing handoff/project instructions rather than asking again:
 
 ```text
-Tool root: <도구 저장소의 절대 경로>
-Research workspace: <workspace.json이 있는 폴더의 절대 경로>
-Project ID: <등록한 ID>
-Skill: <도구 저장소>/skills/danseo/SKILL.md
+Tool root: <absolute repository path>
+Research workspace: <absolute folder containing workspace.json>
+Project ID: <registered ID>
+Skill: <tool-root>/skills/danseo/SKILL.md
 ```
 
-아래는 도구 저장소 루트에서 PowerShell로 예제를 실행하는 명령이다. 개인 자료에는 CLI 경로·workspace·project ID를 전달받은 값으로 바꾼다. 경로에 공백이 있으면 shell에 맞게 인용한다. CLI를 처음 보거나 버전이 달라졌다면 먼저 `node ./dist/cli.js --help`로 지원 옵션을 확인한다.
+Run from the tool root; substitute actual paths/workspace/project for private data and quote spaces for your shell. Check `node ./dist/cli.js --help` on first use or version changes.
 
-1. 구조와 연결을 검사하고 해당 프로젝트의 Application ID·검토 상태를 찾는다. 오류가 나면 내보내기 전에 진단을 확인한다.
+1. Validate structure/connections and find the relevant Application/review status:
 
    ```powershell
    node ./dist/cli.js validate --workspace ./examples/minimal --json
    node ./dist/cli.js list --workspace ./examples/minimal --project demo --json
    ```
 
-2. 목록에서 질문에 맞는 Application을 골라 내보낸다. 아래 `app-demo`는 위 예제의 ID다. 후보가 여러 개면 질문과 대조하며 임의로 첫 항목을 선택하지 않는다.
+2. Choose an Application matching the question, rather than blindly selecting the first item:
 
    ```powershell
    node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
    ```
 
-   예제는 draft이므로 `--include-drafts`를 썼다. 개인 자료에서도 draft/needs-recheck를 탐색에 포함할 때만 이 옵션을 명시하고 답변에 상태를 남긴다. 상태가 승격되지는 않는다. 단일 기록을 따로 점검할 때만 `show`를 쓴다. export가 이미 전문을 포함하므로 show는 필수 선행 단계가 아니다.
+   This fixture is draft, hence `--include-drafts`. Use it for exploratory draft/needs-recheck inclusion only; disclose status without promoting it. `show` is useful for a separate record check, not a mandatory precursor to export, which already includes full records.
 
-3. 묶음의 `Current question (selected section)`에서 지정된 현재 질문 절의 본문과 위치·해시를 **판단 전에** 읽는다. 원본 파일 전체나 과거 스냅샷으로 대신하지 않는다. 이후 근거 독해·원문 복귀는 [skill](../skills/danseo/SKILL.md#판단과-원문-복귀)을 따른다. 이 읽기까지가 연결 흐름이며 export 성공만으로 프로젝트 질문에 답한 것이 아니다.
+3. Read `Current question (selected section)`, its location and hashes **before judgment**. Do not substitute the entire file or an old snapshot. Follow [source-return rules](../skills/danseo/SKILL.md#judgment-and-returning-to-sources). Successful export alone does not answer the question.
 
-Skill은 위 연결값과 이 절을 사용한다. README를 다시 읽을 필요는 없다. shell이 없는 채팅에는 사람이 만든 묶음과 현재 질문을 함께 전달한다.
+The skill reuses these values and commands without rereading the README. For chats without shell access, a person supplies the bundle and current question together.
 
-## 설치와 빌드
+<a id="설치와-빌드"></a>
 
-처음 저장소를 준비할 때만 지원하는 Node.js와 npm으로 아래를 실행한다. 새 설치에는 Node.js 24.x 최신 패치를 권장한다. 준비된 평가·기존 빌드를 읽는 작업에서는 반복하지 않는다. 공개 npm 패키지는 아직 없으며 같은 이름의 외부 패키지를 설치하지 않는다.
+## Installation and build
+
+Use supported Node/npm for initial preparation; Node 24 is the recommended development version. Do not rebuild just to read an existing prepared evaluation. There is no published npm release to install by name; do not substitute an unrelated package.
 
 ```powershell
 npm ci
 npm run build
 ```
 
-`npm run danseo -- <명령>`도 가능하지만 npm의 안내가 stdout 앞에 붙으므로 agent 자동 호출에는 `node <절대 설치 경로>/dist/cli.js`를 사용한다. npm bin 이름은 danseo이며 로컬 패키지 설치 후 사용할 수 있다. 전역 설치는 필요하지 않다.
+`npm run danseo -- <command>` also works, but npm adds stdout banners; use `node <absolute-tool-root>/dist/cli.js` for agent automation. Local package installation exposes the `danseo` bin; global installation is unnecessary. Danseo is the product name; `danseo` identifies CLI/package/skill. Use the current help for supported command names; earlier working names are not command aliases.
 
-현재 제품명은 Danseo, CLI·패키지·배포 skill 식별자는 `danseo`다. 이전 작업명과 `ptp` 명령이 나오는 기록은 당시의 이력이며 현재 사용법은 이 문서를 따른다. 명칭 변경은 [결정 기록](NAMING.md)에 있다.
+<a id="개인-자료-연결"></a>
 
-## 개인 자료 연결
+## Connect private records
 
-선택한 개인 폴더에 아래와 같은 workspace.json을 작성한다. 제품 소스 저장소에 사적 경로를 커밋하지 않는다. 경로는 예시이며 실제 파일로 바꾼다.
+Create `workspace.json` in your chosen private folder. Never commit private paths to product source. Replace these examples with actual files:
 
 ```json
 {
   "schema_version": "workspace-1",
   "records": ["papers/example.md", "projects/demo/application.md"],
   "projects": [
-    {"id": "demo", "root": "../my-project", "question_source": "docs/question.md", "question_section": "현재 질문"}
+    {"id": "demo", "root": "../my-project", "question_source": "docs/question.md", "question_section": "Current question"}
   ]
 }
 ```
 
-records와 root는 workspace 기준 상대 경로 또는 절대 경로다. 기존 카드가 다른 폴더에 있으면 그 파일을 직접 지정해도 되며 이동·복사할 필요가 없다. question_source는 프로젝트 root 안의 상대 파일 경로다. question_section은 `#`를 뺀 ATX 제목의 정확한 텍스트다. 해당 제목부터 같거나 상위 수준의 다음 제목 직전까지 하위 절을 포함한다. 코드 fence 안의 제목은 무시하고, 없는 제목·중복 제목은 실패한다. 제목 자동 anchor나 부분 일치는 사용하지 않는다. JSON의 Windows 경로는 `/` 또는 이스케이프한 `\\`를 사용한다. 프로젝트 ID는 Application.project_id와 같아야 한다.
+`records` and project `root` may be absolute or workspace-relative; existing external cards can be referenced without moving/copying them. `question_source` must be relative inside the project root. `question_section` is exact ATX heading text without `#`; include its nested sections until the next equal/higher heading. Ignore fenced-code headings; reject absent/duplicate headings. No slug or partial matching is used. Preserve the actual heading's language when configuring it. JSON Windows paths use `/` or escaped backslashes. Project IDs must match `Application.project_id`.
 
-명시한 records만 읽는다. 폴더 재귀 검색·원문 다운로드·Markdown 링크 재귀 읽기는 하지 않는다. 원문 URL과 문서 내 링크는 내용 검증 대상이 아니며 agent가 필요할 때 확인한다. 별도 project.md 계획 대신 현재 연결 정보의 정본은 workspace.json이다. 더 풍부한 프로젝트 설명은 question_source 문서가 소유한다.
+Only explicit records are read: no recursive folder search, source download or recursive Markdown-link traversal. URLs/links are not content-verified by the CLI; the agent checks them as needed. `workspace.json` owns connections; the question-source document owns richer project context.
 
-## 명령과 출력
+<a id="명령과-출력"></a>
 
-| 명령 | 동작 |
+## Commands and output
+
+| Command | Behavior |
 | --- | --- |
-| validate --workspace PATH --json | schema·ID·참조·페이지 범위·프로젝트/질문 경로 검사. draft는 경고 |
-| list --workspace PATH [--project ID] --json | 연결된 기록 목록. 프로젝트 필터로 다른 적용 기록 제외 |
-| show --workspace PATH --paper ID | Paper 원문 그대로 출력. --application ID도 지원 |
-| export --workspace PATH --project ID --application ID | Application과 관련 Paper 전체 내보내기. 동일 Paper 한 번 포함 |
+| `validate --workspace PATH --json` | Check schema, IDs, references, page ranges and project/question paths; warn on draft |
+| `list --workspace PATH [--project ID] --json` | List connected records; project filter excludes other applications |
+| `show --workspace PATH --paper ID` | Preserve the raw Paper; also supports `--application ID` |
+| `export --workspace PATH --project ID --application ID` | Export full Application and referenced Papers, each Paper once |
 
-show/export는 `--format markdown`(기본) 또는 `--format json`을 지원한다. `--json`은 JSON 출력의 단축 옵션이다. show의 JSON에는 raw, path, source_directory, sha256과 파싱 데이터가 있다. export JSON의 records에는 content, source_path, source_directory, sha256이 있다. 상대 링크는 원본 파일 위치에서 해석한다.
+`show/export` support `--format markdown` (default) or `json`; `--json` is shorthand. Show JSON contains raw/path/source_directory/sha256/parsed data. Export records contain content/source_path/source_directory/sha256. Resolve relative links from original record locations. Existing Korean or English research text is not translated.
 
-export의 기본값은 source-checked Paper만 허용한다. 탐색용으로 draft/needs-recheck를 포함하려면 `--include-drafts`를 넣는다. 상태는 그대로 유지된다. source-checked도 기록자의 선언이며 CLI는 과거 확인의 진실성을 검증하지 않는다. bundle-2의 question에는 지정한 절의 본문·원본 경로·절·줄 범위(1부터)·전체 파일 및 발췌 SHA-256을 포함한다. question_section 없는 기존 workspace는 조회/검사는 가능하지만 export는 QUESTION_SECTION_REQUIRED로 실패한다. 전체 파일로 대체하지 않는다. 묶음은 읽기 권한을 제한하는 샌드박스가 아니므로 외부 agent의 원본 전체 읽기를 막으려면 호스트에서 읽기 도구도 제한해야 한다.
+Export defaults to source-checked Papers. `--include-drafts` includes draft/needs-recheck for exploration without changing status. Even source-checked is the recorder's declaration; CLI does not verify the truth of past checks. `bundle-2.question` includes selected text, source path, section, 1-based lines and full/excerpt SHA-256. Legacy workspaces lacking question_section can validate/list but export fails with `QUESTION_SECTION_REQUIRED`; no full-file fallback. Missing/duplicate/malformed input fails rather than returning a partial bundle. Exit codes: 0 success, 2 validation/usage, 3 input/output failure. `--out` creates a new file only. Bundles exceeding 256 KiB fail without truncation.
 
-`--out <새 파일>`은 export에서만 지원한다. 상위 폴더가 존재해야 하며 기존 파일을 덮어쓰지 않는다. 출력 실패 시 부분 파일이 생길 수 있으므로 실패한 출력은 사용하지 말고 별도 새 파일로 다시 실행한다. 원본 입력은 수정하지 않는다. 파일당 2 MiB, 묶음 256 KiB 제한을 넘으면 내용을 자르지 않고 실패한다. 기록 수 상한은 1,000개다.
+## Page-aligned source text
 
-stdout은 결과, stderr는 진단이다. JSON 모드에서는 진단도 JSON이다. 종료 코드는 0 성공, 2 입력·구조·참조·검토 조건 오류, 3 파일 접근/쓰기 실패다. 잘못된 옵션을 무시하지 않는다. 한 workspace의 기록이 잘못되면 부분 성공 대신 오류를 내므로 먼저 validate를 해결한다.
+Optional Paper `source.text_path` points to UTF-8 JSON with matching source URL/edition, declared original PDF SHA-256, extraction metadata and 1-based page/text entries. Use the [card model](CARD_MODEL.md) contract. An explicit source text that is missing or invalid fails selected-Paper export without partial output; absent text_path only warns. Validate checks card/question structure/references; selected-Paper export checks text files.
 
-일반 `init`, `import`, `project add`, `ask`, `serve`는 지원하지 않는다. 주제 기록의 `topic init`과 읽기 전용 비교 화면의 `topic compare`는 사용할 수 있다. workspace.json과 카드는 파일 편집기로 준비한다. PDF 자동 요약, 카드 편집기·재직렬화, MCP, 모델 provider 연동은 이번 소스에 포함하지 않는다.
+The prepared PDF hash is a declaration: this export path does not reopen the PDF to prove text agreement. Record text/visual access and extraction fidelity separately. Page numbers alone or mixed table columns are not successful reading. Use existing tools/original pages as needed. Claim conditions/limits and semantic agreement remain agent responsibilities.
 
-## 페이지별 원문 텍스트 연결
+<a id="agent와-skill의-기본-구성"></a>
 
-Paper의 `source.text_path`는 카드 폴더 기준 JSON 경로다. 이미 허용된 공식 PDF와 기존 추출 도구로 준비한 텍스트를 연결하며 CLI가 다운로드·OCR·추출을 수행하지 않는다. 다음은 공개용 합성 예제다.
+## Agent and skill configuration
 
-```yaml
-source:
-  version: synthetic-v1
-  url: https://example.invalid/paper.pdf
-  text_path: synthetic-pages.json
-```
+[SKILL.md](../skills/danseo/SKILL.md) provides the portable workflow; `agents/openai.yaml` provides display metadata/default prompt. No autonomous agent process or model preset is bundled. Your selected agent/model calls the CLI. Reuse [first-run inputs](#first-run); manually merge them into existing project instructions for repeated use. Danseo needs no model key or background server; the agent's external-model settings remain separate.
 
-```json
-{
-  "source_url": "https://example.invalid/paper.pdf",
-  "version": "synthetic-v1",
-  "pdf_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "extractor": "synthetic fixture; 실제 원문 아님",
-  "pages": [{"page": 1, "text": "합성 페이지 텍스트"}]
-}
-```
+Install the complete `skills/danseo` folder in the host's documented location. Do not automatically replace an existing same-name global skill. Repository changes do not establish global registration or automatic discovery. Follow the [output-language rule](../skills/danseo/SKILL.md#output-language); fixed UI/diagnostics are English, generated research prose follows the user's request.
 
-export는 URL/판본 일치·구조·페이지 양수/중복을 검사하고 source_texts에 페이지 본문과 텍스트 SHA-256을 포함한다. 일부 페이지만 연결할 수 있다. 파일이 없거나 잘못됐으면 부분 출력 없이 실패한다. source.text_path가 없으면 원문 미연결 경고를 남기며 기존 카드를 사용할 수 있다. validate는 카드·질문 구조/참조를 확인하고, 원문 텍스트 파일 검사는 선택 Paper의 export에서 수행한다.
+<a id="개발-검증"></a>
 
-pdf_sha256은 준비자가 계산한 PDF 해시 선언이다. CLI는 PDF를 다시 열어 일치 여부를 확인하지 않는다. 텍스트/화면 확인, 추출 성공/정확성은 따로 기록한다. 페이지 번호만 추출되거나 표 열이 섞이면 성공으로 쓰지 않고 다른 기존 도구나 필요한 원문 화면을 확인한다. 답변의 claim별 조건·한계 의미 대조는 skill과 agent의 책임이며 구조 통과가 의미 통과는 아니다.
+## Development checks
 
-## Agent와 skill의 기본 구성
-
-배포 skill은 [SKILL.md](../skills/danseo/SKILL.md)이며 agents/openai.yaml은 표시 이름·기본 프롬프트를 제공한다. 별도 자율 agent 프로세스나 모델 프리셋은 없다. 현재 선택한 agent/모델이 CLI를 호출한다.
-
-연결 입력과 실행 순서는 [첫 실행](#첫-실행)을 재사용한다. 반복 사용 시 네 값을 대상 프로젝트의 기존 지침에 수동 병합한다. 모델 키·백그라운드 서버가 필요하지 않지만 기존 agent의 외부 모델 전송 설정은 별개다.
-
-지원되는 agent의 skill 폴더에 설치할 때는 이 저장소의 skills/danseo 폴더를 사용한다. 설치 위치는 해당 agent의 문서를 따른다. 같은 이름의 전역 skill이 이미 있으면 자동 교체하지 않는다. 이번 개발은 저장소의 skill 파일만 작성했으며 전역 등록이나 자동 발견 성공을 뜻하지 않는다.
-
-## 개발 검증
-
-`npm test`는 공개 합성 예제를 임시 한글·공백 폴더에 복사하여 읽기·검사·내보내기와 실패 처리를 검사한다. 본문·주석·미지 필드를 raw로 보존하며 UTF-8을 엄격하게 읽는다. YAML을 고쳐 저장하는 round-trip 편집기는 이번 범위에 없다. 개인 예제 실행 근거는 로컬 work에 두며 공개 패키지에는 포함하지 않는다.
+`npm test` uses public synthetic fixtures in temporary Unicode/space-containing paths to check reading, validation, export and failures. Preserve raw bodies/comments/unknown fields and strict UTF-8. This is not a YAML round-trip editor. Private execution evidence stays under local `work`, outside distribution. Tests cannot certify host model instruction compliance, user understanding or study benefit.

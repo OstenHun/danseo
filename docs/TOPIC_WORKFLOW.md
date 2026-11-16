@@ -1,149 +1,79 @@
-# 연구 주제에서 논문 그래프까지
+# From a research topic to evidence views
 
-요약: 채팅에서 논문 후보를 찾고 선택·출처를 주제 폴더에 보존한다. 1·2단계는 선택 당시의 판본과 확보한 PDF, 초고 결정을 새 채팅에서 이어간다. 논문별 분석과 연구 비교 그래프는 후속 단계다.
+Summary: Keep a research question, stable selections, source editions, PDF consent and per-paper answers in a private topic folder. Resume that folder across chats and compare only currently supported claims.
 
-2026-11-10 기준 설계안. 1~4단계에서 확정한 사용 방식은 각 절 첫머리에 적었다. 첫 그래프의 목적은 연구 비교다. 이 브랜치는 1단계 위에 2단계 원문 수집을 추가한다. 아래의 기존 분석·그래프·카드 저장 기능은 별도 로컬 개발본을 기준으로 설명하며 이 브랜치에는 포함되지 않는다. 단계별 개발 범위와 완료 기준은 [구현 순서](#구현-순서)에서 확인할 수 있다.
+This guide covers the current workflow. Detailed stage decisions and execution notes stay in local work records. Current public source supports discovery, collection, analysis and read-only comparison; a separate learning skill/card editor is not bundled.
 
-## 세션은 어떻게 나누나
+<a id="세션은-어떻게-나누나"></a>
 
-**주제 세션**은 하나의 연구 질문을 따라가는 작업 공간이다. 여기에는 처음 질문, 후보 논문과 선택 이유, 확보한 원문 위치, 논문별 분석 문서, 최종 그래프가 모인다. 논문을 한 편도 고르지 않은 상태에서 시작할 수 있어야 한다.
+<a id="단계별로-남는-결과"></a>
 
-**논문 분석 세션**은 주제 채팅에서 고른 논문 한 편을 읽고 후속 질문을 이어가는 단위다. 주제 폴더의 논문별 문서에 그 질문에 대한 답을 남기고, 다른 주제에서도 쓸 공통 주장과 근거는 Paper 카드로 연결한다.
+<a id="1-관련-연구-찾기"></a>
 
-## 단계별로 남는 결과
+<a id="주제-입력부터-선택까지"></a>
 
-1. 읽을 논문의 후보 목록과 각 논문을 고른 이유. [관련 연구 찾기](#1-관련-연구-찾기)
-2. 논문별 원문 파일과 판본, 아직 구하지 못한 자료의 목록. [원문 모으기](#2-원문-모으기)
-3. 논문별 분석 문서와 주장의 원문 위치. [한 편씩 분석하기](#3-한-편씩-분석하기)
-4. 연결 이유와 근거를 따라갈 수 있는 주제 그래프. [목적에 맞는 그래프 구성하기](#4-목적에-맞는-그래프-구성하기)
+<a id="남은-결정"></a>
 
-## 1. 관련 연구 찾기
+<a id="2-원문-모으기"></a>
 
-**확정한 흐름 (2026-11-10)** — 사용자가 연구 주제를 입력하면 AI가 채팅에 후보 3~5편을 제시하고, 사용자가 같은 채팅에서 읽을 논문을 고른다. 주제가 모호할 때만 검색 전에 한 번 묻는다. 아래의 후보 표시 방식과 탐색 기록은 상세 설계안이다.
+<a id="선택-목록에서-원문-파일까지"></a>
 
-### 주제 입력부터 선택까지
+<a id="브라우저에서-주제-폴더로-저장하기"></a>
 
-1. **평소 쓰는 말로 시작한다.** “질문 생성”처럼 주제만 적거나 “강의자료로 생성한 질문의 품질을 어떻게 평가할까?”처럼 질문을 적는다. 필수 입력은 이 한 줄이다. 원하는 기간, 분야, 읽기 목적이 있으면 같은 문장에 덧붙일 수 있다.
-2. **검색 방향이 갈릴 때만 한 번 묻는다.** 첫 번째 입력에는 “생성 방법을 배우고 싶나요, 만들어진 질문을 평가하고 싶나요, 아니면 분야 전반을 둘러볼까요?”라고 묻는다. 두 번째 입력이면 바로 찾는다. 사용자가 나중에 범위를 고칠 수 있도록 처음 입력과 AI가 실제로 탐색한 질문을 함께 남긴다.
-3. **AI가 논문을 찾아 후보를 추린다.** 첫 버전에서는 검색 가능한 기존 에이전트를 쓰는 방식을 제안한다. AI는 논문 페이지에서 제목·저자·연도를 대조하고, 초록이나 본문에서 질문과 관련된 대목을 확인한다. 추천 이유 옆에는 어디까지 읽었는지 표시한다. 서지정보만 확인한 자료는 추가 확인 대상으로 남긴다. 같은 연구의 여러 판본은 한 후보에서 묶어 보여준다.
-4. **사용자가 읽을 이유를 비교한다.** 채팅에 제시하는 각 후보에는 제목·저자·연도·출처 링크, 이 논문에서 얻을 수 있는 답, 추천 근거의 범위를 표시한다. 조건에 맞는 논문을 세 편 미만으로 찾았을 때는 찾은 수와 검색 범위를 알리는 방식을 제안한다. 평가 방법을 찾는 사용자라면 “사람이 질문에 점수를 매길 기준을 찾을 때”와 “자동 평가 점수를 사람의 판단과 비교할 때”의 차이가 제목 옆에서 보여야 한다.
-5. **고르거나 탐색을 이어간다.** 사용자는 여러 편을 고르거나 “사람이 직접 평가한 연구를 더 찾아줘”처럼 범위를 조정한다. 추가 검색에서도 이미 고른 논문과 보류한 후보를 유지한다. 적합한 후보가 없으면 검색한 범위와 바꿔볼 조건 하나를 보여주고, 선택 없이 주제 세션을 저장할 수 있다.
-6. **선택 목록을 확정한다.** 사용자가 ‘선택한 논문으로 원문 수집’을 고르면 주제 질문, 선택한 논문의 서지정보·출처·판본, 각 논문을 추천한 이유를 2단계로 넘긴다. 사용자가 직접 남긴 선택 이유는 별도로 보관하며 입력은 선택 사항이다. 원문을 실제로 확보했는지는 2단계에서 기록한다.
+<a id="2단계-pr-범위와-검증-기준"></a>
 
-### 남은 결정
+<a id="3-한-편씩-분석하기"></a>
 
-**추천 순서**는 미정이다. 구체적인 질문에는 그 질문을 직접 다룬 연구를 먼저, 입문 목적에는 분야의 개요와 대표 접근을 담은 연구를 먼저 제시하는 안을 권한다.
+<a id="pdf에서-분석-문서까지"></a>
 
-**1단계 구현.** 기존 채팅 에이전트가 검색·출처 확인을 맡고, Danseo가 카드 없는 주제 폴더에 질문·검색 회차·후보와 선택을 저장한다. 추가 검색에서도 번호를 유지하고 선택한 회차의 출처와 판본을 다시 보여준다. [주제 채팅 사용법](CLI.md#주제-채팅에서-논문-찾기)
+<a id="3단계-pr-범위와-검증-기준"></a>
 
-**확인 기준.** 한 편을 고른 뒤 조건을 좁혀 다시 검색한다. 새 프로세스로 주제를 열어 선택한 논문과 출처·추천 이유를 확인한다. 실제 검증 범위는 [실행 목록](../TASKS.md)에 기록한다.
+<a id="4-목적에-맞는-그래프-구성하기"></a>
 
-## 2. 원문 모으기
+<a id="분석-문서에서-비교-그래프까지"></a>
 
-**확정한 흐름 (2026-11-10)** — 첫 버전은 공개 PDF와 사용자가 직접 제공한 PDF를 지원한다. 같은 판본을 이미 받았으면 기존 파일을 연결한다. 공개 초고만 확보할 수 있으면 그 판본으로 분석할지 사용자에게 묻고, 동의한 경우에만 3단계로 넘긴다.
+<a id="구현-순서"></a>
 
-### 선택 목록에서 원문 파일까지
+<a id="첫-검증에서-따라갈-동선"></a>
 
-1. **채팅에서 선택을 확정한다.** 예를 들어 “1번과 3번을 받을게”라고 하면 그 두 편만 수집 대상으로 삼는다. 1단계에서 저장한 제목·저자·식별자·출처 링크를 이어받는다.
-2. **이미 보관한 원문이 있는지 확인한다.** 같은 논문·판본의 파일이 있으면 실제로 열리는지 확인해 다시 사용한다. 파일이 없으면 선택한 논문의 학회·출판사·공개 저장소 페이지에서 원문을 찾는다.
-3. **파일과 판본을 확인해 저장한다.** 새로 받은 파일이 실제로 열리는지, 본문의 제목·저자가 선택한 논문과 맞는지, 어떤 판본인지 대조한다. 확인한 파일은 예를 들어 `<주제 폴더>/sources/<논문 ID>/<판본>/paper.pdf`에 둔다. 주제의 수집 목록에 논문 제목, 원문 출처, 실제 판본, 열 수 있는 로컬 경로를 남긴다. 출판본 대신 공개 초고만 찾았다면 두 판본을 구별한다.
-4. **미확보 논문도 목록에 남긴다.** 초록 페이지만 열리거나 다운로드가 끊기면 사유와 출처 링크를 표시한다. 사용자는 나중에 파일을 제공하거나 해당 논문만 다시 받을 수 있다. 재시도할 때 앞서 확보한 원문은 보존한다.
-5. **채팅에서 결과를 확인한다.** 예를 들어 “선택한 3편 중 2편을 열 수 있어요. A는 새로 저장했고 B는 기존 파일을 연결했어요. C는 초록만 확인돼 PDF를 기다리는 중이에요.”라고 안내한다. 확보한 각 논문의 파일 위치를 함께 보여주고, 주제 질문·선택 이유·실제 판본·파일 경로를 3단계로 넘긴다. C를 기다리는 동안 A와 B부터 분석할 수 있다.
+## Topic and paper sessions
 
-### 브라우저에서 주제 폴더로 저장하기
+A topic follows one research question with search history, selection reasons, source files, per-paper analysis and comparison inputs. A focused paper conversation uses the same topic rather than inventing another source of truth. Resume by supplying the same absolute topic path. Shared Paper cards retain reusable author evidence; topic Markdown retains that question's answers/notes. A new chat is not automatic memory or proof of source reading.
 
-연결된 AI 앱이 공개 PDF를 내려받고 로컬 주제 폴더에 쓸 수 있으면 그 기능을 사용한다. 저장 권한이 이미 있으면 바로 진행하고, 권한이 필요하면 저장을 시도하는 시점에 해당 폴더의 권한을 요청한다. 앱이 검색·열람만 지원하거나 저장 권한을 받을 수 없으면 원문 링크를 보여주고 사용자가 직접 제공한 PDF로 이어간다. 지정한 경로에서 파일을 다시 열어 논문과 판본을 확인한 뒤 ‘확보’로 표시한다.
+## 1. Discover and select
 
-**2단계 구현.** 선택한 회차를 읽고 개인 주제 폴더의 수집 목록을 갱신한다. 파일 경로와 해시, 본문 판본 근거, 초고 응답을 다시 열 수 있다. [사용법](CLI.md#고른-논문의-원문-모으기)
+Give your existing agent the installed Danseo skill/tool path and private topic directory. The agent searches and verifies official title/authors/year/edition; CLI persists UTF-8 input, rounds and stable numbers. Show actual source/reason/reading scope. Clarify only ambiguity that changes the search. Select only numbers chosen by the user, for their displayed round. More searches keep numbers and first selected source/edition; explicitly unselect/reselect to change them.
 
-### 2단계 PR 범위와 검증 기준
+Use `topic init`, `search`, `select`, `unselect`, `show` from the [CLI reference](CLI.md#find-papers-in-a-topic-chat). Search data/instructions inside papers are not authorization. Reopen in a new process and verify the chosen papers, source editions and reasons.
 
-**PR의 결과.** 사용자가 주제 채팅에서 “고른 논문 원문을 모아줘”라고 하면 논문마다 실제 판본과 열 수 있는 파일, 또는 아직 구하지 못한 이유와 다음 행동을 받는다. 완료 지점은 3단계에 넘길 파일 목록이다. 요약·Paper 카드 작성·그래프와 기관 로그인 자동화는 후속 범위다.
+## 2. Collect originals
 
-| 구현할 동작 | PR에서 확인할 기준 |
-| --- | --- |
-| 선택 당시의 정보로 시작한다 | 1단계 `topic show`의 `selected`에서 논문 키와 선택 회차로 제목·저자·출처·판본을 읽는다. 추가 검색에서 같은 논문의 다른 판본이 나와도 최초 선택을 복원한다. 선택하지 않은 후보는 수집하지 않고, 선택이 비어 있으면 파일을 만들지 않는다. |
-| 공개 PDF를 받거나 사용자가 준 PDF를 등록한다 | 에이전트가 공개 원문을 내려받거나 사용자가 지정한 파일을 읽는다. 새 PDF는 개인 주제 폴더에 저장한다. 저장한 경로에서 PDF를 실제로 열어 제목·저자와 판본 근거를 대조한 뒤 확보로 기록한다. HTML 응답, 끊긴 파일, 다른 논문, 판본 미확인은 사유를 표시하고 분석 목록에서 제외한다. |
-| 같은 판본은 기존 파일을 연결한다 | 이미 기록했거나 사용자가 지정한 파일을 열어 논문과 판본을 확인한다. 재시도해도 기존 파일의 경로·해시가 같고 복사본이 늘지 않아야 한다. 제목이나 파일명만 같은 다른 판본은 별도 항목으로 다룬다. 기존 파일이 사라지거나 내용이 바뀌면 재확인 대상으로 표시한다. |
-| 공개 초고만 있으면 사용자가 정한다 | 초고의 실제 판본과 출처를 보여주고 “이 초고로 분석할까요?”라고 묻는다. 동의하면 그 초고만 분석 목록에 넣는다. 거절하거나 답하지 않으면 제외하고 나중에 출판본을 제공할 수 있게 한다. 다시 열었을 때 같은 초고에 대한 결정이 남고 다른 판본에 그 결정을 적용하지 않는다. |
-| 실패한 한 편부터 다시 시작한다 | 초록만 열리거나 저장 권한이 없으면 해당 논문에 사유와 출처를 남긴다. 사용자가 나중에 PDF를 주면 그 항목만 갱신한다. 새 채팅에서 같은 폴더를 열어 확보한 파일, 초고 결정, 남은 항목을 복원하고 1단계의 선택·출처·선택 이유도 다시 읽을 수 있어야 한다. |
+Read `topic sources` for the selected round, existing ready files and unavailable items. Collect only selected papers. Reuse same-edition recorded/user-specified PDFs rather than downloading again. The agent uses authorized tools to obtain public originals; `collect` validates supplied files and persists them or links `--existing` paths. Check first-page title/authors and actual edition marking; file names/landing pages alone are insufficient. Keep PDFs and private absolute paths outside Git/public artifacts.
 
-**구현 기본안.** 1단계의 `topic.json`은 그대로 읽고 수집 결과는 같은 폴더의 별도 목록에 둔다. 논문별로 선택 당시의 키·회차, 실제 판본, 입수 경로(공개 PDF URL 또는 사용자 제공), 로컬 파일 위치와 SHA-256, 초고 결정 또는 실패 사유를 연결한다. 해시는 파일 변경 확인에 쓰고, 같은 판본인지는 서지정보와 판본 표기를 보고 판단한다. 기존 파일의 재사용 범위는 이 주제에서 이미 연결한 파일과 사용자가 알려준 위치로 시작한다.
+Published and draft editions remain separate. Show a draft's title/actual edition/source and ask explicit permission to analyze that edition. Bind accept/decline to that selection round and file hash; silence stays pending. A later edition cannot inherit consent. Other ready papers can proceed while one is unavailable/refused.
 
-**리뷰에 남길 증거.** 자동 검사는 합성 PDF와 로컬 응답으로 정상 수집, 잘못된 응답, 재시도, 초고 동의·거절·미응답, 기존 주제 재개를 반복한다. 실제 사용 경로는 별도로 다음 순서로 확인한다.
+Record inaccessible/partial/HTML/interrupted/wrong-identity/ambiguous-edition files with reasons and attempted sources. If the agent can browse but cannot save, provide a source link and continue from a user-supplied PDF. Mark obtained only after reopening the actual path and verifying identity/edition. Retry the failed paper without altering prior files, hashes or copy counts. Commands/limits: [collection reference](CLI.md#collect-selected-originals).
 
-1. 1단계 채팅에서 A·B·C를 고른다. A는 실제 공개 PDF를 내려받고, B는 같은 판본의 기존 파일을 연결하고, C는 초록만 열리는 상태로 둔다.
-2. 새 채팅에서 같은 주제 폴더를 연다. A·B에 표시된 경로에서 PDF를 열어 제목·판본을 확인하고 C의 미확보 사유를 읽는다. C의 PDF를 직접 제공한 뒤 A·B의 경로·해시와 사본 수가 그대로인지 대조한다.
-3. 초고만 있는 사례에서 응답 전과 거절 후에는 분석 목록에서 빠지고 동의한 경우에만 실제 초고 판본이 남는지 확인한다. PR에는 사용한 공개 출처, 실행한 환경, 재개 전후의 판정과 미실행 항목을 기록한다. 개인 PDF와 로컬 절대경로는 공개 증거에서 제외한다.
+Representative verification: select A/B/C, download public A, link existing B, leave abstract-only C unavailable; reopen the same folder in a new process, verify A/B, then supply C and confirm A/B unchanged. Separately verify pending/declined/accepted drafts. Record sources, environment, before/after results and unrun steps without publishing private PDFs/paths.
 
-## 3. 한 편씩 분석하기
+## 3. Analyze one paper and resume
 
-**확정한 흐름 (2026-11-10)** — 주제 채팅에서 논문을 선택하고 논문별 Markdown 문서로 분석 세션을 이어간다. 전체 개요는 짧게 쓰고 주제와 관련된 절·표는 자세히 분석한다. 공통 주장과 근거는 Paper 카드에, 주제별 답은 해당 주제 폴더에 남긴다. 그래프에 쓸 핵심 주장은 분석한 판본의 원문과 대조한다.
+Use ready actual PDF, edition, topic question and selection reason. Find/create a same-edition shared Paper in the explicit private card workspace without overwriting another edition. `analysis-open` connects them and returns previous document/hash. Write one short overview, then detailed topic-relevant sections/tables with units, samples, conditions and actual page/section/table locations.
 
-### PDF에서 분석 문서까지
+Put shared author claims/conditions/limits/locations in Paper. Keep topic answers, AI interpretation, notes, open questions and reading position in topic Markdown. `analysis-save` appends using the opened hash, preserving notes/backups and detecting concurrent changes. Reopening A → B → A returns one document per paper; another topic shares Paper but has separate answers. A changed edition starts a new history segment and empty comparison candidates while preserving old answers. See [analysis contract](PAPER_ANALYSIS.md).
 
-1. **한 편의 분석을 시작한다.** 2단계에서 확보한 PDF 또는 기존 파일의 경로, 실제 판본, 주제 질문과 선정 이유를 함께 연다. 같은 판본의 Paper 카드가 있으면 기존에 확인한 근거부터 살핀다.
-2. **논문의 전체 맥락을 파악한 뒤 질문과 관련된 대목을 읽는다.** 예를 들어 “생성된 질문의 품질을 어떻게 평가할까?”가 주제라면 평가 항목의 정의, 누가 어떤 표본을 평가했는지, 결과가 어느 표에 나오는지 확인한다. 표의 숫자와 조건은 PDF 해당 쪽에서 함께 읽고, 부록이 없어 알 수 없는 내용은 미확인으로 남긴다.
-3. **분석 결과를 기록한다.** Paper 카드에는 저자가 보고한 주장마다 성립 조건과 해당 PDF 쪽·절·표를 붙인다. 주제 폴더의 논문별 문서는 짧은 개요로 시작하고, 관련 절·표를 바탕으로 주제 질문에 답한다. 해석에 사용한 Paper 카드의 주장을 연결하고, 논문 자체의 한계와 이번에 읽지 못한 범위를 구분해 적는다.
-4. **같은 문서에서 이어 읽는다.** 주제 채팅과 논문 목록에서 문서를 다시 열어 후속 질문을 이어간다. 그래프에 사용할 핵심 주장은 해당 판본의 원문과 대조한 뒤 주장·원문 위치·대조 결과를 4단계에 넘긴다.
+Check comparison-candidate claims against actual original pages using [frozen review inputs/results](CLAIM_REVIEWS.md). Self-checks are not independent reviews. `comparison-input` exposes only currently valid latest supported claims and holds missing, partial, negative, stale, conflicting or required-change evidence. It does not itself infer graphs.
 
-**현재와 필요한 작업.** 기존 에이전트는 원문을 읽고 Paper 초안을 작성할 수 있다. CLI는 분석 입력을 준비하고, 별도 문맥에서 주장을 대조하는 절차도 있다. 새로 필요한 부분은 주제 목록에서 한 편의 분석을 시작·재개하고 문서와 원문 근거로 돌아가는 동선이다. 분석·검토 절차(별도 로컬 개발본 문서, 후속 PR에서 연결) · 카드 저장(별도 로컬 개발본 문서, 후속 PR에서 연결)
+## 4. Compare and inspect evidence
 
-### 3단계 PR 범위와 검증 기준
+The agent reads the current question/analysis/comparison-input and writes `comparison.json`: criteria, explicit candidate refs and AI grouping reasons. Preserve exact question text; use [requested-language prose](../skills/danseo/SKILL.md#output-language) for new explanations, retaining original titles/quotes/IDs. `topic compare` opens an optional read-only localhost viewer, not a hosted service. Papers/criteria lead to conditions, editions, original PDFs and analysis. Reload after edits; failed current reads clear prior support.
 
-**PR의 결과.** “이 주제에서 2번 논문을 읽자”라고 하면 해당 판본으로 분석을 시작한다. 새 채팅에서 같은 주제와 논문을 고르면 지난 답과 남은 질문을 읽고 같은 문서에 이어 쓴다. 이 PR은 연구 비교에 넘길 주장과 원문 근거까지 준비한다. 비교 기준 구성과 그래프 표시는 4단계에서 구현한다.
+Workspace relations explicitly distinguish source assertions from AI proposals using kind/direction/evidence/check history and dependency fingerprints. Filtered map/list/details agree. Criterion grouping remains AI even with supported claims. See [comparison reference](RESEARCH_COMPARISON.md).
 
-| 구현할 동작 | 리뷰에서 확인할 기준 |
-| --- | --- |
-| 한 편을 골라 시작한다 | 2단계의 분석 가능 목록에서 선택한 논문 키, 실제 판본, PDF 경로·해시를 읽고 주제 질문·선택 이유와 연결한다. PDF가 없거나 바뀌었으면 해당 논문의 원문 재확인을 안내한다. 동의 대기·거절 상태의 초고로는 분석을 시작하지 않는다. |
-| 질문에 맞춰 읽고 기록한다 | 전체 개요는 연구 질문·방법·주요 결과를 담은 짧은 한 문단을 기본으로 한다. 주제와 관련된 절·표에서는 무엇을 어떤 조건에서 비교했고 그 결과로 어디까지 답할 수 있는지 설명한다. 수치는 단위·조건과 PDF 쪽·표 번호를 함께 적는다. 관련 표가 없으면 해당 절을 쓰고, 원문으로 답할 수 없는 질문은 미확인으로 남긴다. |
-| 공통 주장과 주제별 답을 저장한다 | 같은 판본의 Paper 카드에 저자 주장·조건·원문 위치를 기록한다. 주제 폴더의 논문별 Markdown에는 주제 질문에 대한 답, AI 해석, 남은 질문을 쓰고 근거로 삼은 Paper ID와 주장 ID를 연결한다. 같은 판본을 다른 주제에서 읽으면 공통 주장은 재사용하고 각 주제의 답은 따로 연다. [카드 모델](CARD_MODEL.md) |
-| 같은 문서에서 후속 질문을 받는다 | 주제 목록에서 A → B → A 순으로 열고, 새 채팅에서 A에 질문을 추가한다. A의 기존 답·사용자 메모가 보존되고 B 문서에는 A의 질문이 들어가지 않아야 한다. 같은 논문을 다시 여는 것만으로 문서나 주장을 중복 생성하지 않는다. |
-| 그래프에 쓸 주장만 원문과 대조한다 | 비교 후보인 주장은 해당 판본의 PDF에서 실제 페이지를 열어 주장·조건·원문 위치를 대조하고 기존 주장별 검토 기록에 판정을 남긴다. 4단계로 넘길 기본안은 현재 내용에 유효한 ‘원문 지지’ 판정이 있는 주장이다. 일부 지지·충돌·확인 불가·미대조 주장은 사유와 함께 보류한다. PDF나 주장·근거 위치가 바뀌면 재대조할 때까지 전달 대상에서 뺀다. |
+## Standalone relationship HTML
 
-**저장 기본안.** 주제 폴더에는 논문 한 편당 분석 문서 하나를 둔다. 주제 목록에는 재개할 문서와 실제 읽은 판본을 연결하고, 공통 Paper 카드는 연결한 개인 workspace에서 찾는다. 기존 주제에 카드 저장 위치가 지정되지 않았다면 처음 카드를 쓸 때 위치를 정한다. 판본이 바뀌면 지난 답과 근거에 이전 판본을 남기고, 새 판본에서 다시 확인한 범위를 구분한다.
+For a shareable standalone file, use the complete portable skill and its [view/source/evidence procedure](../skills/danseo/references/research-view.md). It needs no CLI build/server, but relationship output requires verified candidate/evidence gates. Use topic groups, short aliases and selected connections without deleting full titles/relations. Keep project application decisions separate from source causality. Native chronological/editing workflows are not replaced by this standalone map.
 
-**대표 인수 시나리오.** 실제 PDF 두 편으로 “두 연구는 결과를 어떻게 평가했나?”라는 질문을 따라간다.
+## Completion and limits
 
-1. 주제 채팅에서 A와 B를 차례로 분석한다. 각 문서에 짧은 개요와 주제별 답이 있고, A의 결과 하나를 답 → Paper 주장 → 해당 판본의 표까지 따라가 수치·조건을 직접 대조할 수 있어야 한다.
-2. 새 채팅에서 같은 주제의 A를 열어 “그 표의 평가 대상은 누구였지?”라고 묻는다. 앞선 답과 새 답이 A 문서 하나에 남고 B는 그대로여야 한다. 다른 주제에서 A를 열면 같은 Paper 주장을 참조하면서 그 주제의 답을 기록할 수 있어야 한다.
-3. 대조한 주장과 미대조 주장을 하나씩 준비해 전자만 4단계 입력에 포함되는지 확인한다. 검증용 사본에서 그 주장의 원문 위치를 바꾸면 재확인 대상으로 돌아가야 한다.
-
-PR에는 자동 검사로 확인한 문서 재개·중복 방지·검토 상태와, 실제 PDF에서 직접 확인한 판본·쪽·표·대조 결과를 구분해 기록한다. 위 항목은 구현 PR의 인수 기준이며 실행 결과는 구현 후 추가한다.
-
-구현과 실제 확인 범위는 [논문별 분석 사용법](PAPER_ANALYSIS.md)과 [PTP-011](../TASKS.md#ptp-011--논문별-분석과-재개)을 따른다.
-
-## 4. 목적에 맞는 그래프 구성하기
-
-**확정한 흐름 (2026-11-10)** — 첫 버전은 연구 비교부터 지원한다. 첫 화면의 노드는 논문과 비교 기준으로 한정한다. 항목을 선택하면 세부 주장·조건·원문 근거를 펼친다. AI가 제안한 연결에는 제안 이유를 함께 표시하고, 원문에 명시된 관계만 골라 볼 수 있게 한다.
-
-### 분석 문서에서 비교 그래프까지
-
-1. **비교할 질문에 맞춰 자료를 모은다.** “두 논문이 질문 품질을 어떻게 평가했는지 비교해줘”라고 하면 해당 주제의 분석 문서와 연결된 Paper 카드를 읽는다. 3단계에서 판본·원문 위치를 대조한 핵심 주장으로 비교 기준을 구성한다.
-2. **논문과 비교 기준을 먼저 보여준다.** 예를 들어 두 논문을 ‘평가자’와 ‘채점 척도’ 기준으로 살펴본다. ‘채점 척도’를 선택하면 양쪽 논문의 척도 정의와 적용 조건을 나란히 펼치고, 각 주장의 근거가 있는 판본·절·표와 주제별 분석 문서로 연결한다.
-3. **연결에 이유를 붙인다.** A가 본문에서 B의 방법을 인용했다면 인용한 절을 연결한다. AI가 두 논문의 평가 방법을 함께 볼 만하다고 판단했다면 ‘AI 제안’과 그 이유를 함께 표시한다. 양쪽 표가 각각 원문 대조를 마쳤어도 두 표를 묶은 판단의 출처는 AI다. 관계 모델(별도 로컬 개발본 문서, 후속 PR에서 연결)
-4. **‘원문에 명시된 관계만’으로 좁혀 본다.** 필터를 켜면 저자가 원문에 명시하고 해당 위치를 대조한 관계만 남긴다. 해당하는 연결이 없으면 그 사실을 표시한다. 필터를 풀면 AI의 제안과 이유를 다시 볼 수 있다.
-
-**현재와 필요한 작업.** 로컬 그래프의 관계 선택, 근거 표시, 변경된 근거의 재확인 표시를 재사용한다. 주제별 분석 결과를 비교 기준으로 묶고, 선택한 항목의 상세 내용과 관계 출처 필터를 연구 비교 화면에 연결하는 작업이 필요하다. 목적별 연구 화면(별도 로컬 개발본 문서, 후속 PR에서 연결) · 로컬 그래프(별도 로컬 개발본 문서, 후속 PR에서 연결)
-
-## 구현 순서
-
-한 연구 질문을 끝까지 이어서 개발한다. 앞 단계에서 저장한 결과를 다음 단계의 입력으로 사용하고, 각 단계가 끝날 때 주제 폴더를 다시 열어 결과가 남았는지 확인한다.
-
-| 순서 | 먼저 구현할 동작 | 다음 단계로 넘어가는 기준 |
-| --- | --- | --- |
-| 1. 주제 생성과 논문 선택 | Paper 카드가 없어도 주제 폴더를 만들고, 기존 AI 채팅에서 검색한 후보·출처·추천 이유와 선택 결과를 저장한다. | 후보 3~5편에서 두 편을 고른다. 추가 검색과 재개 후에도 두 편의 선택과 출처가 유지된다. 모호한 주제에만 한 번 질문한다. |
-| 2. 선택한 판본 확보 | 1단계 목록에 다운로드한 공개 PDF, 직접 제공한 PDF 또는 같은 판본의 기존 파일을 연결한다. 파일을 다시 열어 판본과 저장 위치를 기록한다. | 선택한 두 원문을 열 수 있다. 초고만 있는 경우 동의 여부에 따라 분석 대상을 정하고, 수집 실패 후 다시 시도해도 기존 파일을 중복 저장하지 않는다. |
-| 3. 논문별 분석과 재개 | 2단계의 판본과 주제 질문을 기존 분석 절차에 전달한다. Paper 카드에 주장·조건·원문 위치를 쓰고 주제별 문서의 답에서 이를 참조한다. | 두 논문을 각각 다시 열어 후속 질문을 이어갈 수 있다. 비교에 쓸 주장마다 어느 판본의 어느 절·표에서 대조했는지 찾을 수 있다. |
-| 4. 연구 비교 그래프 | 3단계의 주장 참조를 비교 기준별로 모아 기존 그래프와 근거 패널에 연결한다. 첫 화면, 선택 후 상세 보기, 관계 출처 필터 순으로 구현한다. | 두 논문과 비교 기준이 보이고, 기준을 선택하면 양쪽 주장·조건·원문 위치가 펼쳐진다. 원문 관계와 AI 제안이 함께 있는 예에서 필터를 켜면 원문 관계만 남고, 풀면 제안과 이유가 다시 보인다. |
-
-## 첫 검증에서 따라갈 동선
-
-첫 통합 검증은 **한 질문에서 두 논문의 평가 방법을 비교하는 흐름**으로 진행한다.
-
-1. 질문 하나로 후보를 찾고, 두 편을 선택한 이유를 주제 세션에서 다시 확인한다.
-2. 두 원문을 주제 폴더에서 열어 제목·판본을 확인한다. 미확보 후보가 있어도 확보한 두 편의 분석을 시작할 수 있어야 한다.
-3. 주제 채팅에서 두 논문을 차례로 고르고 논문별 문서에서 분석을 이어간다. 주제 세션을 닫았다 열어도 두 분석 문서와 각각의 근거 위치를 다시 찾을 수 있어야 한다.
-4. 두 방법을 비교하는 연결 하나를 골라 원문의 해당 위치까지 따라간다. 비교 근거가 부족하면 무엇을 더 읽어야 하는지 남긴다. 읽다가 발견한 선행연구는 같은 주제의 후보 목록에 추가해 1단계로 돌아간다.
-
-이 동선은 앞으로 확인할 수용 기준이다. 기존 분석·그래프 기능의 검증 범위는 [실행 목록](../TASKS.md)에 기록돼 있다.
+Commands, disk resumption, original reading, rendered verification, model compliance and human benefit are separate. Confirm one relevant source-to-evidence path, supported/held states and no-overwrite behavior. Keep original materials/private logs local; synthetic examples and current CI verify distributable behavior. Tests cannot prove every host follows the skill, that a new user has understood a paper, or that a graph improves research. See [the roadmap](../TASKS.md) for current scope and PR Checks for reported executions.

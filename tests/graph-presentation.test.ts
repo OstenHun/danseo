@@ -32,7 +32,7 @@ test('twelve papers have deterministic nonoverlapping topic positions and unknow
     const a = positions[i]!, b = positions[j]!;
     assert.ok(Math.abs(a.x - b.x) >= view.card.width || Math.abs(a.y - b.y) >= view.card.height);
   }
-  assert.equal(view.topicLayout([{id: 'isolated'}]).headings[0]!.title, '주제 미분류');
+  assert.equal(view.topicLayout([{id: 'isolated'}]).headings[0]!.title, 'Uncategorized');
   assert.equal(Object.keys(view.topicLayout([]).positions).length, 0);
   const longTitle = '검색 결과 근거의 답변 인용과 충실도 평가';
   const wrapped = view.topicLayout([{id: 'wrapped', topic: longTitle}]);
@@ -55,8 +55,8 @@ test('focus, kind and provenance filters never promote AI or stale evidence', ()
   assert.ok(!view.matchesRelation(ai, {...filters, category: 'source'}));
   assert.ok(!view.matchesRelation(source, {...filters, kind: 'reading-order'}));
   assert.ok(view.matchesRelation({...ai, needs_recheck: true}, {...filters, category: 'stale'}));
-  assert.equal(view.relationState({...ai, needs_recheck: true}), 'AI 제안 · 재확인');
-  assert.equal(view.relationState({...source, needs_recheck: true}), '원문 기록 · 재확인');
+  assert.equal(view.relationState({...ai, needs_recheck: true}), 'AI proposal · recheck');
+  assert.equal(view.relationState({...source, needs_recheck: true}), 'Source record · recheck');
   assert.equal(ai.status, 'proposed');
 });
 

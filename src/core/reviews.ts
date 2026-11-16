@@ -46,11 +46,11 @@ export function validReviewTime(value: string) {
 }
 async function readRegistered(root: string, entry: string) {
   const file = resolve(root, entry), rel = relative(root, file);
-  requireValue(!isAbsolute(entry) && rel !== '..' && !rel.startsWith(`..${sep}`), '검토 파일은 workspace 안의 상대 경로로 등록하세요.');
+  requireValue(!isAbsolute(entry) && rel !== '..' && !rel.startsWith(`..${sep}`), 'Register review files with relative paths inside the workspace.');
   const actual = relative(await realpath(root), await realpath(file));
-  requireValue(!isAbsolute(actual) && actual !== '..' && !actual.startsWith(`..${sep}`), '검토 파일이 workspace 밖을 가리킵니다.');
+  requireValue(!isAbsolute(actual) && actual !== '..' && !actual.startsWith(`..${sep}`), 'The review file points outside the workspace.');
   const info = await stat(file);
-  requireValue(info.isFile() && info.size <= 2 * 1024 * 1024, '검토 JSON 파일 크기 또는 형식을 확인하세요.');
+  requireValue(info.isFile() && info.size <= 2 * 1024 * 1024, 'Check the review JSON file size and format.');
   return readFile(file);
 }
 
@@ -62,24 +62,24 @@ export async function readVerifiedReviews(ws: Workspace) {
     try {
       const inputBytes = await readRegistered(ws.path, registration.input);
       const resultBytes = await readRegistered(ws.path, registration.result);
-      requireValue(sha(resultBytes) === registration.result_sha256, '등록한 검토 결과 해시와 파일이 다릅니다.');
+      requireValue(sha(resultBytes) === registration.result_sha256, 'The review-result file differs from its registered hash.');
       const input: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(inputBytes));
       const result: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(resultBytes));
-      requireValue(inputValid(input) && resultValid(result), '지원하는 주장 검토 JSON 형식이 아닙니다.');
+      requireValue(inputValid(input) && resultValid(result), 'Unsupported claim-review JSON format.');
       const frozen = input as ReviewInput, review = result as Result;
-      requireValue(sha(inputBytes) === review.input_sha256, '고정 입력 해시가 검토 결과와 다릅니다.');
-      requireValue(validReviewTime(review.reviewed_at), '검토 시각은 실제 달력 날짜와 Z 또는 UTC 오프셋을 쓰고, 소수점은 밀리초(3자리)까지 명시하세요.');
+      requireValue(sha(inputBytes) === review.input_sha256, 'The frozen input hash differs from the review result.');
+      requireValue(validReviewTime(review.reviewed_at), 'Use a real calendar date with Z or a UTC offset for the review time, with at most three fractional digits (milliseconds).');
       const expected = frozen.papers.flatMap(p => p.claims.map(c => JSON.stringify([p.paper_id,c.id])));
       const received = review.claims.map(c => JSON.stringify([c.paper_id,c.claim_id]));
-      requireValue(new Set(expected).size === expected.length && new Set(received).size === received.length && JSON.stringify(expected.sort()) === JSON.stringify(received.sort()), '검토 주장 ID에 누락·중복·다른 항목이 있습니다.');
-      requireValue(new Set(frozen.papers.map(p=>p.paper_id)).size===frozen.papers.length, '논문 ID가 검토 입력에서 중복됩니다.');
+      requireValue(new Set(expected).size === expected.length && new Set(received).size === received.length && JSON.stringify(expected.sort()) === JSON.stringify(received.sort()), 'Review claim IDs are missing, duplicated or unexpected.');
+      requireValue(new Set(frozen.papers.map(p=>p.paper_id)).size===frozen.papers.length, 'Paper IDs are duplicated in the review input.');
       for(const p of frozen.papers){
         const checks=review.source_checks.filter(s=>s.paper_id===p.paper_id);
-        requireValue(checks.length===1 && checks[0]!.pdf_sha256===p.source.pdf_sha256,'검토자의 원문 해시가 고정 입력과 다릅니다.');
+        requireValue(checks.length===1 && checks[0]!.pdf_sha256===p.source.pdf_sha256,'The reviewer source hash differs from the frozen input.');
       }
-      requireValue(review.claims.every(c=>c.verdict==='insufficient_evidence'||c.evidence.length),'판정의 원문 근거 위치가 없습니다.');
+      requireValue(review.claims.every(c=>c.verdict==='insufficient_evidence'||c.evidence.length),'The verdict has no source-evidence location.');
       records.push({input:frozen,result:review,result_sha256:sha(resultBytes)});
-    } catch(error){warnings.push(`검토 기록 ${index+1}을 연결하지 못했습니다. ${(error as Error).message}`);}
+    } catch(error){warnings.push(`Review record ${index+1} could not be connected. ${(error as Error).message}`);}
   }
   return {records,warnings};
 }
@@ -93,14 +93,14 @@ export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha
   for(const {input:frozen,result:review,result_sha256} of verified.records){
       const snapshots = frozen.papers.filter(p => p.paper_id === paper.id);
       const snapshot = snapshots[0]; if (!snapshot) continue;
-      let staleReason = canonical({version:paper.source.version??null,url:paper.source.url??null}) !== canonical({version:snapshot.source.version??null,url:snapshot.source.url??null}) ? '검토 이후 원문 판본 또는 URL이 바뀌었습니다.' : '';
-      if (snapshot.source.pdf_sha256 !== selectedPdfSha256) staleReason ||= '검토한 PDF가 이 주제에서 선택한 원문 해시와 다릅니다.';
+      let staleReason = canonical({version:paper.source.version??null,url:paper.source.url??null}) !== canonical({version:snapshot.source.version??null,url:snapshot.source.url??null}) ? 'The source edition or URL changed after review.' : '';
+      if (snapshot.source.pdf_sha256 !== selectedPdfSha256) staleReason ||= 'The reviewed PDF differs from the source hash selected in this topic.';
       try {
-        requireValue(paper.source.path, '원본 PDF 경로가 없습니다.');
-        if (sha(await readFile(resolve(dirname(card.path), paper.source.path!))) !== snapshot.source.pdf_sha256) staleReason ||= '검토 이후 원본 PDF가 바뀌었습니다.';
-        if (Boolean(paper.source.text_path) !== Boolean(snapshot.source.text_sha256)) staleReason ||= '연결 원문 텍스트와 검토 입력의 해시가 모두 있어야 합니다.';
-        else if (paper.source.text_path && sha(await readFile(resolve(dirname(card.path), paper.source.text_path))) !== snapshot.source.text_sha256) staleReason ||= '검토 이후 연결 원문 텍스트가 바뀌었습니다.';
-      } catch { staleReason ||= '원본 파일의 현재 해시를 확인하지 못했습니다.'; }
+        requireValue(paper.source.path, 'The original PDF path is missing.');
+        if (sha(await readFile(resolve(dirname(card.path), paper.source.path!))) !== snapshot.source.pdf_sha256) staleReason ||= 'The original PDF changed after review.';
+        if (Boolean(paper.source.text_path) !== Boolean(snapshot.source.text_sha256)) staleReason ||= 'Both the linked source-text hash and review-input hash are required.';
+        else if (paper.source.text_path && sha(await readFile(resolve(dirname(card.path), paper.source.text_path))) !== snapshot.source.text_sha256) staleReason ||= 'The linked source text changed after review.';
+      } catch { staleReason ||= 'Unable to verify the current original-file hash.'; }
       // Build entries only after the entire registration is validated; never leave partial badges.
       const entries: [string, ClaimReview][] = [];
       for (const judged of review.claims.filter(c => c.paper_id === paper.id)) {
@@ -108,8 +108,8 @@ export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha
         if (!current) continue;
         const before = snapshot.claims.find(c => c.id === judged.claim_id)!;
         const changed = claimFingerprint(current)!==claimFingerprint(before);
-        const reason = staleReason || (changed ? '검토한 주장 문장 또는 원문 위치와 다릅니다.' : '');
-        requireValue(judged.verdict === 'insufficient_evidence' || judged.evidence.length, '판정의 원문 근거 위치가 없습니다.');
+        const reason = staleReason || (changed ? 'The claim statement or source locations differ from the reviewed version.' : '');
+        requireValue(judged.verdict === 'insufficient_evidence' || judged.evidence.length, 'The verdict has no source-evidence location.');
         entries.push([judged.claim_id, { ...judged, state: reason ? 'stale' : 'current', ...(reason ? { stale_reason: reason } : {}), run_id: frozen.run_id, reviewer: review.reviewer, reviewed_at: review.reviewed_at, review_type: review.review_type, input_sha256: review.input_sha256, result_sha256, source: { url: snapshot.source.url, version: snapshot.source.version } }]);
       }
       for (const [id, entry] of entries) (output.claims[id] ??= []).push(entry);

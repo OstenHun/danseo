@@ -4,7 +4,7 @@ Summary: This public development preview handles local research files. Only the 
 
 ## Supported versions
 
-Only the current development version is maintained. There is no stable-release or long-term-support policy and no promised response time. See the [distribution records](docs/OPEN_SOURCE.md) (Korean) for scoped publication and verification history.
+Only the current development version is maintained. There is no stable-release or long-term-support policy and no promised response time. See the [distribution boundaries](docs/OPEN_SOURCE.md) for public and private material.
 
 ## Data and execution boundaries
 
@@ -18,6 +18,6 @@ Structural validation does not detect all malicious content or verify scientific
 
 Use **GitHub Private vulnerability reporting**: sign in to GitHub and open [the private reporting form](https://github.com/OstenHun/danseo/security/advisories/new). No public reporting email or response-time commitment is provided.
 
-The reporting feature was confirmed enabled through the GitHub API after public transition on 2026-11-14 KST. See [GitHub's configuration documentation](https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository). Do not post exploit details, secrets, or private files in public Issues or PRs.
+Do not post exploit details, secrets, or private files in public Issues or PRs.
 
 A private report should include the affected version, environment, a minimal synthetic reproduction, expected impact, and actual observations. Do not include real tokens or third-party private material.

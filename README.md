@@ -1,4 +1,6 @@
-# Danseo
+<div align="center">
+
+<h1>Danseo</h1>
 
 <picture>
   <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
@@ -9,13 +11,15 @@
 
 **Bring research evidence into project decisions.**
 
-Summary: A development preview that connects paper discovery, source collection, analysis, and comparison in local files, using your existing AI agent, a CLI, and evidence-linked research views.
-
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
 ![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
 English · [한국어](README.ko.md) · [Install the skill](#install-the-skill) · [Quick start](#quick-start) · [Project structure](#project-structure) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+Summary: A development preview that connects paper discovery, source collection, analysis, and comparison in local files, using your existing AI agent, a CLI, and evidence-linked research views.
 
 ## Overview
 
@@ -130,9 +134,9 @@ Write the explanations in English.
 
 On macOS or Linux, use a real path such as `/Users/me/research/my-topic/papers` or `/home/me/research/my-topic/papers`. Your agent must be able to read the PDFs. Finding additional papers also requires search and download tools.
 
-The default workflow is **check sources and editions → write relationships and evidence → separate source records from AI proposals → check the overview and quantities → generate shared HTML → inspect the rendered view**. Source relationships retain page or section locations; suggested connections remain proposals. Keep the candidate JSON and evidence files alongside the HTML so later revisions can reuse the same generator. See [source verification](skills/danseo/references/relation-verification.md), [overview and quantity checks](skills/danseo/references/evidence-gate.md), and [performance evidence](skills/danseo/references/performance-verification.md) (Korean).
+The default workflow is **check sources and editions → write relationships and evidence → separate source records from AI proposals → check the overview and quantities → generate shared HTML → inspect the rendered view**. Source relationships retain page or section locations; suggested connections remain proposals. Keep the candidate JSON and evidence files alongside the HTML so later revisions can reuse the same generator. See [source verification](skills/danseo/references/relation-verification.md), [overview and quantity checks](skills/danseo/references/evidence-gate.md), and [performance verification](skills/danseo/references/performance-verification.md).
 
-Views use short paper names, topic grouping, and connections around the selected paper by default. You can filter evidence status and relationship types, or show all connections. Full titles and relationship data remain in the details; topic grouping is identified as AI editorial interpretation. Desktop reading is checked by default. Mobile views provide topic lists, relationship direction, and source evidence; mobile verification is added when requested or relevant to actual use.
+Views use short paper names, topic grouping, and connections around the selected paper by default. You can filter evidence status and relationship types, or show all connections. Full titles and relationship data remain in the details; topic grouping is identified as AI editorial interpretation. Danseo targets local PC and laptop use. Verify the desktop view before delivery.
 
 Select a paper or edge to inspect evidence, conditions, and source/AI labels. Correct the source or input after a failed check. If browser tools are unavailable, the agent must report that visual inspection was not performed. **Passing automated checks does not certify every relationship interpretation.**
 
@@ -162,7 +166,7 @@ npm run build
 node ./dist/cli.js validate --workspace ./examples/minimal --json
 ```
 
-The synthetic example reports `ok: true`, 3 records, 2 projects, and an expected `draft` warning. Validation checks structure and references. See [runtime support](docs/RUNTIME_SUPPORT.md) (Korean) and the [English CLI guide](docs/CLI.en.md).
+The synthetic example reports `ok: true`, 3 records, 2 projects, and an expected `draft` warning. Validation checks structure and references. See [runtime support](docs/RUNTIME_SUPPORT.md) and the [English CLI guide](docs/CLI.en.md).
 
 ### Start with your own topic
 
@@ -178,7 +182,7 @@ Show the sources, editions, and reasons so I can choose.
 2. Ask a question about a selected paper; retain the answer and exact source locations.
 3. Ask the agent to compare papers using the checked evidence.
 
-In a new chat, provide the same tool, skill, and topic directory. The [English end-to-end guide](docs/CLI.en.md#find-collect-analyze-and-compare) covers discovery → collection → analysis → comparison. The detailed [analysis](docs/PAPER_ANALYSIS.md) and [comparison](docs/RESEARCH_COMPARISON.md) references are currently in Korean.
+In a new chat, provide the same tool, skill, and topic directory. The [English end-to-end guide](docs/CLI.en.md#find-collect-analyze-and-compare) covers discovery → collection → analysis → comparison. See the detailed English [analysis](docs/PAPER_ANALYSIS.md) and [comparison](docs/RESEARCH_COMPARISON.md) references.
 
 <details>
 <summary><strong>Connect existing cards and projects</strong></summary>
@@ -191,7 +195,7 @@ Paper records hold claims and sources; Application records hold project-specific
 node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
 ```
 
-The fixture is a draft, so it requires `--include-drafts`. This option does not change review status. See the [card model](docs/CARD_MODEL.md) (Korean).
+The fixture is a draft, so it requires `--include-drafts`. This option does not change review status. See the [card model](docs/CARD_MODEL.md).
 
 </details>
 
@@ -210,7 +214,7 @@ skills/danseo/           Agent instructions, references, standalone generators, 
 examples/minimal/        Synthetic workspace for validation and export
 scripts/                 TypeScript build and documentation tools
 tests/                   TypeScript regression tests, helpers, and package checks
-docs/                    Guides, data formats, design proposals, and historical checks
+docs/                    Usage guides, data formats and evidence-check contracts
 ```
 
 A topic folder keeps selections, collected-source records, and topic-specific analysis. A separate `workspace.json` registers reusable cards, projects, claim-review inputs/results, and optional relationships. The same Paper can support separate answers in different topics. Author claims, AI interpretations, project observations, and adoption decisions remain distinct.
@@ -223,11 +227,11 @@ Version `0.1.0-dev.1` is a development preview. The CLI and file formats may cha
 
 - **Included:** discovery records, source collection, topic-specific analysis and resumption, evidence-linked comparison, existing-card export, and standalone relationship HTML.
 - **Not included:** a card editor, a separate learning-HTML skill, automatic experiments or submissions, or an MCP server. The research comparison app targets desktop browsers.
-- **Language coverage:** this introduction, the CLI guide, contribution/security guidance, and documentation index are in English. The skill instructions, app labels, fixtures, some diagnostics, and detailed references still contain Korean. Request explanations in your preferred language.
+- **Language:** fixed viewer controls, diagnostics, skill instructions and active usage references are English. Agent-authored research prose follows your explicit language request; otherwise it preserves the current work's chosen language, or uses your request language for new work. Original titles, quotations, identifiers and saved records are preserved. There is no language switch. [Output-language rules](skills/danseo/SKILL.md#output-language). Explicit Korean README editions and synthetic research content are preserved; internal work records stay local.
 
 Danseo itself needs no model key, database, or permanent server and makes no outbound requests. `topic compare` runs a read-only loopback server only while you use the view; stop it with Ctrl+C. Your agent's search, downloads, and model transmissions follow that agent's settings and permissions.
 
-Structural checks and source-support reviews do not establish experiment reproduction or reader understanding. See [runtime records](docs/RUNTIME_SUPPORT.md), [TASKS](TASKS.md), and [distribution records](docs/OPEN_SOURCE.md) (Korean) for scoped verification.
+Structural checks and source-support reviews do not establish experiment reproduction or reader understanding. See [runtime support](docs/RUNTIME_SUPPORT.md), the [roadmap](TASKS.md) and [distribution boundaries](docs/OPEN_SOURCE.md).
 
 ## Documentation
 
@@ -235,8 +239,8 @@ Structural checks and source-support reviews do not establish experiment reprodu
 | --- | --- | --- |
 | Install and request a standalone graph | [Skill installation](#install-the-skill) · [Graph prompt](#generate-a-paper-relationship-graph) | English |
 | Manage a topic from discovery to comparison | [CLI and agent guide](docs/CLI.en.md) | English |
-| Understand the bundled skill | [Skill overview](skills/danseo/README.md) | English; runtime instructions in Korean |
-| Inspect analysis, reviews, and comparison formats | [Documentation index](docs/README.md) | English index; detailed references labeled by language |
+| Understand the bundled skill | [Skill overview](skills/danseo/README.md) | English |
+| Inspect analysis, reviews, and comparison formats | [Documentation index](docs/README.md) | English |
 | Use logos and banners | [Brand assets](assets/brand/README.md) | English |
 
 ## Contributing and license

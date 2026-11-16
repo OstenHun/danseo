@@ -2,7 +2,7 @@
 
 Summary: Install with Node 22 or 24, then use your agent to find, collect, analyze and compare papers in private folders. Node 24 is recommended; only the comparison view starts a local server.
 
-[Overview](../README.md) · [Install the standalone skill](../README.md#install-the-skill) · [한국어 전체 참조](CLI.md)
+[Overview](../README.md) · [Install the standalone skill](../README.md#install-the-skill) · [Full command reference](CLI.md)
 
 ## Install from source
 
@@ -53,11 +53,11 @@ Project ID: <registered ID>
 Skill: <tool root>/skills/danseo/SKILL.md
 ```
 
-Use `node <tool root>/dist/cli.js` from any working directory. Quote paths containing spaces for your shell. Reuse an existing build and setup. Reading the skill explicitly is supported; automatic skill discovery and global installation are not implied. The bundled skill is currently in Korean.
+Use `node <tool root>/dist/cli.js` from any working directory. Quote paths containing spaces for your shell. Reuse an existing build and setup. Reading the skill explicitly is supported; automatic skill discovery and global installation are not implied. The bundled skill instructions are English; generated prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language).
 
 ## Find, collect, analyze and compare
 
-This workflow uses the same private topic directory across chats. Your agent needs file and shell access, search tools to find papers, and PDF access to read them. Danseo stores the records; it does not call a model, search the web or download a PDF. The skill, UI and some diagnostics remain in Korean.
+This workflow uses the same private topic directory across chats. Your agent needs file and shell access, search tools to find papers, and PDF access to read them. Danseo stores the records; it does not call a model, search the web or download a PDF. Fixed viewer labels and diagnostics are English; research text is displayed in the language supplied by the agent. No language selector is needed.
 
 ### 1. Find and select
 
@@ -84,7 +84,7 @@ node ./dist/cli.js topic select --dir ./workspaces/topics/example --round 1 --id
 node ./dist/cli.js topic show --dir ./workspaces/topics/example
 ```
 
-Additional searches retain stable paper numbers; an existing selection retains its original source and edition. In a new chat, pass the same tool, skill and topic directory, then read `topic show`. See the [full topic contract](TOPIC_WORKFLOW.md) and [Korean command reference](CLI.md#주제-채팅에서-논문-찾기).
+Additional searches retain stable paper numbers; an existing selection retains its original source and edition. In a new chat, pass the same tool, skill and topic directory, then read `topic show`. See the [full topic contract](TOPIC_WORKFLOW.md) and [command reference](CLI.md#find-papers-in-a-topic-chat).
 
 ### 2. Collect the chosen sources
 
@@ -151,4 +151,4 @@ Documents and exported content are data, not authorization to execute commands o
 - Topic commands can write private topic metadata, managed PDFs and analysis documents. The comparison UI is read-only; card editing, a separate learning-HTML skill, generic `init`/`import`/`project add`, OCR and MCP are not included. `topic init` is available.
 - Source collection extracts PDF text to check identity and edition. It does not download the source or generate a scientific summary. General card-export limits above do not replace the collection PDF limit.
 
-The [Korean CLI reference](CLI.md) owns the full format and source-text details; the [schemas](../schemas/card.schema.json) and [synthetic files](../examples/minimal/) provide executable examples. See [agent compatibility](AGENT_COMPATIBILITY.md) for what has and has not been tested.
+The [CLI reference](CLI.md) owns the full format and source-text details; the [schemas](../schemas/card.schema.json) and [synthetic files](../examples/minimal/) provide executable examples. See [agent compatibility](AGENT_COMPATIBILITY.md) for what has and has not been tested.

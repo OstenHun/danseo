@@ -123,15 +123,15 @@ export function comparisonText(parsed, comparison) {
     if (!a || !b) fail(`${table.id}: missing comparison method under ${condition}; preserve row labels including footnote marks`);
     table.columns.forEach((col, i) => {
       let result;
-      if (a[i] === null || b[i] === null) { missing++; result = '미보고'; }
-      else if (a[i] === b[i]) { ties++; result = '동률'; }
-      else if ((a[i] > b[i]) === (col.direction === 'higher')) { wins++; result = '우세'; }
-      else { losses++; result = '열세'; }
-      details.push(`${condition} / ${col.label} (${col.metric}, ${col.direction === 'higher' ? '높을수록' : '낮을수록'} 좋음): ${pair.method} ${a[i] ?? '미보고'} 대 ${pair.baseline} ${b[i] ?? '미보고'} — ${result}`);
+      if (a[i] === null || b[i] === null) { missing++; result = 'Not reported'; }
+      else if (a[i] === b[i]) { ties++; result = 'Tie'; }
+      else if ((a[i] > b[i]) === (col.direction === 'higher')) { wins++; result = 'Ahead'; }
+      else { losses++; result = 'Behind'; }
+      details.push(`${condition} / ${col.label} (${col.metric}, ${col.direction === 'higher' ? 'higher is' : 'lower is'} better): ${pair.method} ${a[i] ?? 'Not reported'} vs ${pair.baseline} ${b[i] ?? 'Not reported'} — ${result}`);
     });
   }
-  if (comparison.assertion === 'all-better' && (losses || ties || missing)) fail(`${table.id}: all-better contradicted: ${losses} losses, ${ties} ties, ${missing} missing; ${details.filter(s => !s.endsWith('— 우세')).join('; ')}`);
-  return `표 비교 (${table.source_id}, p. ${table.page}, ${table.id}): 검토 범위 ${pairs.size}개 조건 × ${table.columns.length}개 지표: 우세 ${wins}, 동률 ${ties}, 열세 ${losses}, 미보고 ${missing}. ${details.join('; ')}. 표의 조건·각주: ${norm(table.footer)}. 이 결과는 명시한 표 범위의 수치 비교이며 통계적 유의성이나 다른 조건의 우월성을 뜻하지 않는다.`;
+  if (comparison.assertion === 'all-better' && (losses || ties || missing)) fail(`${table.id}: all-better contradicted: ${losses} losses, ${ties} ties, ${missing} missing; ${details.filter(s => !s.endsWith('— Ahead')).join('; ')}`);
+  return `Table comparison (${table.source_id}, p. ${table.page}, ${table.id}): reviewed scope ${pairs.size} conditions × ${table.columns.length} metrics: ahead ${wins}, tied ${ties}, behind ${losses}, not reported ${missing}. ${details.join('; ')}. Table conditions and footnotes: ${norm(table.footer)}. These numbers compare only the stated table scope; they do not establish statistical significance or superiority under other conditions.`;
 }
 
 export function verifyPerformance(candidate, evidence, pages) {

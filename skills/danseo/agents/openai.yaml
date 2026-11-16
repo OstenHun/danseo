@@ -1,4 +1,4 @@
 interface:
   display_name: "Danseo"
-  short_description: "논문 근거와 프로젝트 조건을 연결하는 로컬 CLI 읽기 절차"
-  default_prompt: "$danseo로 연결된 연구 workspace를 검사하고 현재 프로젝트 질문에 필요한 논문 근거와 추가 확인을 정리해줘."
+  short_description: "Connect paper evidence with project conditions using local records"
+  default_prompt: "Use $danseo to inspect the connected research workspace and explain the paper evidence and next checks for my current project question. Follow my requested output language; preserve original quotations and identifiers."

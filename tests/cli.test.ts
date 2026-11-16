@@ -173,7 +173,7 @@ test('page text carries version, one-based pages, extraction caveat and hashes i
   const r=run(ws,[...exportArgs,'--json']); assert.equal(r.status,0,r.stderr);
   const text=required(parseJson<Bundle>(r.stdout).source_texts[0]);
   assert.equal(text.version,source.version); assert.equal(required(text.pages[0]).text,required(source.pages[0]).text);
-  assert.match(required(text.pages[0]).sha256,/^[a-f0-9]{64}$/); assert.match(text.notice,/화면 확인/);
+  assert.match(required(text.pages[0]).sha256,/^[a-f0-9]{64}$/); assert.match(text.notice,/visual verification/);
   const md=run(ws,exportArgs); assert.equal(md.status,0,md.stderr); assert.ok(md.stdout.includes('PDF page 1 (1-based)'));
 });
 

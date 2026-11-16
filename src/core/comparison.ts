@@ -26,25 +26,25 @@ const configValid = ajv.compile<{ version: 1; question: string; criteria: { id: 
 function invalid(message: string): never { throw new DanseoError('COMPARISON', message); }
 async function readSmall(path: string) {
   const bytes = await readFile(path);
-  if (bytes.length > 2 * 1024 * 1024) invalid('비교 입력은 파일당 2 MiB 이하여야 합니다.');
+  if (bytes.length > 2 * 1024 * 1024) invalid('Each comparison input file must be at most 2 MiB.');
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
 }
 
 // Reuse relations-1 and its dependency fingerprints; never manufacture a source relation from similarity.
 export async function relationState(relation: Relation, cards: Map<string, Card>, currentRefs: Set<string>) {
   const source = cards.get(relation.source), target = cards.get(relation.target);
-  if (!source || !target || source === target) invalid('관계의 양쪽 Paper와 방향을 확인하세요.');
+  if (!source || !target || source === target) invalid('Check both Paper endpoints and the relation direction.');
   if (relation.status === 'source-checked' && (relation.origin !== 'source' || relation.kind === 'reading-order'
     || !relation.review || !validReviewTime(relation.review.checked_at)
-    || !relation.evidence_refs.some(ref => ref.paper_id === relation.source))) invalid('원문 관계에는 출발 논문의 대조 근거와 확인 주체·시각이 필요합니다.');
+    || !relation.evidence_refs.some(ref => ref.paper_id === relation.source))) invalid('A source relation requires checked evidence from the source paper and the checker identity and time.');
   const inputs = [...cards.values()].map(card => ({ paper_id: card.data.id, claims: card.data.type === 'paper' ? card.data.claims ?? [] : [] }));
   // Only explicit qualified refs establish dependencies; ordinary words in a rationale are not claim IDs.
   const refs = relation.evidence_refs;
-  const originLabel = relation.origin === 'ai' ? 'AI 제안' : relation.status === 'source-checked' ? '원문 관계' : '원문 제안 · 미대조';
+  const originLabel = relation.origin === 'ai' ? 'AI proposal' : relation.status === 'source-checked' ? 'Source relation' : 'Source proposal · unchecked';
   const prior = relation.snapshots.dependencies;
   const missing = refs.filter(ref => !inputs.find(p => p.paper_id === ref.paper_id)?.claims.some(c => c.id === ref.claim_id));
   if (refs.some(ref => ![relation.source, relation.target].includes(ref.paper_id))
-    || missing.some(ref => prior && !prior.claims.some(old => old.paper_id === ref.paper_id && old.claim_id === ref.claim_id))) invalid('관계가 등록되지 않은 주장을 참조합니다.');
+    || missing.some(ref => prior && !prior.claims.some(old => old.paper_id === ref.paper_id && old.claim_id === ref.claim_id))) invalid('The relation references an unregistered claim.');
   // A previously pinned claim can be withdrawn. Hold that relationship without blocking unrelated evidence.
   if (missing.length) return { ...relation, origin_label: originLabel, needs_recheck: true, current_dependencies: null };
   const sourceStates = await Promise.all([source, target].map(readSourceState));
@@ -62,17 +62,17 @@ export async function buildComparison(root: string) {
   root = await realpath(root);
   const input = await comparisonInput(root);
   const config: unknown = JSON.parse(await readSmall(await writableFile(root, join(root, 'comparison.json'))));
-  if (!configValid(config)) invalid('comparison.json의 질문·기준·AI 묶음 이유·주장 참조를 확인하세요.');
-  if (config.question !== input.question) invalid('비교 기준의 질문이 현재 주제와 다릅니다. 현재 주제로 다시 구성하세요.');
-  if (new Set(config.criteria.map(c => c.id)).size !== config.criteria.length) invalid('비교 기준 ID가 중복됩니다.');
+  if (!configValid(config)) invalid('Check the question, criteria, AI grouping rationale and claim references in comparison.json.');
+  if (config.question !== input.question) invalid('The comparison question differs from the current topic. Rebuild it for this topic.');
+  if (new Set(config.criteria.map(c => c.id)).size !== config.criteria.length) invalid('Comparison criterion IDs are duplicated.');
   const selected = new Set(input.papers.map(p => p.key));
-  if (config.criteria.some(c => c.refs.some(ref => !selected.has(ref.key)))) invalid('이 주제에서 선택하지 않은 논문을 비교에 넣을 수 없습니다.');
+  if (config.criteria.some(c => c.refs.some(ref => !selected.has(ref.key)))) invalid('Comparison can include only papers selected in this topic.');
   const cards = new Map<string, Card>(), roots = new Set<string>();
   for (const paper of input.papers) {
     if (!paper.workspace || !paper.paper_id) continue;
     const card = getCard(await loadWorkspace(paper.workspace), paper.paper_id, 'paper');
-    if (card.sha256 !== paper.card_sha256) invalid('비교를 준비하는 동안 카드가 바뀌었습니다. 다시 여세요.');
-    if (cards.has(paper.paper_id)) invalid('비교 Paper ID가 중복됩니다. 별도 판본의 안정 ID를 확인하세요.');
+    if (card.sha256 !== paper.card_sha256) invalid('A card changed while preparing the comparison. Reopen it.');
+    if (cards.has(paper.paper_id)) invalid('Comparison Paper IDs are duplicated. Check stable IDs for separate editions.');
     cards.set(paper.paper_id, card); roots.add(paper.workspace);
   }
   const currentRefs = new Set(input.claims.map(c => canonical([c.paper_id, c.claim_id])));
@@ -84,18 +84,18 @@ export async function buildComparison(root: string) {
   for (const workspace of roots) {
     const manifest = JSON.parse(await readSmall(join(workspace, 'workspace.json')));
     if (!manifest.relations) continue;
-    if (typeof manifest.relations !== 'string') invalid('workspace.relations에는 관계 파일 하나를 지정하세요.');
+    if (typeof manifest.relations !== 'string') invalid('Specify one relation file in workspace.relations.');
     const doc = parseDocument(await readSmall(await writableFile(workspace, resolve(workspace, manifest.relations))), { uniqueKeys: true });
-    if (doc.errors.length || doc.warnings.length) invalid('관계 YAML을 읽을 수 없습니다.');
+    if (doc.errors.length || doc.warnings.length) invalid('Unable to read the relation YAML.');
     const data = doc.toJS({ maxAliasCount: 0 });
-    if (!relationValid(data)) invalid('relations-1 형식이 아닙니다.');
+    if (!relationValid(data)) invalid('Expected relations-1 format.');
     for (const relation of (data as { relations: Relation[] }).relations) {
       // Other topics' relations stay outside this view, even in a shared workspace.
       if (!cards.has(relation.source) || !cards.has(relation.target)) continue;
-      if (seen.has(relation.id)) invalid('관계 ID가 중복됩니다.');
+      if (seen.has(relation.id)) invalid('Relation IDs are duplicated.');
       seen.add(relation.id);
       const state = await relationState(relation, cards, currentRefs);
-      if (state.needs_recheck) heldRelations.push({ id: relation.id, reason: '관계 또는 원문·주장 근거 재확인 필요', current_dependencies: state.current_dependencies });
+      if (state.needs_recheck) heldRelations.push({ id: relation.id, reason: 'Recheck the relation or its source and claim evidence', current_dependencies: state.current_dependencies });
       else relations.push(state);
     }
   }
