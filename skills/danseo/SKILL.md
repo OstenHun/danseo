@@ -61,6 +61,8 @@ Append with `analysis-save` using answer JSON and the hash returned at open. Reo
 
 Use the bundled shared generator for relationship maps or standalone HTML, following the [view model](references/research-view.md), [relation verification](references/relation-verification.md) and [overview/count gate](references/evidence-gate.md). Claude, Argon and Codex must follow the same source/AI distinctions and save only passing candidates. Node 22/24 is sufficient without a separate app or card registration. Source meaning, extraction fidelity and rendered reading need separate checks. The CLI comparison viewer and standalone generator are separate paths.
 
+Before authoring v2 JSON, read the bundled [complete candidate example](assets/paper-relations.v2.example.json) for its field shapes; replace its synthetic content with the actual authorized material. Keep root `scope` and `provenance`, each Paper's `short_title` and `notes` (string array), and each Claim's `reviews` (array). Hash actual input files for provenance; do not invent hashes, reviews or sources. Run the structural check before preparing evidence, then follow the verified output path. On a diagnostic, correct the named field and rerun the check; never deliver an unchecked candidate or silently weaken validation. If execution is unavailable, report the unrun checks instead of claiming a finished HTML.
+
 <a id="논문-관계-그래프의-기본-구성"></a>
 
 ## Default paper relationship graph

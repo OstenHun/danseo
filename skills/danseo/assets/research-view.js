@@ -282,12 +282,17 @@
     if (scene === 'background') mountMap('papers');
     select(relation.source, false);
     const meta = byId('metadata'), content = byId('content'); meta.replaceChildren(); content.replaceChildren();
-    byId('position').textContent = t('RELATION · ') + relation.id; byId('item-title').textContent = kindLabels[relation.kind];
+    const number = String(data.relations.findIndex(item => item.id === id) + 1).padStart(2, '0');
+    byId('position').textContent = t('RELATION {number} · ', { number }) + relation.id; byId('item-title').textContent = kindLabels[relation.kind];
     meta.append(badge((relation.origin === 'ai' ? t('AI proposal') : t('Source-based record')) + ' · ' + relation.origin), badge(t('Record status · ') + relation.status));
     if (relation.needs_recheck) meta.append(badge(t('Needs rechecking · a previous check is not treated as currently valid.'), true));
     const direction = section(t('Relation direction')); direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target))); content.append(direction);
     const reason = section(t('Why these records are connected')); reason.append(p(relation.rationale)); content.append(reason);
-    const refs = section(t('Source claims linked to this relation')); claims(refs, relation.evidence_refs); if (!relation.evidence_refs.length) refs.append(node('p', 'empty-note', t('No linked claim evidence · relation meaning remains unverified.'))); content.append(refs);
+    const refs = section(t('Source evidence'));
+    if (relation.origin === 'ai' && relation.evidence_refs.length) refs.append(node('p', 'section-note', t('These claims informed an AI proposal. They do not source-confirm the relationship itself.')));
+    if (relation.evidence_refs.length) claims(refs, relation.evidence_refs);
+    else refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This AI proposal has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
+    content.append(refs);
     const history = node('details', 'source'); history.append(node('summary', '', t('Relation authorship and source-check record')), p(relation.created_by)); if (relation.review) history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at)); content.append(history);
     selectedType = 'relation'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Selected relation matches the map'); highlight('relation', id); byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent }); if (focus) byId('item-title').focus(); return true;
   }
