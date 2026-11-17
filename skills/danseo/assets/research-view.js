@@ -26,6 +26,11 @@
     } else if (source) parent.append(node('p', 'section-note', t('Publication date evidence · {source} · {location} · {scope}', { source: source.title, location: source.locator, scope: source.scope })));
   }
   const kindLabels = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related connection'), 'reading-order': t('Suggested reading order') };
+  function relationLabel(relation) {
+    if (relation.origin === 'ai') return t('Suggested connection');
+    if (relation.status === 'source-checked' && !relation.needs_recheck) return t('Source-checked relation');
+    return t('Source relation not checked');
+  }
   function node(tag, cls, text) {
     const el = document.createElement(tag);
     if (cls) el.className = cls;
@@ -122,7 +127,12 @@
       let type, id, title, sub;
       if (scene === 'context') { type = 'context-link'; id = String(index); title = topics.get(item.source).title + ' → ' + topics.get(item.target).title; sub = item.label + t(' · suggested reading order'); }
       else if (projectMode) { type = 'reference'; id = item.app.id + ':' + item.paper.id; title = paperName(item.paper.id) + ' → ' + item.app.title; sub = item.app.claim_refs.filter(ref => ref.paper_id === item.paper.id).length + t(' claims · compare with project conditions'); }
-      else { type = 'relation'; id = item.id; title = paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind]; sub = (item.origin === 'ai' ? t('Suggested connection') : item.status === 'source-checked' && !item.needs_recheck ? t('Source-checked relation') : t('Source relation not checked')) + (item.needs_recheck ? t(' · Needs rechecking') : ''); }
+      else {
+        type = 'relation';
+        id = item.id;
+        title = paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind];
+        sub = relationLabel(item) + (item.needs_recheck ? t(' · Needs rechecking') : '');
+      }
       const a = localLink(type, id, undefined, 'map-link'), body = node('span', '', title); body.append(node('span', 'link-subtitle', sub)); a.append(node('span', 'index', String(index + 1).padStart(2, '0')), body); byId('map-links').append(a); nav.set(type + ':' + id, a);
     });
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); }, matches => {
@@ -295,7 +305,7 @@
     const meta = byId('metadata'), content = byId('content'); meta.replaceChildren(); content.replaceChildren();
     const number = String(data.relations.findIndex(item => item.id === id) + 1).padStart(2, '0');
     byId('position').textContent = t('RELATION {number} · ', { number }) + relation.id; byId('item-title').textContent = kindLabels[relation.kind];
-    meta.append(badge(relation.origin === 'ai' ? t('Suggested connection') : relation.status === 'source-checked' && !relation.needs_recheck ? t('Source-checked relation') : t('Source relation not checked'), relation.needs_recheck));
+    meta.append(badge(relationLabel(relation), relation.needs_recheck));
     if (relation.needs_recheck) meta.append(badge(t('Needs rechecking · a previous check is not treated as currently valid.'), true));
     const direction = section(t('Relation direction')); direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target))); content.append(direction);
     const reason = section(t('Why these records are connected')); reason.append(p(relation.rationale)); content.append(reason);
