@@ -139,6 +139,23 @@ const backgroundFixture = () => {
 const openBackground = (data, hash = '#paper=' + data.start, mapApi) => openView(data, hash, {
   script: new URL('../assets/research-view.js', import.meta.url), elementIds, navigation: 'items', prefix: '#paper=', title: 'item-title', mapApi,
 });
+
+for (const version of [1, 2]) for (const language of ['en', 'ko']) {
+  test(`bare paper maps select start without stealing focus; explicit routes remain intact (v${version}, ${language})`, () => {
+    const data = fixture('paper-relations', version);
+    data.language = language;
+    data.start = data.papers[1].id;
+    const initial = openBackground(data, '');
+    assert.equal(initial.elements.get('item-title').textContent, data.papers[1].title);
+    assert.notEqual(initial.activeElement, initial.elements.get('item-title'));
+    const overview = openBackground(data, '#overview=all');
+    assert.notEqual(overview.elements.get('item-title').textContent, data.papers[1].title);
+    const linked = openBackground(data, '#paper=' + encodeURIComponent(data.papers[0].id));
+    assert.equal(linked.elements.get('item-title').textContent, data.papers[0].title);
+    const invalid = openBackground(data, '#paper=unknown');
+    assert.equal(invalid.elements.get('item-title').textContent, overview.elements.get('item-title').textContent);
+  });
+}
 const linksIn = element => element.children.filter(child => typeof child !== 'string').flatMap(child => [
   ...(child.tagName === 'A' ? [child] : []), ...linksIn(child),
 ]);
