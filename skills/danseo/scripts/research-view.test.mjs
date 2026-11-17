@@ -205,6 +205,26 @@ const linksIn = element => element.children.filter(child => typeof child !== 'st
   ...(child.tagName === 'A' ? [child] : []), ...linksIn(child),
 ]);
 
+test('relation list and details use the same source, suggestion and stale labels in both languages', () => {
+  for (const language of ['en', 'ko']) for (const [origin, status, stale, english, korean] of [
+    ['ai', 'proposed', false, 'Suggested connection', '추천 연결'],
+    ['source', 'proposed', false, 'Source relation not checked', '원문 관계 미확인'],
+    ['source', 'source-checked', false, 'Source-checked relation', '원문 확인 관계'],
+    ['source', 'source-checked', true, 'Source relation not checked', '원문 관계 미확인'],
+  ]) {
+    const data = backgroundFixture();
+    data.language = language;
+    const relation = data.relations[0];
+    Object.assign(relation, { origin, status, needs_recheck: stale });
+    const view = openBackground(data, '#relation=' + relation.id);
+    const label = language === 'ko' ? korean : english;
+    const link = linksIn(view.elements.get('map-links')).find(link => link.href === '#relation=' + relation.id);
+    assert.ok(link.textContent.includes(label));
+    assert.equal(view.elements.get('metadata').children[0].textContent, label);
+    assert.equal(view.elements.get('metadata').children[0].className, stale ? 'badge warning' : 'badge');
+  }
+});
+
 test('concept background references are explicit, local to a paper and always AI proposals', () => {
   validateCandidate(backgroundFixture());
   const invalid = [
@@ -345,10 +365,12 @@ test('background projection keeps concept and paper namespaces distinct and leav
   const elements = scope.window.DanseoMap.build(data, 'background', data.backgrounds[0].id);
   const nodes = elements.filter(item => item.group === 'nodes');
   assert.equal(nodes.length, 3); assert.equal(new Set(nodes.map(item => item.data.id)).size, 3);
+  assert.ok(nodes.filter(item => item.data.type === 'paper').every(item => item.data.label.includes('Publication year unknown')));
   assert.equal(nodes.filter(item => item.data.type === 'concept').length, 1);
   assert.ok(elements.filter(item => item.group === 'edges').every(item => item.data.origin === 'ai' && item.data.state === 'proposed'));
   assert.equal(JSON.stringify(data.relations), original);
-  assert.ok(scope.window.DanseoMap.build(data, 'papers').filter(item => item.group === 'nodes').every(item => item.data.type === 'paper'));
+  const undatedPapers = scope.window.DanseoMap.build(data, 'papers').filter(item => item.group === 'nodes');
+  assert.ok(undatedPapers.every(item => item.data.type === 'paper' && item.data.label.includes('Publication year unknown')));
   data.papers[0].publication = {date:'2017-06-12',edition_date:'2023-08-02',source_id:data.sources[0].id};
   const dated = scope.window.DanseoMap.build(data, 'background', data.backgrounds[0].id);
   assert.match(dated.find(item => item.data.recordId === data.papers[0].id).data.label, /2017/);

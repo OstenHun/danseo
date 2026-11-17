@@ -72,7 +72,7 @@ On Windows with Node 24.22.3, fresh project copies were exercised through Codex 
 
 These are finite behavior samples, not required counts or exhaustive literature coverage. Existing subscription logins were reused; this was not a new physical PC, new global user account or desktop-app installation. Actual discovery/tool records and unchanged model-authored inputs were checked locally. Final views are regenerated through the verified generator; a bare paper-map URL selects its registered focal Paper without stealing keyboard focus, while explicit overview/deep links retain their meaning. Newly created Papers remained draft; original-source access and current citation checks were kept separate. The [original-source gate](../skills/danseo/references/evidence-gate.md#original-source-checks) rejects missing or stale original archives without certifying source meaning, publisher authenticity or reader understanding. Raw model logs and downloaded originals are not distributed.
 
-Desktop checks sample the four maps at 1280×800 and 1440×900 rather than every record or gesture. Graphs preserve an interacted camera when resized; use Fit all to reframe clipped cards. Cards without a structured date still display Date not provided, while edition dates remain available in details.
+Desktop checks sample the four maps at 1280×800 and 1440×900 rather than every record or gesture. Graphs preserve an interacted camera when resized; use Fit all to reframe clipped cards. Current standalone Paper nodes show the source-linked first-publication year, or Publication year unknown when metadata is absent. Details retain the recorded date precision and selected edition date; a year in a title is not a substitute for publication metadata.
 
 ## Updating support
 
