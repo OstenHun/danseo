@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const t = window.DanseoText ?? (text => text);
-  const kind = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related'), 'reading-order': t('AI reading order') };
+  const kind = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related'), 'reading-order': t('Suggested reading order') };
   function build(data, scene, backgroundId) {
     const elements = [], project = data.mode === 'project-application';
     const addNode = (type, item, index, count, column) => {
@@ -14,7 +14,7 @@
         position = { x: 110 + col * 240, y: 70 + row * 155 };
       } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
       else position = count === 2 ? { x: 170 + index * 380, y: 190 } : { x: 360 + Math.cos(index / count * 2 * Math.PI) * 245, y: 230 + Math.sin(index / count * 2 * Math.PI) * 165 };
-      const stateLabel = type === 'concept' ? t('\nConcept · AI explanation') : type === 'paper' ? t('\nPaper review · ') + item.review_status : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified')) : '';
+      const stateLabel = type === 'concept' ? t('\nConcept') : type === 'paper' ? '\n' + (item.publication?.date.slice(0, 4) ?? t('Publication year unknown')) + (item.review_status === 'needs-recheck' ? '\n' + t('Evidence needs rechecking') : '') : type === 'application' ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified')) : '';
       elements.push({ group: 'nodes', data: { id: type + ':' + item.id, recordId: item.id, type, label: (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') + (item.short_title ?? item.title) + stateLabel, state: item.review_status ?? item.decision?.status ?? 'context' }, position });
     };
     if (scene === 'background') {
@@ -22,10 +22,10 @@
       const concept = data.concepts.find(item => item.id === background.concept_id);
       addNode('paper', data.papers.find(item => item.id === background.paper_id), 0, 1, 0);
       addNode('concept', concept, 0, 1, 1);
-      elements.push({ group: 'edges', data: { id: 'concept-need:' + background.id, source: 'paper:' + background.paper_id, target: 'concept:' + concept.id, type: 'concept-need', recordId: background.id, label: t('Explore · AI'), origin: 'ai', state: 'proposed' } });
+      elements.push({ group: 'edges', data: { id: 'concept-need:' + background.id, source: 'paper:' + background.paper_id, target: 'concept:' + concept.id, type: 'concept-need', recordId: background.id, label: t('Explore concept'), origin: 'ai', state: 'proposed' } });
       background.readings.forEach((reading, i, all) => {
         addNode('paper', data.papers.find(item => item.id === reading.paper_id), i, all.length, 2);
-        elements.push({ group: 'edges', data: { id: 'background-reading:' + background.id + ':' + reading.paper_id, source: 'concept:' + concept.id, target: 'paper:' + reading.paper_id, type: 'background-reading', recordId: background.id, paperId: reading.paper_id, label: t('Read · AI'), origin: 'ai', state: 'proposed' } });
+        elements.push({ group: 'edges', data: { id: 'background-reading:' + background.id + ':' + reading.paper_id, source: 'concept:' + concept.id, target: 'paper:' + reading.paper_id, type: 'background-reading', recordId: background.id, paperId: reading.paper_id, label: t('Background reading'), origin: 'ai', state: 'proposed' } });
       });
     } else if (scene === 'context') {
       data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
@@ -40,7 +40,7 @@
             if (refs.length) elements.push({ group: 'edges', data: { id: 'reference:' + item.id + ':' + paper.id, source: 'paper:' + paper.id, target: 'application:' + item.id, type: 'reference', recordId: item.id, paperId: paper.id, label: t('Evidence reference · ') + refs.length + t(' claims'), origin: 'reference', state: item.decision.status } });
           }
         });
-      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? t('AI proposal') : t('Source record')) + t(' · recheck') : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
+      } else data.relations.forEach((relation, i) => elements.push({ group: 'edges', data: { id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target, type: 'relation', recordId: relation.id, label: String(i + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + (relation.needs_recheck ? ' · ' + (relation.origin === 'ai' ? t('Suggested connection') : t('Source record')) + t(' · recheck') : ''), origin: relation.origin, state: relation.needs_recheck ? 'needs-recheck' : relation.status } }));
     }
     return elements;
   }
@@ -100,7 +100,7 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
-      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: t('Date not provided') });
+      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: paper.publication?.date.slice(0, 4) ?? t('Publication year unknown') });
       cards.set(paper.id, card); world.append(card);
     }
     presentation.drawTopics(world, layout.headings);

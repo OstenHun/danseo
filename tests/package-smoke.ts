@@ -45,6 +45,8 @@ console.log(`Installed ${pack.filename}: help, synthetic validation and export p
 // Copy only the installed skill to reproduce the README folder-only installation.
 const standalone = path.join(scratch, 'standalone-skill');
 cpSync(path.join(installed, 'skills/danseo'), standalone, {recursive: true});
+execFileSync(process.execPath, ['--test', path.join(standalone, 'scripts/publication-ready.test.mjs')], { cwd: scratch, stdio: 'pipe' });
+console.log('Installed source-complete delivery: date/claim passage bindings, stale evidence and no-write regressions passed.');
 for (const file of ['SKILL.md', 'assets/graph-presentation.js', 'assets/graph-presentation.css', 'assets/research-map.js', 'assets/research-view.js', 'scripts/render-research-view.mjs']) {
   assert.deepEqual(readFileSync(path.join(standalone, file)), readFileSync(path.join(root, 'skills/danseo', file)));
 }

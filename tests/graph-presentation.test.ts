@@ -104,7 +104,7 @@ test('focus, kind and provenance filters never promote AI or stale evidence', ()
   assert.ok(!view.matchesRelation(ai, {...filters, category: 'source'}));
   assert.ok(!view.matchesRelation(source, {...filters, kind: 'reading-order'}));
   assert.ok(view.matchesRelation({...ai, needs_recheck: true}, {...filters, category: 'stale'}));
-  assert.equal(view.relationState({...ai, needs_recheck: true}), 'AI proposal · recheck');
+  assert.equal(view.relationState({...ai, needs_recheck: true}), 'Suggested connection · recheck');
   assert.equal(view.relationState({...source, needs_recheck: true}), 'Source record · recheck');
   assert.equal(ai.status, 'proposed');
 });

@@ -55,6 +55,51 @@ function openView(data, initialHash, { script, elementIds, navigation, prefix, t
 const elementIds = ['candidate','skip','items','count','position','item-title','metadata','content','previous','next','current-count','announcement','map-heading','map-notice','map-legend','map-status','scene-controls','map-links','provenance','research-map','map-node-navigation','node-kind','fit-map','zoom-in','zoom-out'];
 const fixture = (mode, version = 1) => JSON.parse(readFileSync(new URL('../assets/' + mode + (version === 2 ? '.v2' : '') + '.example.json', import.meta.url), 'utf8'));
 const openPaper = (data, id) => openView(data, '#paper=' + id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:data.mode==='project-application'?'#application=':'#paper=',title:'item-title'}).elements.get('content');
+
+test('paper details show distinct sourced publication and edition dates without a publication-like draft badge', () => {
+  for (const language of ['en', 'ko']) {
+    const data = fixture('paper-relations', 2); data.language = language;
+    data.papers[0].publication = { date: '2017-06-12', edition_date: '2023-08-02', source_id: data.sources[0].id };
+    const view = openView(data, '#paper=' + data.papers[0].id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#paper=',title:'item-title'});
+    const metadata = view.elements.get('metadata').textContent;
+    assert.match(metadata, /2017-06-12/); assert.match(metadata, /2023-08-02/);
+    assert.doesNotMatch(metadata, /draft|review in progress|검토 중/);
+    assert.ok(metadata.includes(language === 'ko' ? '최초 공개' : 'First published'));
+  }
+});
+
+test('Korean completed coverage and a single authorship notice are rendered as visible UI text', () => {
+  const data = fixture('paper-relations', 2); data.language = 'ko';
+  const html = renderCandidate(data, { complete: true, completionScope: 'Only <selected> source passages, not full papers.' });
+  assert.match(html, /<p class="description source-coverage">수록한 주장과 원문 관계의 대조 완료 기록이 있습니다\.<\/p>/);
+  assert.match(html, /Only &lt;selected&gt; source passages, not full papers\./);
+  assert.equal((html.match(/class="description authorship"/g) ?? []).length, 1);
+  const view = openView(data, '#paper=' + data.papers[0].id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#paper=',title:'item-title'});
+  assert.doesNotMatch(view.elements.get('content').textContent, /AI가 기록한|AI 해설|AI 제안/);
+});
+
+test('stale Paper warnings survive draft-badge removal in legacy project and evidence-reference paths', () => {
+  const data = fixture('project-application', 1);
+  const paper = data.papers[0]; paper.review_status = 'needs-recheck';
+  const open = hash => openView(data, hash, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#application=',title:'item-title'});
+  for (const hash of ['#paper=' + paper.id, '#application=' + data.start, '#reference=' + data.start + ':' + paper.id]) {
+    const view = open(hash);
+    assert.match(view.elements.get('metadata').textContent + view.elements.get('content').textContent, /Evidence needs rechecking/);
+  }
+});
+
+test('local-only publication evidence retains its title, locator and scope without inventing a file URL', () => {
+  const data = fixture('paper-relations', 2);
+  const paper = data.papers[0];
+  data.sources.push({ id:'S.local-dates',title:'Local edition cover',url:null,locator:'Cover, PDF p.1',scope:'Checked cover date only.',verification:'agent-checked' });
+  paper.publication = {date:'2017',edition_date:null,source_id:'S.local-dates'};
+  paper.short_title = 'Synthetic conference label · 2019';
+  const view = openView(data, '#paper=' + paper.id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#paper=',title:'item-title'});
+  const metadata = view.elements.get('metadata').textContent;
+  assert.match(metadata,/First published · 2017/);
+  assert.match(metadata,/Local edition cover/); assert.match(metadata,/Cover, PDF p.1/); assert.match(metadata,/Checked cover date only/);
+  assert.doesNotMatch(metadata,/2019|file:/);
+});
 test('v2 authoring errors remain failures until required provenance and notes shapes are repaired', () => {
   const data = fixture('paper-relations', 2), provenance = data.provenance;
   delete data.provenance;
@@ -76,12 +121,12 @@ test('relation reading separates AI references, absent evidence and source recor
     const view = openView(data, '#relation=' + relation.id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#paper=',title:'item-title'});
     const content = view.elements.get('content'), evidence = content.children[2];
     assert.equal(evidence.children[0].textContent, language === 'ko' ? '원문 근거' : 'Source evidence');
-    const aiReference = language === 'ko' ? 'AI 제안에 참고한 주장' : 'These claims informed an AI proposal';
+    const aiReference = language === 'ko' ? '이 주장을 바탕으로 추천한 연결' : 'These claims inform a reading suggestion';
     assert.equal(evidence.textContent.includes(aiReference), origin === 'ai' && linked);
     if (!linked) {
       assert.equal(evidence.children.length, 2);
       assert.ok(evidence.textContent.includes(language === 'ko' ? '원문에서 확인된 관계로 사용하지 마세요.' : 'Do not use'));
-      assert.equal(evidence.children[1].textContent.includes(language === 'ko' ? 'AI 제안' : 'AI proposal'), origin === 'ai');
+      assert.equal(evidence.children[1].textContent.includes(language === 'ko' ? '추천' : 'suggestion'), origin === 'ai');
     }
     assert.match(view.elements.get('position').textContent, /01 · /);
     const history = content.children.at(-1);
@@ -207,13 +252,13 @@ test('Korean UI follows the declared language without translating research or so
   assert.ok(linksIn(content).some(link => link.textContent === '배경 펼치기 · ' + data.concepts[0].title));
   linksIn(content).find(link => link.href === '#background=B.Explore').click();
   assert.equal(view.elements.get('map-heading').textContent, '개념 배경 · ' + data.concepts[0].title);
-  assert.ok(content.textContent.includes('저자의 인용·최초 발명·필수 읽기를 뜻하지 않습니다.'));
+  assert.ok(view.elements.get('map-notice').textContent.includes('원문의 인용 관계나 필수 선수 조건을 뜻하지 않습니다.'));
   const source = linksIn(content).find(link => link.href === 'https://example.org/background');
   assert.equal(source.textContent, '원문 열기 ↗');
   assert.ok(source.attributes.get('aria-label').endsWith(' · 원문 열기 · 새 탭'));
   assert.ok(content.textContent.includes(data.backgrounds[0].readings[0].return_question));
   linksIn(content).find(link => link.href.startsWith('#background-paper=')).click();
-  assert.ok(content.textContent.includes('돌아와 비교하기 · AI 질문'));
+  assert.ok(content.textContent.includes('돌아와 비교하기'));
   linksIn(content).find(link => link.href === '#paper=' + data.start).click();
   assert.equal(view.elements.get('map-heading').textContent, '논문 사이의 연결');
   assert.equal(JSON.stringify(data), saved);
@@ -257,10 +302,10 @@ test('optional background navigation returns to the original paper without reset
     return { destroy() {}, select() {}, snapshot() { return savedPaperState; } };
   } };
   const view = openBackground(data, '#paper=' + data.start, mapApi), content = view.elements.get('content');
-  assert.ok(content.textContent.includes('Concepts to explore'));
+  assert.ok(content.textContent.includes('Concept background'));
   linksIn(content).find(link => link.href === '#background=B.Explore').click();
   assert.equal(view.elements.get('item-title').textContent, data.concepts[0].title);
-  assert.ok(content.textContent.includes('not a citation, first-invention claim or required reading'));
+  assert.ok(view.elements.get('map-notice').textContent.includes('not citations or required prerequisites'));
   assert.ok(content.textContent.includes(data.sources.find(source => source.id === data.backgrounds[0].readings[0].evidence[0]).locator));
   const originalSource = linksIn(content).find(link => link.href === 'https://example.org/background');
   assert.equal(originalSource.target, '_blank'); assert.equal(originalSource.rel, 'noopener noreferrer');
@@ -304,6 +349,10 @@ test('background projection keeps concept and paper namespaces distinct and leav
   assert.ok(elements.filter(item => item.group === 'edges').every(item => item.data.origin === 'ai' && item.data.state === 'proposed'));
   assert.equal(JSON.stringify(data.relations), original);
   assert.ok(scope.window.DanseoMap.build(data, 'papers').filter(item => item.group === 'nodes').every(item => item.data.type === 'paper'));
+  data.papers[0].publication = {date:'2017-06-12',edition_date:'2023-08-02',source_id:data.sources[0].id};
+  const dated = scope.window.DanseoMap.build(data, 'background', data.backgrounds[0].id);
+  assert.match(dated.find(item => item.data.recordId === data.papers[0].id).data.label, /2017/);
+  assert.ok(dated.every(item => !/AI|draft|Paper review/.test(item.data.label)));
 });
 
 test('all new concept/background prose is screened without changing the old canonical overview', () => {

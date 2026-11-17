@@ -13,6 +13,7 @@ Summary: Danseo provides file-based discovery, source collection, paper analysis
 - Paper-node source shortcuts in standalone HTML: [open the registered original and read its recorded locations](skills/danseo/references/research-view.md#open-the-original-from-a-paper-node).
 - Optional concept background maps with selected reading locations and a return path: [concept backgrounds](skills/danseo/references/research-view.md#optional-concept-backgrounds).
 - Korean/English standalone guidance and requested-language prose: [language rules](skills/danseo/SKILL.md#output-language).
+- Source-linked first-publication/edition dates and a complete-delivery gate for displayed evidence: [view metadata](skills/danseo/references/research-view.md#prepare-candidate-input) and [completion](skills/danseo/references/evidence-gate.md#finish-source-checking-before-normal-delivery). Internal Paper draft status stays separate from publication status; the UI identifies source relations and suggested readings without repeating authorship badges.
 - Complete companion skills: [paper learning](skills/danseo-reading/SKILL.md) and [project application decisions](skills/paper-to-project/SKILL.md), with English instructions and requested-language results.
 
 ## Next areas
