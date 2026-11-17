@@ -85,6 +85,57 @@ function localFile(base, relative, expectedHash) {
   return bytes;
 }
 
+function verifySourceChecks(candidate, evidence, directory, pdfSources) {
+  const checks = evidence.source_checks ?? [];
+  list(checks, 'source_checks');
+  const originals = new Set();
+  for (const check of checks) {
+    object(check, ['source_id', 'url', 'format', 'document_path', 'document_sha256', 'page', 'quote'], 'source_check');
+    const source = candidate.sources.find(s => s.id === check.source_id);
+    if (!source || check.url !== source.url || (check.format === 'html' && !source.url)) fail('source_check: exact registered original URL required (local PDFs may use null)');
+    text(check.quote, 'source_check.quote');
+    const bytes = localFile(directory, check.document_path, check.document_sha256);
+    if (check.format === 'pdf') {
+      const registered = evidence.sources.find(s => s.id === source.id);
+      if (!registered || registered.document_sha256 !== check.document_sha256 || bytes.subarray(0, 5).toString() !== '%PDF-') fail('source_check: original PDF must match registered page extraction');
+      const page = pdfSources.get(source.id)?.get(check.page);
+      if (!page || !containsQuote(page, check.quote)) fail('source_check: quote missing from original PDF page');
+    } else if (check.format === 'html') {
+      const html = bytes.toString('utf8');
+      if (check.page !== null || !/<(?:!doctype\s+html|html)[\s>]/i.test(html)) fail('source_check: expected original HTML with page:null, not summary text');
+      // Match body text, excluding obvious non-content. CSS visibility and the
+      // remote publisher's identity still need separate inspection.
+      const body = html.replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<(head|script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+        .replace(/<[^>]*>/g, ' ');
+      if (!containsQuote(body, check.quote)) fail('source_check: quote missing from original HTML');
+    } else fail('source_check: format must be html or pdf');
+    originals.add(source.id);
+  }
+  const requireOriginal = (id, at) => {
+    if (!originals.has(id)) fail(`${at}: checked state requires archived original source_checks; summaries stay not-checked/draft/proposed (or retain historical status with needs_recheck:true)`);
+  };
+  for (const source of candidate.sources) if (source.verification === 'agent-checked') requireOriginal(source.id, source.id);
+  const claimSources = (paper, claimId) => paper?.claims.find(c => c.id === claimId)?.evidence ?? [];
+  for (const paper of candidate.papers) if (paper.review_status === 'source-checked') {
+    if (!paper.claims.length) fail(`${paper.id}: whole-paper source-checked requires original claim evidence; use draft for passage-only checks`);
+    for (const claim of paper.claims) {
+      if (!claim.evidence.length) fail(`${paper.id}/${claim.id}: checked paper requires original claim evidence`);
+      claim.evidence.forEach(id => requireOriginal(id, `${paper.id}/${claim.id}`));
+    }
+  }
+  for (const relation of candidate.relations) if (relation.status === 'source-checked' && !relation.needs_recheck) {
+    if (!relation.evidence_refs.length) fail(`${relation.id}: checked relation needs original claim references`);
+    if (!relation.evidence_refs.some(ref => ref.paper_id === relation.source)) fail(`${relation.id}: checked relation requires evidence from its asserting source paper`);
+    for (const ref of relation.evidence_refs) {
+      const sourceIds = claimSources(candidate.papers.find(p => p.id === ref.paper_id), ref.claim_id);
+      if (!sourceIds.length) fail(`${relation.id}: checked relation needs original claim evidence`);
+      sourceIds.forEach(id => requireOriginal(id, relation.id));
+    }
+  }
+  return originals.size;
+}
+
 export function verifyEvidence(candidate, evidence, directory) {
   if (candidate.version !== 2 || candidate.mode !== 'paper-relations') fail('Evidence gate requires version 2 paper-relations');
   for (const r of candidate.relations) {
@@ -94,7 +145,7 @@ export function verifyEvidence(candidate, evidence, directory) {
     if (candidate[key] !== value) fail(`${key}: regenerate the canonical overview with --overview`);
   }
   if (![1, 2].includes(evidence.version)) fail('Unsupported evidence version');
-  object(evidence, evidence.version === 2 ? ['version', 'sources', 'counts', 'tables', 'performance'] : ['version', 'sources', 'counts'], 'evidence');
+  object(evidence, [...(evidence.version === 2 ? ['version', 'sources', 'counts', 'tables', 'performance'] : ['version', 'sources', 'counts']), ...(Object.hasOwn(evidence, 'source_checks') ? ['source_checks'] : [])], 'evidence');
   list(evidence.sources, 'sources'); list(evidence.counts, 'counts');
   const sources = new Map();
   for (const source of evidence.sources) {
@@ -150,5 +201,6 @@ export function verifyEvidence(candidate, evidence, directory) {
     if (mentions.some(i => !sourceCounts.some(s => s.unit === i.unit && s.value === i.value))) fail(`${pointer}: table report count differs from its source block`);
     covered.add(pointer);
   }
-  return { checks: 'canonical-overview-source-counts-and-performance', count_fields: covered.size, source_files: sources.size, ...performance, source_semantics: 'not-certified', visual_review: 'not-run' };
+  const originalChecks = verifySourceChecks(candidate, evidence, directory, sources);
+  return { checks: 'canonical-overview-source-counts-and-performance', count_fields: covered.size, source_files: sources.size, original_source_checks: originalChecks, ...performance, source_semantics: 'not-certified', visual_review: 'not-run' };
 }

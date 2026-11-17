@@ -1,6 +1,6 @@
 ---
 name: danseo
-description: Find and organize research papers, analyze evidence-linked relationships, and generate consistent interactive research graphs or standalone HTML. Use for Danseo workflows, paper relation maps, and local paper/application records.
+description: Orient a paper-reading request with prior and follow-up research, find papers, and create evidence-linked interactive HTML maps. Use for research neighborhoods, paper relations, and local paper/application records.
 ---
 # Danseo
 
@@ -17,6 +17,8 @@ Keep original paper titles, direct quotations, identifiers, schema keys, status 
 <a id="연결-확인"></a>
 
 ## Check the connection
+
+For an open-ended request to read or understand a named paper, start with [paper-reading orientation](references/paper-orientation.md): identify the paper, discover a bounded neighborhood of prior and follow-up research, and deliver a requested-language relationship HTML with optional focused concept backgrounds. Do not reduce this to a summary or a supplied-paper-only map. Explicit summary-only, translation, tutoring-only, offline or fixed-source requests keep their narrower scope. This folder-only route needs no CLI, Paper registration or selection questionnaire.
 
 Start discovery, selection and resumption with the topic procedure below. Reuse the prepared CLI and private topic folder.
 

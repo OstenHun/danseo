@@ -62,8 +62,32 @@ Extracted JSON is `{"pdf_sha256":"<original PDF hash>","pages":[{"page":2,"text"
 ## Scope and limits
 
 - Automatic count targets: Paper notes and claim statement/conditions/limitations containing Arabic-number records/pairs or their supported Korean equivalents. Documents mentioned in the same field are also checked. A documents-only retrieval setting, such as top 5 documents, needs agent source checking. Comma thousands and parenthesized pair markers are supported; arbitrary quantities, written-out Korean numbers and natural-language equivalence are not certified.
-- Performance checks validate field reviews and table calculations, not general semantics. Overview checks cover three structural summary fields, not arbitrary titles/rationales/claims. Verifying origin/status remains the source-check workflow's responsibility.
+- Performance checks validate field reviews and table calculations, not general semantics. Overview checks cover three structural summary fields, not arbitrary titles/rationales/claims. Checked states additionally require original-source records below; verifying their meaning remains the source-check workflow's responsibility.
 - Hashes detect later source/extraction changes; excerpt checks establish agreement with submitted extracted text. Trustworthy extraction and actual PDF content need original-page inspection. This is not a detector for an agent forging both sources and hashes.
 - Receipts retain `source_semantics:not-certified`, `visual_review:not-run`. Never report these as semantic/visual completion; attach separate evidence.
 
 Run `node --test <skill>/scripts/research-evidence.test.mjs` for development regressions. Distinguish synthetic tests from real-paper runs. Canonical overview notices follow `language`; deterministic count/comparison evidence reports remain English. Agent-authored research prose follows the requested language and is preserved by the renderer.
+
+## Original source checks
+
+For verified saves, an `agent-checked` candidate source, a `source-checked` Paper, or a current `source-checked` relation (`needs_recheck:false`) requires archived original evidence. Add optional `source_checks` to evidence v2 (omit it or use `[]` for unchecked work):
+
+```json
+{
+  "source_checks": [{
+    "source_id": "S.Example",
+    "url": "https://example.org/original",
+    "format": "html",
+    "document_path": "original.html",
+    "document_sha256": "<actual SHA-256>",
+    "page": null,
+    "quote": "An exact short body-text fragment from the inspected original."
+  }]
+}
+```
+
+Save the actual downloaded original HTML bytes, not a model-written wrapper or summary, under the evidence directory. The exact registered URL, confined local path, file hash, HTML marker and excerpt must agree. Choose a contiguous body-text fragment without intervening markup/entities; comments and head/script/style/noscript/template blocks are excluded. CSS visibility still needs rendered inspection. Candidate source `locator` records the actual section; the quote must support the linked claim/relation, which still needs semantic inspection. For `format:pdf`, use the original PDF path/hash already registered in evidence `sources`, an actual integer `page` and its page-aligned excerpt. A supplied local original PDF may use matching `url:null`; do not invent a remote URL. Do not fake a PDF or HTML file to satisfy this gate.
+
+All evidence source IDs referenced by a current checked relation, or any claim on a checked Paper, need these records; empty claim evidence cannot establish checked status. A current checked relation must reference a claim from its asserting/source Paper; another paper's archive alone cannot establish that citation, extension or comparison. New Papers remain `draft` when only selected passages were checked. A historical checked relation may retain its history with `needs_recheck:true`; it is not counted as a current checked connection. Existing unchecked maps need no new records. Older checked candidates may need original evidence or an honest derived status correction before a new verified save; structural-only validation still accepts their original shape.
+
+The gate detects missing/stale/mismatched submitted evidence. It cannot prove that an agent fetched the file from its claimed publisher, that a chosen quote supports the interpretation, or that a whole paper was read. Do not manufacture receipts or call this semantic certification. Preserve summary-only inputs as `not-checked`/`draft`/`proposed`; do not lower evidence requirements or silently alter candidate files to pass.

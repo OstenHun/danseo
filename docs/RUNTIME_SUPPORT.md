@@ -59,6 +59,19 @@ Separate GitHub runner checks from all Linux distributions, native permission UX
 
 The [first-install research-view checks](OPEN_SOURCE.md#first-install-research-views) used Windows/Node 24.22.3, complete copied skills and fresh subscription Claude Sonnet/medium sessions (observed `claude-sonnet-5-5`). Structure, verified generation and malformed-draft repair ran as actual agent commands. English/Korean model-written output and representative graph/evidence states were read in desktop Chrome at 1280×800 and 1440×900. The published standalone path has status/type filters and map/list selection; it does not contain the separate local native app's text search or history interface. These observations do not extend CI support to untested hosts, automatic discovery or all browser states.
 
+### Named-paper orientation observations
+
+On Windows with Node 24.22.3, fresh project copies were exercised through Codex CLI 0.163.0 (requested `gpt-6.1-sol`/high) and Claude Code 2.1.325 (Sonnet/medium; observed `claude-sonnet-5-5`). English and Korean requests only named the focal paper; they supplied neither skill names, paper lists nor prepared summaries. Both hosts selected the installed skill and generated prior/follow-up neighborhoods with separate concept backgrounds:
+
+| Native host | Request language | Papers | Relations | Concept backgrounds |
+| --- | --- | --- | --- | --- |
+| Codex | English | 7 | 9 | 3 |
+| Codex | Korean | 6 | 7 | 2 |
+| Claude | English | 11 | 13 | 3 |
+| Claude | Korean | 8 | 11 | 2 |
+
+These are finite behavior samples, not required counts or exhaustive literature coverage. Existing subscription logins were reused; this was not a new physical PC, new global user account or desktop-app installation. Actual discovery/tool records and unchanged generated inputs were checked locally. Final-generator rechecks produced byte-identical HTML. Newly created Papers remained draft; original-source access and current citation checks were kept separate. The [original-source gate](../skills/danseo/references/evidence-gate.md#original-source-checks) rejects missing or stale original archives without certifying source meaning, publisher authenticity or reader understanding. Raw model logs and downloaded originals are not distributed.
+
 ## Updating support
 
 1. Review security/bugfix patches first and test them. Pin dependencies through the lockfile and use `npm ci`; do not blindly upgrade every major.

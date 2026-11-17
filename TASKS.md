@@ -5,6 +5,7 @@ Summary: Danseo provides file-based discovery, source collection, paper analysis
 ## Available workflows
 
 - Topic discovery and stable selections: [CLI reference](docs/CLI.md).
+- Named-paper reading orientation with bounded prior/follow-up discovery and separate concept backgrounds: [orientation workflow](skills/danseo/references/paper-orientation.md).
 - Source collection, edition checks and draft consent: [collection](docs/CLI.md#collect-selected-originals).
 - Shared Paper records, topic answers and resumption: [analysis](docs/PAPER_ANALYSIS.md).
 - Read-only research comparison: [comparison](docs/RESEARCH_COMPARISON.md).

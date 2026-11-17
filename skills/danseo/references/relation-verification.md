@@ -44,6 +44,7 @@ When rationale uses mathematical notation, record **symbol → actual final rati
 
 ## 3. Apply outcomes and status
 
+- A supplied source pack, search snippet, translated summary or previous agent's report is secondary material. Original URLs and accurate quotations inside it do not prove that this agent opened the originals. For summary-only input, sources stay `not-checked`, new Papers stay `draft`, and source-origin relations stay `proposed` with `review:null` and `needs_recheck:true`. Never turn a secondary source into a fabricated original snapshot. Archive the actual inspected original and bind checked states using [source_checks](evidence-gate.md#original-source-checks).
 - New directly verified relations may use `origin: source`, `status: source-checked`, with actual claims/locators, checker and observed check time. Use a clock/command result exactly; do not guess or round a timestamp. Without observed time, keep `status: proposed`, `review: null` and disclose incomplete metadata.
 - Interpretive relations use `origin: ai`, `status: proposed`, `review: null`. Evidence references alone do not promote them. Remove unsupported relations that are not defensible interpretations rather than retaining everything as AI.
 - Correct/remove wrong claims or conditions in derived candidates. Inaccessible new claims remain unknown, not source-checked; access failure is not contradiction.
