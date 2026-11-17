@@ -11,6 +11,7 @@ Use the user's requested language for explanations, questions, records and view 
 ## Start or resume
 
 - `danseo` owns citation/comparison/reading-order graphs between papers. Prior/follow-up work requests follow its default paper-graph workflow, with this skill supplying concepts when needed. This skill owns concepts, learning questions and concept maps within a paper. Do not automatically generate both maps for one request.
+- For a broad named-paper reading request, use `danseo`'s paper-reading orientation to discover prior/follow-up context and optional focused backgrounds. Keep explicit tutoring-only or summary-only requests in their requested mode. Do not substitute a concept-only map for the requested research neighborhood.
 - Start with the supplied paper, edition, purpose and learner's latest actual attempt. Adjust depth for orientation, implementation or research review. Do not repeat an intake questionnaire when the information is available. Explain missing prerequisites with a small example.
 - Keep **what the learner says they read** separate from **what the agent actually inspected**. The former does not prove the latter. If only the abstract is available, ask only source-answerable questions. A URL/PDF is not evidence that the full text was read.
 - No Danseo CLI, Paper card or other learning skill is required. Work directly from supplied sources; reuse an existing Paper ID/canonical record/edition without duplication. Do not require installation, registration or a download first.

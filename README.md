@@ -32,6 +32,8 @@ Danseo (단서, “clue” in Korean) keeps that context available for your next
 - **Explore the evidence.** Select papers or comparison criteria to inspect source locations and distinguish source relationships from AI proposals.
 - **Use your existing agent.** The agent searches, downloads authorized sources, reads papers, and prepares comparisons. Danseo connects and checks the resulting files; it does not call a model.
 
+After installing the skill, try “I want to read Attention Is All You Need.” The [paper-reading orientation](skills/danseo/references/paper-orientation.md) asks your agent to discover a bounded neighborhood of prior and follow-up research and create an interactive HTML in your request language. Select a paper to inspect its connections, or expand a separate concept background and return to the focal paper. Search availability and source access determine coverage; the map is not an exhaustive literature review.
+
 | Stage | What Danseo records |
 | --- | --- |
 | Discover and select | Search rounds, stable numbers, sources, editions, and reasons for selection |

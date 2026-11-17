@@ -52,6 +52,90 @@ test('overview updates when state changes; AI cannot claim source-checked', t =>
   assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /AI relation/);
 });
 
+test('summary-only promotion blocks verified output without modifying inputs', t => {
+  const f = fixture(t);
+  for (const mutate of [
+    c => c.papers[0].review_status = 'source-checked',
+    c => c.sources[0].verification = 'agent-checked',
+    c => c.relations[0].needs_recheck = false,
+  ]) {
+    const original = structuredClone(f.candidate);
+    mutate(f.candidate); Object.assign(f.candidate, overviewFor(f.candidate)); f.save();
+    const before = hash(readFileSync(f.input));
+    assert.throws(() => run([f.input, '--evidence', f.sidecar, '--out', f.output]), /archived original/);
+    assert.equal(hash(readFileSync(f.input)), before);
+    assert.equal(existsSync(f.output), false);
+    Object.assign(f.candidate, original);
+  }
+});
+
+test('original HTML checks bind URL, bytes and excerpt; summaries and stale files fail', t => {
+  const f = fixture(t), source = f.candidate.sources[0];
+  const html = '<!doctype html><html><body>Original method passage.</body></html>';
+  writeFileSync(path.join(f.dir, 'original.html'), html);
+  source.verification = 'agent-checked';
+  f.evidence.source_checks = [{source_id:source.id,url:source.url,format:'html',document_path:'original.html',document_sha256:hash(html),page:null,quote:'Original method passage.'}];
+  assert.equal(verifyEvidence(f.candidate, f.evidence, f.dir).original_source_checks, 1);
+  for (const mutate of [
+    e => e.source_checks[0].url = 'https://example.org/wrong',
+    e => e.source_checks[0].quote = 'Missing passage',
+    e => e.source_checks[0].document_sha256 = '0'.repeat(64),
+    e => e.source_checks[0].document_path = '../original.html',
+    e => e.source_checks[0].page = 1,
+  ]) { const e=structuredClone(f.evidence); mutate(e); assert.throws(() => verifyEvidence(f.candidate,e,f.dir)); }
+  for (const hidden of ['<!-- > Original method passage. -->', '<head><title>Original method passage.</title></head>', '<noscript>Original method passage.</noscript>']) {
+    const hiddenHtml = `<html>${hidden}<body>Unrelated passage.</body></html>`;
+    writeFileSync(path.join(f.dir, 'original.html'), hiddenHtml);
+    f.evidence.source_checks[0].document_sha256 = hash(hiddenHtml);
+    assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /quote missing/);
+  }
+  const summary = 'Verifier-authored summary with Original method passage.';
+  writeFileSync(path.join(f.dir, 'original.html'), summary);
+  f.evidence.source_checks[0].document_sha256 = hash(summary);
+  assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /not summary text/);
+});
+
+test('original PDF checks reuse hashed page extraction and reject wrong pages', t => {
+  const f = fixture(t);
+  f.candidate.sources[0].verification = 'agent-checked';
+  f.evidence.source_checks = [{source_id:'S.1',url:f.candidate.sources[0].url,format:'pdf',document_path:'source.pdf',document_sha256:f.evidence.sources[0].document_sha256,page:2,quote:f.binding.quote}];
+  assert.equal(verifyEvidence(f.candidate,f.evidence,f.dir).original_source_checks,1);
+  f.candidate.sources[0].url = null;
+  f.evidence.source_checks[0].url = null;
+  assert.equal(verifyEvidence(f.candidate,f.evidence,f.dir).original_source_checks,1);
+  f.evidence.source_checks[0].page = 1;
+  assert.throws(() => verifyEvidence(f.candidate,f.evidence,f.dir),/original PDF page/);
+});
+
+test('current checked relations require every linked claim source; historical rechecks stay usable', t => {
+  const f = fixture(t);
+  assert.doesNotThrow(() => verifyEvidence(f.candidate, f.evidence, f.dir));
+  const relation = f.candidate.relations[0];
+  relation.needs_recheck = false;
+  Object.assign(f.candidate, overviewFor(f.candidate));
+  const html = '<html><body>Synthetic original passage.</body></html>';
+  writeFileSync(path.join(f.dir, 'original.html'), html);
+  f.candidate.sources[1].url = 'https://example.org/boundary';
+  f.evidence.source_checks = f.candidate.sources.map(source => ({
+    source_id: source.id, url: source.url, format: 'html', document_path: 'original.html',
+    document_sha256: hash(html), page: null, quote: 'Synthetic original passage.',
+  }));
+  assert.doesNotThrow(() => verifyEvidence(f.candidate, f.evidence, f.dir));
+  const originalReferences = relation.evidence_refs;
+  const targetClaim = f.candidate.papers.find(paper => paper.id === relation.target).claims[0];
+  relation.evidence_refs = [{paper_id: relation.target, claim_id: targetClaim.id}];
+  assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /asserting source paper/);
+  relation.evidence_refs = originalReferences;
+  const originalSource = relation.source;
+  relation.source = f.candidate.papers[2].id;
+  assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /asserting source paper/);
+  relation.source = originalSource;
+  f.evidence.source_checks = [];
+  assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /archived original/);
+  relation.evidence_refs = [];
+  assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /original claim references/);
+});
+
 for (const bad of ['17개 레코드=15개 문서, 60개 쌍', '17개 레코드는 15개 문서와 같다', '15 records (17 documents, 60 pairs)']) test(`incorrect count wording fails: ${bad}`, t => {
   const f = fixture(t); f.candidate.papers[0].claims[0].conditions[0] = bad; f.save();
   assert.throws(() => run([f.input, '--evidence', f.sidecar, '--out', f.output]), /source-derived/);

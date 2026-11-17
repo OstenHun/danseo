@@ -322,7 +322,14 @@
     }
     if (type === 'paper' && projectMode && showProjectPaper(id, focus)) return;
     if (type === (projectMode ? 'application' : 'paper') && items.some(item => item.id === id)) { if (scene === 'background') mountMap('papers'); select(id, focus); return; }
-    if (projectMode && data.map_view === 'context') showTopic(data.project_context.start, focus); else if (!projectMode) showOverview(focus); else select(data.start, focus);
+    if (projectMode && data.map_view === 'context') {
+      showTopic(data.project_context.start, focus);
+    } else if (projectMode || !location.hash) {
+      if (scene === 'background') mountMap('papers');
+      select(data.start, focus);
+    } else {
+      showOverview(focus);
+    }
   }
   for (const [button, offset] of [['previous', -1], ['next', 1]]) byId(button).addEventListener('click', () => {
     const sequence = selectedType === 'topic' ? data.project_context.items : items;
