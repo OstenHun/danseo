@@ -55,6 +55,41 @@ function openView(data, initialHash, { script, elementIds, navigation, prefix, t
 const elementIds = ['candidate','skip','items','count','position','item-title','metadata','content','previous','next','current-count','announcement','map-heading','map-notice','map-legend','map-status','scene-controls','map-links','provenance','research-map','map-node-navigation','node-kind','fit-map','zoom-in','zoom-out'];
 const fixture = (mode, version = 1) => JSON.parse(readFileSync(new URL('../assets/' + mode + (version === 2 ? '.v2' : '') + '.example.json', import.meta.url), 'utf8'));
 const openPaper = (data, id) => openView(data, '#paper=' + id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:data.mode==='project-application'?'#application=':'#paper=',title:'item-title'}).elements.get('content');
+test('v2 authoring errors remain failures until required provenance and notes shapes are repaired', () => {
+  const data = fixture('paper-relations', 2), provenance = data.provenance;
+  delete data.provenance;
+  assert.throws(() => validateCandidate(data), /missing provenance/);
+  data.provenance = provenance;
+  data.papers[0].notes = 'A paragraph is not an array.';
+  assert.throws(() => validateCandidate(data), /paper.notes: expected array/);
+  data.papers[0].notes = [data.papers[0].notes];
+  validateCandidate(data);
+});
+
+test('relation reading separates AI references, absent evidence and source records in both languages', () => {
+  for (const language of ['en', 'ko']) for (const origin of ['ai', 'source']) for (const linked of [true, false]) {
+    const data = fixture('paper-relations', 2); data.language = language;
+    const relation = data.relations[0];
+    relation.origin = origin; relation.status = 'proposed'; relation.review = null;
+    if (!linked) relation.evidence_refs = [];
+    const saved = JSON.stringify(data);
+    const view = openView(data, '#relation=' + relation.id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:'#paper=',title:'item-title'});
+    const content = view.elements.get('content'), evidence = content.children[2];
+    assert.equal(evidence.children[0].textContent, language === 'ko' ? '원문 근거' : 'Source evidence');
+    const aiReference = language === 'ko' ? 'AI 제안에 참고한 주장' : 'These claims informed an AI proposal';
+    assert.equal(evidence.textContent.includes(aiReference), origin === 'ai' && linked);
+    if (!linked) {
+      assert.equal(evidence.children.length, 2);
+      assert.ok(evidence.textContent.includes(language === 'ko' ? '원문에서 확인된 관계로 사용하지 마세요.' : 'Do not use'));
+      assert.equal(evidence.children[1].textContent.includes(language === 'ko' ? 'AI 제안' : 'AI proposal'), origin === 'ai');
+    }
+    assert.match(view.elements.get('position').textContent, /01 · /);
+    const history = content.children.at(-1);
+    assert.equal(history.tagName, 'DETAILS'); assert.equal(history.children[0].tagName, 'SUMMARY');
+    assert.ok(history.textContent.includes(relation.created_by));
+    assert.equal(JSON.stringify(data), saved);
+  }
+});
 for (const mode of ['paper-relations', 'project-application']) for (const version of [1, 2]) {
   test(`${mode} v${version}: paper opens exact registered URLs and retains all locations before collapsed evidence`, () => {
     const data = fixture(mode, version), paper = data.papers[0];

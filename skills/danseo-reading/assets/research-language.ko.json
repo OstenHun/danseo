@@ -126,13 +126,10 @@
   "Distinguish project and source conditions": "프로젝트 조건과 원문 조건 구분",
   "View project decisions and all evidence": "프로젝트 결정과 전체 근거 보기",
   "Select the starting or destination concept to continue reading": "출발 개념이나 도착 개념을 선택해 계속 읽으세요",
-  "RELATION · ": "연결 · ",
   "Record status · ": "기록 상태 · ",
   "Needs rechecking · a previous check is not treated as currently valid.": "재확인이 필요합니다. 이전 확인을 현재도 유효하다고 취급하지 않습니다.",
   "Relation direction": "연결 방향",
   "Why these records are connected": "연결한 이유",
-  "Source claims linked to this relation": "이 연결에 근거가 되는 주장",
-  "No linked claim evidence · relation meaning remains unverified.": "연결된 주장 근거가 없습니다. 연결 의미는 미확인입니다.",
   "Relation authorship and source-check record": "연결 작성자와 원문 확인 기록",
   "Selected relation matches the map": "선택한 연결을 지도에 표시합니다",
   "RELATION OVERVIEW": "전체 논문 지도",
@@ -231,5 +228,10 @@
   "Source not checked": "원문 미확인",
   "An agent checked the stated scope. This does not mean independent review, a full-paper review or reproduction.": "Agent가 명시한 범위를 확인했습니다. 독립 검토·논문 전체 검토·재현을 뜻하지 않습니다.",
   "Source not checked. A link alone is not evidence of source reading.": "원문 미확인. 이 링크가 있다는 사실은 원문 확인의 증거가 아닙니다.",
-  "{title} selected. Concept {number}.": "{title} 선택. {number}번째 개념."
+  "{title} selected. Concept {number}.": "{title} 선택. {number}번째 개념.",
+  "RELATION {number} · ": "연결 {number} · ",
+  "Source evidence": "원문 근거",
+  "These claims informed an AI proposal. They do not source-confirm the relationship itself.": "AI 제안에 참고한 주장입니다. 관계 자체를 원문에서 확인한 것은 아닙니다.",
+  "This AI proposal has no linked source evidence. Do not use it as a source-confirmed relationship.": "연결된 원문 근거가 없는 AI 제안입니다. 원문에서 확인된 관계로 사용하지 마세요.",
+  "No source evidence is linked. Do not use this as a source-confirmed relationship.": "연결된 원문 근거가 없습니다. 원문에서 확인된 관계로 사용하지 마세요."
 }

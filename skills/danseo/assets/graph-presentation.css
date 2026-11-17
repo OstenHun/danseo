@@ -32,9 +32,9 @@
 .paper-map .graph-paper-id { font-family: Consolas, monospace; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .paper-map .graph-paper.is-undated { border-style: dashed; }
 .paper-map .graph-paper.is-selected { background: var(--graph-selected); border-color: var(--graph-accent); box-shadow: 0 0 0 1px var(--graph-accent); }
-.paper-map .graph-paper.is-connected { border-color: var(--graph-accent); box-shadow: 0 0 0 1px var(--graph-accent); }
+.paper-map .graph-paper.is-connected:not(.is-selected) { border-color: var(--graph-accent); box-shadow: none; }
 .paper-map .graph-paper.is-hovered { border-color: var(--graph-accent); }
-.paper-map .graph-paper.is-faded { opacity: .42; }
+.paper-map .graph-paper.is-faded { opacity: 1; border-color: var(--graph-line); box-shadow: none; }
 .paper-map .graph-paper-port { background: #fff; border-color: #818da1; }
 #research-map.paper-map { background-color: #fafbfe; background-image: radial-gradient(#dce1eb .7px, transparent .7px); background-size: 24px 24px; }
 .paper-map .graph-topic { position: absolute; width: 184px; max-height: 48px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: #606b7d; font: 600 16px/1.5 'Segoe UI','Malgun Gothic',sans-serif; word-break: keep-all; overflow-wrap: anywhere; }

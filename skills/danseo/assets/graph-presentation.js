@@ -126,8 +126,8 @@
       { selector: 'edge.connected, edge.hovered', style: { width: 3 } },
       { selector: 'edge.faded', style: { opacity: .16 } },
       { selector: 'edge.display-hidden', style: { display: 'none' } },
-      // The list/detail owns the full relation name; a short number fits between cards.
-      { selector: 'edge.selected', style: { width: 3, label: 'data(number)', 'font-size': 13, 'font-family': 'Segoe UI, Malgun Gothic, sans-serif', color: '#394457', 'text-background-color': '#ffffff', 'text-background-opacity': 1, 'text-background-padding': '4px', 'text-border-width': 1, 'text-border-color': '#dce1eb', 'text-border-opacity': 1, 'text-rotation': 'none' } }
+      // Keep the route continuous; relation numbers belong in the list and reader.
+      { selector: 'edge.selected', style: { width: 2.6, label: '' } }
     ];
   }
   window.DanseoGraph = Object.freeze({ card, kindNames, category, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer });

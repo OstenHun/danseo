@@ -57,6 +57,8 @@ The current suite covers file/reference structure, raw content, project separati
 
 Separate GitHub runner checks from all Linux distributions, native permission UX, screen readers, user comprehension and usefulness. Preserve skipped symlink branches explicitly. Local downloaded Node ZIPs, when used, are hash-checked and unpacked without replacing global runtimes.
 
+The [first-install research-view checks](OPEN_SOURCE.md#first-install-research-views) used Windows/Node 24.22.3, complete copied skills and fresh subscription Claude Sonnet/medium sessions (observed `claude-sonnet-5-5`). Structure, verified generation and malformed-draft repair ran as actual agent commands. English/Korean model-written output and representative graph/evidence states were read in desktop Chrome at 1280×800 and 1440×900. The published standalone path has status/type filters and map/list selection; it does not contain the separate local native app's text search or history interface. These observations do not extend CI support to untested hosts, automatic discovery or all browser states.
+
 ## Updating support
 
 1. Review security/bugfix patches first and test them. Pin dependencies through the lockfile and use `npm ci`; do not blindly upgrade every major.

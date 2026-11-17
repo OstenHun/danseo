@@ -11,6 +11,12 @@ Summary: Distribute the Danseo source, portable skill and synthetic examples. Ke
 
 Use [source installation](../README.md#install-the-skill). The package is marked `private: true`; do not replace these instructions with an unrelated npm package of the same name. The npm `files` allowlist controls tarball contents; verify the actual archive with `npm run test:package`.
 
+## First-install research views
+
+Copy the complete skill folders from the same source revision. The [candidate contract](../skills/danseo/references/research-view.md#prepare-candidate-input) and [verified generation loop](../skills/danseo/references/evidence-gate.md#default-generation-workflow) cover required v2 fields, validator feedback and evidence for inputs with or without count/performance claims. English instructions serve all hosts; agent prose and fixed standalone controls follow the request language. Regenerate existing HTML to receive graph and evidence-reader changes. Updating source does not update existing global skill copies automatically.
+
+Fresh isolated English and Korean Claude sessions on Windows/Node 24.22.3 generated verified HTML from synthetic teaching text, with no test-harness candidate corrections. A separate session repaired the previously malformed English draft using actual validator feedback. This is finite workflow evidence, not proof of automatic skill discovery, every host/model, another physical PC, scientific truth or learning outcomes. Portable regressions and actual tarball checks remain separately reproducible with [runtime checks](RUNTIME_SUPPORT.md#verification-and-actual-evidence).
+
 ## What stays local
 
 Private PDFs, research records, learner responses, absolute-path handoffs, credentials, raw provider/browser logs, review packets and dated implementation notes belong outside distributed source. `work/`, `workspaces/` and `private/` are local-only ignored areas. Do not copy another project's authoritative records into this repository.

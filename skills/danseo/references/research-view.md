@@ -33,6 +33,8 @@ For new multi-paper inputs, use recognizable `short_title`, preserving original 
 
 Verify actual counts, aliases and groups; follow paper → relation → source. Sample status/type filters, empty results, all-connections and keyboard focus. Default reading verification is local desktop at normal size, including overlap/clipping and Korean word wrapping in requested-language prose. Generation or matching asset hashes do not replace rendered/source-semantic checks. Report visual review not run when a browser is unavailable.
 
+Keep selected routes continuous without a floating number badge; the matching relation number remains in the list and reader. Unselected paper titles retain full contrast, with borders distinguishing selection. In the relation reader, direction and reason lead to source evidence; AI reference claims are not source confirmation of the relationship. An empty evidence list has one explicit notice, with authorship/check metadata available in keyboard-operable details.
+
 ## Open the original from a paper node
 
 Select a paper node or its matching list entry, then use **Open original source ↗** under **Read the paper** at the top of its details. Project-application views use the same shortcut when a paper is selected. **Read at** lists the registered sections, pages or figures to find in the source; it does not automatically jump to those locations.
@@ -108,7 +110,7 @@ Keep v1 fields and add the following. This is not a general layout/HTML DSL. Use
 | Location | Additional fields |
 | --- | --- |
 | Root | `scope`: included/excluded scope; `provenance`: `{name,sha256}` original-byte hashes, not proof of truth/meaning |
-| Paper | `short_title`; `notes` preserving card check scope, conditions, limits, comparison and AI interpretation with labels |
+| Paper | `short_title`; `notes`: a string array preserving card check scope, conditions, limits, comparison and AI interpretation with labels; use `[]` when none, never a single string |
 | Claim | `reviews`: `{verdict,reason,scope,reviewer,reviewed_at,review_type,state}`; verdict `supported\|partially_supported\|contradicted\|insufficient_evidence`, state `current\|stale\|unknown`; preserve original pages/sections/edition/warnings; empty if none, without invented review |
 | Application | `conditions_comparison`: project/source differences and non-transferable limits, linked to existing body or empty |
 | Project root | `map_view`: `applications\|context`; `project_context`: object below or null; context only for an actual learning/question connection request |

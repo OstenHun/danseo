@@ -34,3 +34,7 @@ Implemented workflow: [analysis contract](docs/PAPER_ANALYSIS.md). Product regre
 ## PTP-012: research comparison
 
 Implemented workflow: [comparison contract](docs/RESEARCH_COMPARISON.md). Tests cover current support, missing evidence, relation dependencies, provenance filters, scoped PDF access and installed assets. Human usefulness and native permission UX need separate evidence.
+
+## First-install authoring and graph reading
+
+The [distribution check](docs/OPEN_SOURCE.md#first-install-research-views) covers v2 candidate shapes and actual validator repair, continuous selected edges, full-contrast paper titles and explicit AI-reference/no-evidence notices. English/Korean desktop output preserves original titles and quotes. Public regression commands and observed runtime limits are linked from [runtime support](docs/RUNTIME_SUPPORT.md#verification-and-actual-evidence); local development and provider logs are not distributed.
