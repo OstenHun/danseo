@@ -11,14 +11,14 @@ export function overviewFor(candidate) {
   const pending = relations.length - checked.length - ai.length;
   const backgroundCount = candidate.backgrounds?.length ?? 0;
   if (candidate.language === 'ko') return {
-    description: `논문 ${candidate.papers.length}편 · 원문 확인 연결 ${checked.length}개 · AI 제안 ${ai.length}개 · 미확인 연결 ${pending}개.` + (backgroundCount ? ` 개념 배경 ${backgroundCount}개 · AI 선정 자료 ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}개.` : ''),
-    view_reason: '원문 확인 연결과 AI 제안을 나누어 살펴보세요. AI 제안을 저자가 주장한 연결로 취급하지 않습니다.',
+    description: `논문 ${candidate.papers.length}편 · 원문 확인 연결 ${checked.length}개 · 추천 연결 ${ai.length}개 · 미확인 연결 ${pending}개.` + (backgroundCount ? ` 개념 배경 ${backgroundCount}개 · 추천 자료 ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}개.` : ''),
+    view_reason: '원문에서 확인한 관계와 추천 연결을 구분해 살펴보세요.',
     scope: '입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. 원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다.',
   };
-  const backgroundNotice = backgroundCount ? ` Concept backgrounds: ${backgroundCount} · AI-selected readings: ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}.` : '';
+  const backgroundNotice = backgroundCount ? ` Concept backgrounds: ${backgroundCount} · Suggested readings: ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}.` : '';
   return {
-    description: `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · AI proposals: ${ai.length} · unchecked relations: ${pending}.` + backgroundNotice,
-    view_reason: 'Select source-checked relations and AI proposals separately. AI proposals are not treated as relations asserted by the authors.',
+    description: `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · suggested connections: ${ai.length} · unchecked relations: ${pending}.` + backgroundNotice,
+    view_reason: 'Explore source-checked relations and suggested connections separately.',
     scope: 'Only input papers and relations are shown. Check each evidence scope for source coverage and unknowns. Source checking does not establish reproduction or reader understanding.',
   };
 }
@@ -99,7 +99,7 @@ function verifySourceChecks(candidate, evidence, directory, pdfSources) {
       const registered = evidence.sources.find(s => s.id === source.id);
       if (!registered || registered.document_sha256 !== check.document_sha256 || bytes.subarray(0, 5).toString() !== '%PDF-') fail('source_check: original PDF must match registered page extraction');
       const page = pdfSources.get(source.id)?.get(check.page);
-      if (!page || !containsQuote(page, check.quote)) fail('source_check: quote missing from original PDF page');
+      if (!page || !containsQuote(page, check.quote)) fail(`source_check ${source.id}: quote missing from original PDF page`);
     } else if (check.format === 'html') {
       const html = bytes.toString('utf8');
       if (check.page !== null || !/<(?:!doctype\s+html|html)[\s>]/i.test(html)) fail('source_check: expected original HTML with page:null, not summary text');
@@ -136,6 +136,103 @@ function verifySourceChecks(candidate, evidence, directory, pdfSources) {
   return originals.size;
 }
 
+// Completion describes only the displayed evidence, not an entire paper or scientific truth.
+export function completionEvidenceHash(evidence) {
+  const { completion, ...sourceEvidence } = evidence;
+  return hash(JSON.stringify(sourceEvidence));
+}
+const zonedTime = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value));
+function quoteHasDate(quote, date) {
+  const dates = [];
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const months = new Map(monthNames.flatMap((name, i) => [[name, i + 1], [name.slice(0, 3), i + 1]]));
+  const add = (year, month, day) => dates.push([year, String(month).padStart(2, '0'), ...(day ? [String(day).padStart(2, '0')] : [])].join('-'));
+  for (const match of quote.matchAll(/\b([1-9]\d{3})[-/](\d{1,2})(?:[-/](\d{1,2}))?\b/g)) add(match[1], match[2], match[3]);
+  for (const match of quote.matchAll(/([1-9]\d{3})년\s*(\d{1,2})월(?:\s*(\d{1,2})일)?/g)) add(match[1], match[2], match[3]);
+  for (const match of quote.matchAll(/\b(\d{1,2})\s+([A-Za-z]+)\s+([1-9]\d{3})\b/g)) {
+    const month = months.get(match[2].toLowerCase());
+    if (month) add(match[3], month, match[1]);
+  }
+  for (const match of quote.matchAll(/\b([A-Za-z]+)\s+(?:(\d{1,2}),?\s+)?([1-9]\d{3})\b/g)) {
+    const month = months.get(match[1].toLowerCase());
+    if (month) add(match[3], month, match[2]);
+  }
+  return date.length === 4 ? new RegExp(`\\b${date}\\b`).test(quote) : dates.some(value => value === date || value.startsWith(date + '-'));
+}
+export function verifyCompletion(candidate, evidence, candidateHash) {
+  const completion = evidence.completion;
+  object(completion, ['candidate_sha256', 'evidence_sha256', 'checked_by', 'checked_at', 'scope'], 'completion');
+  if (completion.candidate_sha256 !== candidateHash) fail('completion: candidate changed since source checking; recheck and bind the final input');
+  if (completion.evidence_sha256 !== completionEvidenceHash(evidence)) fail('completion: evidence changed since source checking; recheck the final archives');
+  text(completion.checked_by, 'completion.checked_by'); text(completion.scope, 'completion.scope');
+  if (!zonedTime(completion.checked_at)) fail('completion: observed zoned check time required');
+  if (Date.parse(completion.checked_at) > Date.now() + 60_000) fail('completion: recorded source check cannot be in the future (one-minute clock tolerance)');
+  const originals = new Set((evidence.source_checks ?? []).map(check => check.source_id));
+  const archivedPassages = new Set((evidence.source_checks ?? []).map(check => JSON.stringify([check.source_id, normalize(check.quote)])));
+  const passage = (id, quote) => {
+    text(quote, 'completion passage quote');
+    if (!archivedPassages.has(JSON.stringify([id, normalize(quote)]))) fail(`${id}: completion passage must match an archived source_check quote`);
+  };
+  const checked = id => {
+    if (!originals.has(id) || candidate.sources.find(source => source.id === id)?.verification !== 'agent-checked') fail(`${id}: complete delivery requires a directly checked archived original`);
+  };
+  list(evidence.claim_checks, 'claim_checks'); list(evidence.publication_checks, 'publication_checks');
+  const claimChecks = new Set(), dateChecks = new Set();
+  for (const check of evidence.claim_checks) {
+    object(check, ['paper_id', 'claim_id', 'source_id', 'quote'], 'claim_check');
+    const paper = candidate.papers.find(paper => paper.id === check.paper_id);
+    const claim = paper?.claims.find(claim => claim.id === check.claim_id);
+    if (!claim?.evidence.includes(check.source_id)) fail('claim_check: source must belong to the exact displayed paper/claim');
+    passage(check.source_id, check.quote);
+    const key = JSON.stringify([check.paper_id, check.claim_id, check.source_id]);
+    if (claimChecks.has(key)) fail('claim_check: duplicate claim/source binding');
+    claimChecks.add(key);
+  }
+  for (const check of evidence.publication_checks) {
+    object(check, ['paper_id', 'source_id', 'kind', 'date', 'quote'], 'publication_check');
+    const paper = candidate.papers.find(paper => paper.id === check.paper_id);
+    const field = check.kind === 'first-publication' ? 'date' : check.kind === 'edition' ? 'edition_date' : null;
+    if (!field || !paper?.publication || check.source_id !== paper.publication.source_id || check.date !== paper.publication[field]) fail('publication_check: bind the exact paper, date kind and registered metadata source');
+    passage(check.source_id, check.quote);
+    if (!quoteHasDate(normalize(check.quote), check.date)) fail(`${paper.id}: publication date does not match its archived quote`);
+    const key = JSON.stringify([paper.id, check.kind]);
+    if (dateChecks.has(key)) fail('publication_check: duplicate date binding');
+    dateChecks.add(key);
+  }
+  for (const paper of candidate.papers) {
+    if (!paper.publication) fail(`${paper.id}: complete delivery requires source-linked publication metadata`);
+    checked(paper.publication.source_id);
+    for (const [kind, date] of [['first-publication', paper.publication.date], ['edition', paper.publication.edition_date]]) {
+      if (date === null) continue;
+      if (!dateChecks.has(JSON.stringify([paper.id, kind]))) fail(`${paper.id}: complete delivery requires publication date passage bindings`);
+      const calendarStart = date.length === 4 ? date + '-01-01' : date.length === 7 ? date + '-01' : date;
+      // Bibliographic dates have no timezone: reject only when even the earliest
+      // possible civil midnight (UTC+14) is after the observed check instant.
+      if (Date.parse(calendarStart + 'T00:00:00+14:00') > Date.parse(completion.checked_at)) fail(`${paper.id}: publication date is after the recorded source check`);
+    }
+    if (paper.review_status === 'needs-recheck') fail(`${paper.id}: resolve stale paper evidence before complete delivery`);
+    if (!paper.claims.length) fail(`${paper.id}: complete delivery requires at least one source-backed claim`);
+    for (const claim of paper.claims) {
+      if (!claim.evidence.length) fail(`${paper.id}/${claim.id}: claim has no original evidence`);
+      claim.evidence.forEach(checked);
+      if (claim.evidence.some(id => !claimChecks.has(JSON.stringify([paper.id, claim.id, id])))) fail(`${paper.id}/${claim.id}: complete delivery requires claim passage bindings`);
+      const current = claim.reviews?.filter(review => review.state === 'current') ?? [];
+      if (!current.length || current.some(review => review.verdict !== 'supported' || !zonedTime(review.reviewed_at))) fail(`${paper.id}/${claim.id}: complete delivery requires a current supported passage review without unresolved conflicting reviews`);
+      if (current.some(review => Date.parse(review.reviewed_at) > Date.parse(completion.checked_at))) fail(`${paper.id}/${claim.id}: passage review is after completion`);
+    }
+  }
+  for (const relation of candidate.relations) {
+    if (relation.needs_recheck) fail(`${relation.id}: resolve stale relation evidence before complete delivery`);
+    if (relation.origin === 'source' && relation.status !== 'source-checked') fail(`${relation.id}: check the source relation before complete delivery`);
+    if (relation.origin === 'source' && Date.parse(relation.review.checked_at) > Date.parse(completion.checked_at)) fail(`${relation.id}: relation review is after completion`);
+    if (relation.origin === 'ai' && !relation.evidence_refs.length) fail(`${relation.id}: complete AI proposals need checked supporting claims`);
+  }
+  for (const background of candidate.backgrounds ?? []) for (const reading of background.readings) {
+    if (!reading.evidence.length) fail(`${background.id}: complete background reading needs original evidence`);
+    reading.evidence.forEach(checked);
+  }
+}
+
 export function verifyEvidence(candidate, evidence, directory) {
   if (candidate.version !== 2 || candidate.mode !== 'paper-relations') fail('Evidence gate requires version 2 paper-relations');
   for (const r of candidate.relations) {
@@ -145,7 +242,7 @@ export function verifyEvidence(candidate, evidence, directory) {
     if (candidate[key] !== value) fail(`${key}: regenerate the canonical overview with --overview`);
   }
   if (![1, 2].includes(evidence.version)) fail('Unsupported evidence version');
-  object(evidence, [...(evidence.version === 2 ? ['version', 'sources', 'counts', 'tables', 'performance'] : ['version', 'sources', 'counts']), ...(Object.hasOwn(evidence, 'source_checks') ? ['source_checks'] : [])], 'evidence');
+  object(evidence, [...(evidence.version === 2 ? ['version', 'sources', 'counts', 'tables', 'performance'] : ['version', 'sources', 'counts']), ...['source_checks', 'claim_checks', 'publication_checks', 'completion'].filter(key => Object.hasOwn(evidence, key))], 'evidence');
   list(evidence.sources, 'sources'); list(evidence.counts, 'counts');
   const sources = new Map();
   for (const source of evidence.sources) {

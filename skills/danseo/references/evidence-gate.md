@@ -16,7 +16,7 @@ Claude, Argon and Codex use the same Node generator. First perform [source verif
 2. Set the standalone candidate's `language` to match the request (`ko` or `en`), then update `description`, `view_reason`, `scope` from `node <skill>/scripts/render-verified-research-view.mjs candidate.json --overview`. Regenerate after status or language changes. These deterministic structural notices follow `language`, defaulting to English for old inputs. Preserve valid old overview conditions/exclusions in Paper notes or source.scope, in the requested prose language, without overwriting the original candidate.
 3. Prepare evidence v2 and [performance reviews](performance-verification.md). Put recognized counts in separate conditions/notes using exact `countText` output. Preserve experimental conditions, limits, metrics and directions in adjacent fields. Never remove numbers or spell them out to evade checks.
 4. Run `node <skill>/scripts/render-verified-research-view.mjs candidate.json --evidence evidence.json --check`. Return to the named field and source on failure.
-5. Run the same candidate/evidence with `--out new-view.html`. Checks rerun immediately before saving; existing files are not overwritten.
+5. For normal delivery, finish the displayed-source checks and bind completion as described below, then run the same candidate/evidence with `--out new-view.html --complete`. Checks rerun immediately before saving; existing files are not overwritten.
 6. Read actual source/AI labels, counts, evidence selection and text. Do not deliver failed results as complete; state remaining checks.
 
 Use actual command results during this loop. A failed command does not create a passing output: fix the named field against the input contract/source, rerun structural checks after candidate edits, regenerate affected overview/performance reviews, then rerun the verified check and save. Preserve uncertainty rather than inventing missing provenance, evidence, checker names or timestamps. Stop and report the diagnostic when a required source or execution capability is unavailable. Do not substitute `renderCandidate()` or manual HTML for a blocked verified save.
@@ -24,6 +24,36 @@ Use actual command results during this loop. A failed command does not create a 
 `render-research-view.mjs --check` checks structure only. Its relationship `--out` route is blocked; use the verified generator above. `project-application` keeps its existing command. Pure `renderCandidate()` is a library function, not a verified-output API.
 
 ## Evidence format
+
+### Finish source checking before normal delivery
+
+`--complete` applies to `--check` or `--out`, as the last argument. It requires source-linked publication metadata for every Paper, a current supported passage review for every displayed Claim, archived and directly checked originals for their evidence, source-checked source-origin relations, and no stale relation or Paper evidence. Background readings and interpretive relations must reference checked supporting material; their origin remains a suggestion. Do not promote an interpretation into a source relation or mark a whole Paper checked merely because the selected passages were checked.
+
+Add evidence `claim_checks` entries `{paper_id,claim_id,source_id,quote}` for each displayed claim/evidence-source pair. Add `publication_checks` entries `{paper_id,source_id,kind,date,quote}` for each Paper's date: `kind` is `first-publication` or `edition`, and `date` equals that exact metadata field. Each quote must match a corresponding archived `source_checks` quote for the same source. Date quotes must actually contain the recorded date at its declared precision; ISO/slash dates, English month names and Korean year/month/day are recognized. Preserve the original quotation rather than rewriting it to satisfy the matcher. The date must not be later than the observed check time, and passage/relation reviews must not postdate completion. These explicit bindings make the inspected passages traceable; matching text is still not a semantic truth check.
+
+Calendar-only dates have no timezone. The future-date check rejects only dates whose earliest possible period start at UTC+14 is after the observed check instant; it must not reject a KST morning just because UTC is still on the previous day. The completion timestamp itself cannot be in the future, allowing one minute of clock skew. The generated header attributes completion to the recorded source checks and exposes the actual `completion.scope` in an expandable reading view. This is the checking agent's recorded work, not an independent scientific certificate or the reader's own completed reading.
+
+After actually rereading the relevant original passages, checking each claim/relation meaning and publication/version history, bind the final candidate and evidence with optional evidence `completion`:
+
+```js
+import { readFileSync, writeFileSync } from 'node:fs';
+import { hash } from './view-core.mjs';
+import { completionEvidenceHash } from './research-evidence.mjs';
+const bytes = readFileSync('candidate.json');
+const evidence = JSON.parse(readFileSync('evidence.json', 'utf8'));
+evidence.completion = {
+  candidate_sha256: hash(bytes),
+  evidence_sha256: completionEvidenceHash(evidence),
+  checked_by: '<actual checking agent>',
+  checked_at: '<observed ISO time with timezone>',
+  scope: '<actually checked claims, relations, dates and excluded material>'
+};
+writeFileSync('evidence.json', JSON.stringify(evidence));
+```
+
+The imports above are relative examples. Keep the helper with the candidate in an authorized output directory and replace the imports with the actual installed script paths; do not add a helper to the installed skill folder. This binds a completed check; running the snippet is not a source check. Changing candidate text or evidence bindings requires rereading the affected material and renewing completion. The gate rechecks archive hashes and excerpts before writing. It checks the existence/consistency of the submitted source and review records; date interpretation, claim meaning and publisher authenticity still require the actual original-source inspection.
+
+If a necessary original remains unavailable, keep the truthful states and explain the missing checks. An explicitly partial delivery can use the existing command without `--complete` and without a completion record; its HTML and receipt identify it as exploration. Never silently fall back after a failed complete check, erase a completion record to bypass a failure, or describe exploratory output as finished. Existing exploratory candidates remain compatible. Incomplete source access is not a reason to invent a date, archive, quotation or review.
 
 All paths are relative below the evidence.json directory, including resolved symlinks. Hash actual PDF/extracted JSON bytes. Each source file must be at most 32 MiB; larger files are unsupported here.
 

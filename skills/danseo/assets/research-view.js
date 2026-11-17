@@ -14,7 +14,17 @@
   const paperName = id => papers.get(id).short_title ?? papers.get(id).title;
   let scene = projectMode && data.map_view === 'context' ? 'context' : projectMode ? 'applications' : 'papers';
   let map, activeBackground, paperMapState, selectedType = projectMode ? 'application' : 'paper';
-  const reviewLabels = { draft: t('Source review incomplete · draft'), 'source-checked': t('Card source-check record · source-checked'), 'needs-recheck': t('Card needs rechecking · needs-recheck') };
+  function appendPublication(parent, paper) {
+    if (paper.review_status === 'needs-recheck') parent.append(badge(t('Evidence needs rechecking'), true));
+    if (!paper.publication) return;
+    parent.append(badge(t('First published · {date}', { date: paper.publication.date })));
+    if (paper.publication.edition_date !== null) parent.append(badge(t('Edition date · {date}', { date: paper.publication.edition_date })));
+    const source = sources.get(paper.publication.source_id);
+    if (source?.url) {
+      const link = node('a', 'badge', t('Publication date source ↗'));
+      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; parent.append(link);
+    } else if (source) parent.append(node('p', 'section-note', t('Publication date evidence · {source} · {location} · {scope}', { source: source.title, location: source.locator, scope: source.scope })));
+  }
   const kindLabels = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related connection'), 'reading-order': t('Suggested reading order') };
   function node(tag, cls, text) {
     const el = document.createElement(tag);
@@ -33,7 +43,7 @@
     if (!evidenceIds.length) { parent.append(node('p', 'empty-note', t('No linked source location · source coverage is not inferred.'))); return; }
     for (const id of evidenceIds) {
       const source = sources.get(id), detail = node('details', 'source');
-      detail.append(node('summary', '', source.title + (source.verification === 'agent-checked' ? t(' · Agent-reported check scope') : data.version === 2 ? t(' · No source check in this run') : t(' · Source unchecked'))),
+      detail.append(node('summary', '', source.title + (source.verification === 'agent-checked' ? t(' · Recorded source check') : data.version === 2 ? t(' · No source check in this run') : t(' · Source unchecked'))),
         p(t('Location: ') + source.locator), p(t('Check scope: ') + source.scope),
         p(t('Check status is declared by the recorder. It does not establish full-paper reading, independent review or reproduction.')));
       if (source.url !== null) {
@@ -68,7 +78,8 @@
     for (const ref of refs) {
       const paper = papers.get(ref.paper_id), claim = paper.claims.find(c => c.id === ref.claim_id);
       const block = node('div', 'claim');
-      block.append(node('p', 'claim-id', paper.id + ' / ' + claim.id), node('h4', '', paper.title), badge(reviewLabels[paper.review_status], paper.review_status === 'needs-recheck'), p(t('Edition: ') + (paper.edition ?? t('Not recorded'))), p(claim.statement));
+      if (paper.review_status === 'needs-recheck') block.append(badge(t('Evidence needs rechecking'), true));
+      block.append(node('p', 'claim-id', paper.id + ' / ' + claim.id), node('h4', '', paper.title), p(t('Edition: ') + (paper.edition ?? t('Not recorded'))), p(claim.statement));
       if (claim.conditions.length) { const conditions = section(t('Paper conditions')); paragraphs(conditions, claim.conditions, ''); block.append(conditions); }
       if (claim.limitations.length) { const limitations = section(t('Paper limits')); paragraphs(limitations, claim.limitations, ''); block.append(limitations); }
       if (!claim.conditions.length && !claim.limitations.length) block.append(node('p', 'empty-note', t('No separate conditions or limits are recorded. Read the relation rationale and original card context together.')));
@@ -103,15 +114,15 @@
     byId('map-node-navigation').setAttribute('aria-label', scene === 'context' ? t('Concept list') : projectMode ? t('Projects and papers') : t('Paper list'));
     byId('map-heading').textContent = scene === 'context' ? data.project_context.title : projectMode ? t('Current question and paper evidence') : t('Connections between papers');
     byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
-    byId('map-legend').textContent = scene === 'context' ? t('Purple dashed lines · AI-proposed reading order. Opening an item does not record understanding.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-check record / purple dashed · AI proposal / amber dashed · recheck');
+    byId('map-legend').textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
     const links = scene === 'context' ? data.project_context.links : projectMode ? items.flatMap(app => data.papers.filter(paper => app.claim_refs.some(ref => ref.paper_id === paper.id)).map(paper => ({ app, paper }))) : data.relations;
     byId('map-links').append(node('h3', '', scene === 'context' ? t('Suggested order and connection rationale') : projectMode ? t('Corresponding evidence references') : t('Corresponding relations')));
     if (!links.length) byId('map-links').append(node('p', 'empty-note', t('No registered relations · disconnected items are still shown.')));
     links.forEach((item, index) => {
       let type, id, title, sub;
-      if (scene === 'context') { type = 'context-link'; id = String(index); title = topics.get(item.source).title + ' → ' + topics.get(item.target).title; sub = item.label + t(' · AI-proposed reading order'); }
+      if (scene === 'context') { type = 'context-link'; id = String(index); title = topics.get(item.source).title + ' → ' + topics.get(item.target).title; sub = item.label + t(' · suggested reading order'); }
       else if (projectMode) { type = 'reference'; id = item.app.id + ':' + item.paper.id; title = paperName(item.paper.id) + ' → ' + item.app.title; sub = item.app.claim_refs.filter(ref => ref.paper_id === item.paper.id).length + t(' claims · compare with project conditions'); }
-      else { type = 'relation'; id = item.id; title = paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind]; sub = (item.origin === 'ai' ? t('AI proposal') : t('Source-based record')) + ' · ' + item.status + (item.needs_recheck ? t(' · Needs rechecking') : ''); }
+      else { type = 'relation'; id = item.id; title = paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind]; sub = (item.origin === 'ai' ? t('Suggested connection') : item.status === 'source-checked' && !item.needs_recheck ? t('Source-checked relation') : t('Source relation not checked')) + (item.needs_recheck ? t(' · Needs rechecking') : ''); }
       const a = localLink(type, id, undefined, 'map-link'), body = node('span', '', title); body.append(node('span', 'link-subtitle', sub)); a.append(node('span', 'index', String(index + 1).padStart(2, '0')), body); byId('map-links').append(a); nav.set(type + ':' + id, a);
     });
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); }, matches => {
@@ -120,7 +131,7 @@
     byId('map-status').textContent = map ? t('Drag nodes · pan background · wheel/buttons to zoom · fit all') : t('Unable to load the map. Use the corresponding records below to navigate.');
     for (const button of byId('scene-controls').children) button.setAttribute('aria-pressed', String(button.scene === scene));
   }
-  const backgroundNotice = t('Optional background · AI selection, not a citation, first-invention claim or required reading. The map is limited to registered items, not an exhaustive prerequisite map.');
+  const backgroundNotice = t('Optional background readings, not citations or required prerequisites.');
   function mountBackground(background) {
     if (scene === 'background' && activeBackground === background.id) return;
     if (scene === 'papers') paperMapState = map?.snapshot?.();
@@ -137,7 +148,7 @@
     byId('node-kind').textContent = t('Papers and concept'); byId('map-node-navigation').setAttribute('aria-label', t('Concept background items'));
     byId('map-heading').textContent = t('Concept background · ') + concept.title;
     byId('map-notice').textContent = backgroundNotice;
-    byId('map-legend').textContent = t('Paper rectangles · concept ellipse / dashed lines · AI learning connections');
+    byId('map-legend').textContent = t('Paper rectangles · concept ellipse / dashed lines · suggested background readings');
     byId('map-links').append(localLink('paper', background.paper_id, t('Return to paper relationships · ') + paperName(background.paper_id), 'map-item'));
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => {
       if (item.type === 'paper' && item.recordId === background.paper_id) location.hash = '#paper=' + encodeURIComponent(background.paper_id);
@@ -149,8 +160,7 @@
   function appendConceptChoices(parent, paper) {
     const linked = [...backgrounds.values()].filter(item => item.paper_id === paper.id);
     if (!linked.length) return;
-    const sectionNode = section(t('Concepts to explore · AI proposals'));
-    sectionNode.append(node('p', 'origin-note', backgroundNotice));
+    const sectionNode = section(t('Concept background'));
     for (const item of linked) sectionNode.append(localLink('background', item.id, t('Explore background · ') + concepts.get(item.concept_id).title, 'map-item'));
     parent.append(sectionNode);
   }
@@ -159,8 +169,7 @@
     const concept = concepts.get(background.concept_id); mountBackground(background);
     const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
     byId('position').textContent = t('CONCEPT BACKGROUND · ') + id; byId('item-title').textContent = concept.title;
-    meta.append(badge(t('AI explanation and representative selection · proposed')));
-    content.append(node('p', 'origin-note', backgroundNotice), p(concept.summary));
+    content.append(p(concept.summary));
     const reason = section(t('Why explore this concept from ') + paperName(background.paper_id)); reason.append(p(background.rationale)); content.append(reason);
     for (const reading of background.readings) {
       const block = section(t('Representative reading · ') + paperName(reading.paper_id));
@@ -168,7 +177,7 @@
       appendSourceLinks(block, papers.get(reading.paper_id).title, reading.evidence);
       for (const sourceId of reading.evidence) { const source = sources.get(sourceId); if (source.url === null) block.append(p(t('Read at: ') + source.locator)); }
       evidence(block, reading.evidence);
-      block.append(p(t('Return and compare · AI question: ') + reading.return_question)); content.append(block);
+      block.append(p(t('Return and compare: ') + reading.return_question)); content.append(block);
     }
     content.append(localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'));
     selectedType = 'background'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Explore only what you need');
@@ -201,23 +210,24 @@
     if (projectMode) {
       if (onlyPaper) {
         byId('item-title').textContent = paperName(onlyPaper) + t(' · evidence linked to this question');
-        meta.append(badge(reviewLabels[papers.get(onlyPaper).review_status], papers.get(onlyPaper).review_status === 'needs-recheck'));
+        appendPublication(meta, papers.get(onlyPaper));
       }
       meta.append(badge(t('Project decision · ') + item.decision.status), badge(t('Planned action · ') + (item.decision.action ?? t('Unspecified'))));
       const context = section(t('Project conditions')); paragraphs(context, data.project.conditions, t('Project conditions not recorded'));
       if (item.conditions_comparison?.length) { const comparison = section(t('Differences between paper and project conditions'), 'trace-comparison'); paragraphs(comparison, item.conditions_comparison, ''); context.append(comparison); }
       const refs = section(t('Application evidence · paper claims and conditions')); claims(refs, item.claim_refs.filter(ref => !onlyPaper || ref.paper_id === onlyPaper));
-      const interpretation = section(t('Reading for the project · AI interpretation'), 'interpretation'); interpretation.append(p(item.interpretation));
+      const interpretation = section(t('Project interpretation'), 'interpretation'); interpretation.append(p(item.interpretation));
       const observation = section(t('Project observations'), 'observation'); paragraphs(observation, item.observations, t('No observations recorded · execution and results are unknown.'));
-      const checks = section(t('Next checks · AI proposals'), 'checks'); paragraphs(checks, item.next_checks, t('No next-check proposals recorded'));
+      const checks = section(t('Suggested next checks'), 'checks'); paragraphs(checks, item.next_checks, t('No next-check proposals recorded'));
       const decision = section(t('Adoption decision record'), 'decision');
       decision.append(p(t('Status: ') + item.decision.status + t(' · action: ') + (item.decision.action ?? t('Unspecified'))), p(item.decision.rationale), node('p', 'section-note', t('Project adoption does not establish source verification or experiment reproduction.')));
       content.append(context, refs, interpretation, observation, checks, decision);
     } else {
-      meta.append(badge(reviewLabels[item.review_status], item.review_status === 'needs-recheck'), badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
+      appendPublication(meta, item);
+      meta.append(badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
       appendPaperSources(content, item);
       if (backgroundReading) {
-        const { background, reading } = backgroundReading, returning = section(t('Return and compare · AI question'));
+        const { background, reading } = backgroundReading, returning = section(t('Return and compare'));
         returning.append(p(reading.return_question), localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'), localLink('background', background.id, t('Return to concept background · ') + concepts.get(background.concept_id).title, 'map-item'));
         content.append(returning);
       } else appendConceptChoices(content, item);
@@ -245,7 +255,8 @@
     if (scene !== 'applications') mountMap('applications');
     const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
     byId('position').textContent = t('PAPER · ') + paper.id; byId('item-title').textContent = paper.title;
-    meta.append(badge(reviewLabels[paper.review_status], paper.review_status === 'needs-recheck'), badge(t('Edition · ') + (paper.edition ?? t('Not recorded'))));
+    appendPublication(meta, paper);
+    meta.append(badge(t('Edition · ') + (paper.edition ?? t('Not recorded'))));
     appendPaperSources(content, paper);
     const connected = section(t('Application records linked by this project'));
     const linked = items.filter(app => app.claim_refs.some(ref => ref.paper_id === id));
@@ -263,7 +274,7 @@
     if (scene !== 'context') mountMap('context'); selected = topic.id; selectedType = relation ? 'context-link' : 'topic';
     const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
     byId('position').textContent = t('PROJECT CONTEXT · ') + topic.id; byId('item-title').textContent = relation ? topics.get(relation.source).title + ' → ' + topic.title : topic.title;
-    meta.append(badge(t('AI learning guidance · not an understanding record')));
+    meta.append(badge(t('Learning guidance')));
     if (relation) {
       content.append(p(relation.label), node('p', 'origin-note', data.project_context.notice), localLink('topic', relation.source, t('Starting concept · ') + topics.get(relation.source).title, 'map-item'), localLink('topic', relation.target, t('Destination concept · ') + topic.title, 'map-item'), node('h3', '', topic.title + t(' · destination concept explanation')));
     }
@@ -284,14 +295,14 @@
     const meta = byId('metadata'), content = byId('content'); meta.replaceChildren(); content.replaceChildren();
     const number = String(data.relations.findIndex(item => item.id === id) + 1).padStart(2, '0');
     byId('position').textContent = t('RELATION {number} · ', { number }) + relation.id; byId('item-title').textContent = kindLabels[relation.kind];
-    meta.append(badge((relation.origin === 'ai' ? t('AI proposal') : t('Source-based record')) + ' · ' + relation.origin), badge(t('Record status · ') + relation.status));
+    meta.append(badge(relation.origin === 'ai' ? t('Suggested connection') : relation.status === 'source-checked' && !relation.needs_recheck ? t('Source-checked relation') : t('Source relation not checked'), relation.needs_recheck));
     if (relation.needs_recheck) meta.append(badge(t('Needs rechecking · a previous check is not treated as currently valid.'), true));
     const direction = section(t('Relation direction')); direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target))); content.append(direction);
     const reason = section(t('Why these records are connected')); reason.append(p(relation.rationale)); content.append(reason);
     const refs = section(t('Source evidence'));
-    if (relation.origin === 'ai' && relation.evidence_refs.length) refs.append(node('p', 'section-note', t('These claims informed an AI proposal. They do not source-confirm the relationship itself.')));
+    if (relation.origin === 'ai' && relation.evidence_refs.length) refs.append(node('p', 'section-note', t('These claims inform a reading suggestion, not a source-confirmed relationship.')));
     if (relation.evidence_refs.length) claims(refs, relation.evidence_refs);
-    else refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This AI proposal has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
+    else refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This suggestion has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
     content.append(refs);
     const history = node('details', 'source'); history.append(node('summary', '', t('Relation authorship and source-check record')), p(relation.created_by)); if (relation.review) history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at)); content.append(history);
     selectedType = 'relation'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Selected relation matches the map'); highlight('relation', id); byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent }); if (focus) byId('item-title').focus(); return true;

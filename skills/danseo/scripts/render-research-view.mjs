@@ -4,6 +4,14 @@ import { fail, object, text, list, oneOf, ids, unique, httpUrl, escape, cspHash,
 import { uiText, languageScript } from './view-language.mjs';
 
 const paragraphs = (value, at) => { list(value, at); value.forEach((v, i) => text(v, `${at}[${i}]`)); };
+function publicationDate(value, at) {
+  if (typeof value !== 'string' || !/^[1-9]\d{3}(?:-\d{2}(?:-\d{2})?)?$/.test(value)) fail(`${at}: expected YYYY, YYYY-MM or YYYY-MM-DD`);
+  const [year, month = 1, day = 1] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) fail(`${at}: invalid calendar date`);
+  const end = value.length === 4 ? Date.UTC(year + 1, 0, 1) - 1 : value.length === 7 ? Date.UTC(year, month, 1) - 1 : date.getTime();
+  return { start: date.getTime(), end };
+}
 export function validateCandidate(data) {
   oneOf(data?.mode, ['project-application', 'paper-relations'], 'mode');
   const projectMode = data.mode === 'project-application';
@@ -29,7 +37,16 @@ export function validateCandidate(data) {
   }
   const claims = new Map();
   for (const paper of data.papers) {
-    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...(Object.hasOwn(paper, 'topic') ? ['topic'] : [])], `paper.${paper.id}`);
+    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...['topic', 'publication'].filter(key => Object.hasOwn(paper, key))], `paper.${paper.id}`);
+    if (Object.hasOwn(paper, 'publication')) {
+      object(paper.publication, ['date', 'edition_date', 'source_id'], `paper.${paper.id}.publication`);
+      const published = publicationDate(paper.publication.date, `paper.${paper.id}.publication.date`);
+      if (paper.publication.edition_date !== null) {
+        const edition = publicationDate(paper.publication.edition_date, `paper.${paper.id}.publication.edition_date`);
+        if (edition.end < published.start) fail(`paper.${paper.id}: edition date precedes first publication`);
+      }
+      if (!sources.has(paper.publication.source_id)) fail(`paper.${paper.id}: publication source must be registered`);
+    }
     if (Object.hasOwn(paper, 'topic')) { text(paper.topic, 'paper.topic'); if (paper.topic.length > 40) fail('paper.topic: maximum 40 characters'); }
     if (enhanced) { text(paper.short_title, 'paper.short_title'); paragraphs(paper.notes, 'paper.notes'); }
     text(paper.title, `paper.${paper.id}.title`);
@@ -159,8 +176,9 @@ export function validateCandidate(data) {
 }
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
-export function renderCandidate(candidate) {
+export function renderCandidate(candidate, { complete = false, completionScope = null } = {}) {
   validateCandidate(candidate);
+  if (complete) text(completionScope, 'completion scope');
   const { style, script: assetsScript, json } = inlineAssets(candidate, [path.join(directory, '../assets/reader-base.css'), path.join(directory, '../assets/research-view.css'), path.join(directory, '../assets/graph-presentation.css')], [path.join(directory, '../assets/cytoscape.min.js'), path.join(directory, '../assets/graph-presentation.js'), path.join(directory, '../assets/research-map.js'), path.join(directory, '../assets/research-view.js')], 1);
   const script = languageScript(candidate.language) + assetsScript;
   const ui = value => escape(uiText(candidate.language, value));
@@ -171,7 +189,7 @@ export function renderCandidate(candidate) {
 <meta name="referrer" content="no-referrer"><title>${escape(candidate.title)} · Danseo</title><style>${style}</style></head>
 <body class="${project ? 'project-application' : 'paper-relations'}"><a class="skip" id="skip" href="#item-title">${ui("Skip to content")}</a>
 <header class="topbar"><span class="brand">Danseo<span class="brand-dot">.</span></span><span class="product">${ui("RESEARCH DESK")}</span><span class="local">${project ? ui('From papers to projects') : ui('Connections between papers')}</span></header>
-<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description">${escape(candidate.description)}</p><p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : ui('View scope')}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? ui('Explore all input papers and their recorded relations together.'))}</p>${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
+<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description authorship">${ui('Prepared with an AI agent. Source relations and reading suggestions are distinguished.')}</p><p class="description">${escape(candidate.description)}</p>${!project ? `<p class="description source-coverage">${ui(complete ? 'Recorded source checks complete for the displayed claims and source relations.' : 'Exploration view: source checks may be incomplete. Read the evidence status before using a claim or relation.')}</p>` : ''}${complete ? `<details class="source-check-scope"><summary>${ui('Read the recorded source-check scope')}</summary><p>${escape(completionScope)}</p></details>` : ''}<p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : ui('View scope')}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? ui('Explore all input papers and their recorded relations together.'))}</p>${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
 <div class="research-workspace"><section class="map-area" aria-label="${ui("Map and record list")}"><div class="map-toolbar"><h2 id="map-heading">${ui("Connections")}</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="${ui("Zoom out")}">−</button><button type="button" id="zoom-in" aria-label="${ui("Zoom in")}">+</button><button type="button" id="fit-map">${ui("Fit all")}</button></div></div><div class="scene-controls" id="scene-controls"></div><p class="map-notice" id="map-notice"></p><div id="research-map" role="img" aria-label="${ui("Pan and zoom the relation map. Use the matching record list below for keyboard navigation.")}"></div><p id="map-status" class="map-status" aria-live="polite"></p><p class="map-legend" id="map-legend"></p><section class="map-records" aria-label="${ui("Records shown on the map")}"><nav id="map-node-navigation" aria-label="${project ? ui('Projects and papers') : ui('Paper list')}"><p class="nav-heading"><span id="node-kind">${project ? ui('Projects · papers') : ui('Paper')}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>${ui("View scope and rationale")}</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? ui('Only records declared in the input are shown.'))}</p><div id="provenance"></div></details></section>
 <article class="lesson research detail-area" aria-labelledby="item-title"><div class="lesson-header"><p class="eyebrow" id="position"></p><h2 id="item-title" tabindex="-1"></h2><div id="metadata" class="metadata"></div></div><div id="content"></div><div class="controls"><button id="previous" type="button">${ui("← Previous record")}</button><span id="current-count"></span><button id="next" type="button">${ui("Next record →")}</button></div></article></div>
 <footer><span>${ui("Danseo · view derived from research records")}</span><span>${ui("Source verification, project adoption and experiment reproduction are separate.")}</span></footer></main>

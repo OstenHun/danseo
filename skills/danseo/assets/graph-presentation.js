@@ -5,7 +5,6 @@
   const card = Object.freeze({ width: 184, height: 108, column: 216, row: 132 });
   const kindNames = Object.freeze({ cites: t('Cites'), extends: t('Method extension'), compares: t('Compares'), 'related-to': t('Relatedness'), 'reading-order': t('Reading order') });
   const colors = Object.freeze({ source: '#326952', ai: '#7662a6', stale: '#a77832', pending: '#7b8493' });
-  const reviewNames = { draft: t('Paper review in progress'), 'source-checked': t('Paper source-check record'), 'needs-recheck': t('Paper needs rechecking') };
   function shortTitle(paper) {
     const title = paper.short_title || paper.title;
     const prefix = title.split(/[:：]/)[0].trim();
@@ -49,8 +48,8 @@
   }
   function relationState(edge) {
     const state = category(edge);
-    if (state === 'stale') return (edge.origin === 'ai' ? t('AI proposal') : t('Source record')) + t(' · recheck');
-    return state === 'ai' ? t('AI proposal') : state === 'source' ? t('Source check') : t('Source unchecked');
+    if (state === 'stale') return (edge.origin === 'ai' ? t('Suggested connection') : t('Source record')) + t(' · recheck');
+    return state === 'ai' ? t('Suggested connection') : state === 'source' ? t('Source check') : t('Source unchecked');
   }
   // Shared filters and counts; adapters own graph selection and keyboard navigation.
   function explorer(host, onChange, initialFilters = {}) {
@@ -58,7 +57,7 @@
     const filters = { category: 'all', kind: 'all', mode: 'focus', ...initialFilters };
     const selects = {};
     for (const [key, label, choices] of [
-      ['category', t('Evidence status'), [['all',t('All statuses')],['source',t('Source check')],['ai',t('AI proposal')],['stale',t('Recheck')],['pending',t('Source unchecked')]]],
+      ['category', t('Evidence status'), [['all',t('All statuses')],['source',t('Source check')],['ai',t('Suggested connection')],['stale',t('Recheck')],['pending',t('Source unchecked')]]],
       ['kind', t('Relation type'), [['all',t('All types')], ...Object.entries(kindNames)]],
       ['mode', t('Connections'), [['focus',t('Selected connections')],['all',t('All connections')]]]
     ]) {
@@ -105,7 +104,8 @@
     node.style.width = card.width + 'px';
     node.style.height = card.height + 'px';
     const top = element('div', 'graph-paper-top');
-    top.append(element('span', 'graph-paper-type', t('Paper')), element('span', 'graph-paper-review', reviewNames[paper.reviewStatus] ?? t('Paper status unknown')));
+    top.append(element('span', 'graph-paper-type', t('Paper')));
+    if (paper.reviewStatus === 'needs-recheck') top.append(element('span', 'graph-paper-review', t('Evidence needs rechecking')));
     const title = element('p', 'graph-paper-title', shortTitle(paper));
     title.title = paper.title;
     const date = element('p', 'graph-paper-date', paper.dateLabel);

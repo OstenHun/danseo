@@ -16,6 +16,8 @@ node ./dist/cli.js validate --workspace ./examples/minimal --json
 
 `npm test` builds TypeScript and runs Node's test runner and the portable skill's evidence tests. `src/core/` owns file and model rules; `src/cli.ts` handles commands and output; `src/web/` provides the read-only comparison app; `schemas/` defines formats; `skills/` holds the agent procedure and standalone generators.
 
+The portable skill's generators and inline browser assets are JavaScript so a complete skill folder runs with Node without a TypeScript build or npm installation. The CLI and native comparison app keep their TypeScript build. When changing shared portable files, keep the Danseo and Reading copies identical and run `npm run test:research-evidence` as well as relevant product checks.
+
 The documentation check detects links to files absent from the Git upload set. The package check installs a tarball into a temporary consumer and runs the installed CLI. It prefers the npm cache but may contact the registry for missing dependency metadata or files.
 
 <a id="공통-테스트-fixture-수정"></a>
