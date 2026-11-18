@@ -23,4 +23,6 @@ This is an individual project using a public GitHub repository, PR checks and ma
 
 Keep private workspaces, original research materials and personal execution logs local.
 
+Use the [English-language contribution policy](CONTRIBUTING.md#license-and-communication) when writing public pull requests or issues.
+
 Use docs/OPEN_SOURCE.md for distribution boundaries and docs/RUNTIME_SUPPORT.md for runtime policy. CI passing is not human review or user evaluation. Never replace existing global skill installations automatically.
