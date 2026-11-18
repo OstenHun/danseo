@@ -50,6 +50,8 @@ h1 { font-size: 1.875rem; }
 .map-item.map-item-ranked { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 5px 10px; }
 .ranked-paper-title { flex: 1 1 110px; min-width: 0; }
 .venue-rank-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.additional-venue-rank { margin-block: 12px; }
+.additional-venue-rank + .additional-venue-rank { border-block-start: 1px solid var(--line); }
 #research-map { position: relative; height: 310px; min-height: 310px; width: 100%; flex: none; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; overflow: hidden; }
 #research-map.context-map { height: 400px; min-height: 400px; }
 .map-records { margin-top: 20px; max-height: 230px; min-height: 90px; overflow: auto; overscroll-behavior: contain; }

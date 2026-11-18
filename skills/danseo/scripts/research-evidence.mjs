@@ -58,6 +58,7 @@ export function countText(binding) {
 function visibleCountFields(candidate) {
   const fields = new Map();
   candidate.papers.forEach((paper, p) => {
+    if (paper.reading_reason) fields.set(`/papers/${p}/reading_reason`, paper.reading_reason);
     (paper.notes ?? []).forEach((value, n) => fields.set(`/papers/${p}/notes/${n}`, value));
     paper.claims.forEach((claim, c) => {
       const base = `/papers/${p}/claims/${c}`;
