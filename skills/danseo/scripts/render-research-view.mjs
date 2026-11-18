@@ -12,6 +12,19 @@ function publicationDate(value, at) {
   const end = value.length === 4 ? Date.UTC(year + 1, 0, 1) - 1 : value.length === 7 ? Date.UTC(year, month, 1) - 1 : date.getTime();
   return { start: date.getTime(), end };
 }
+function validateVenueRank(ranking, at, sources) {
+  const category = ranking?.category !== undefined;
+  object(ranking, ['venue', 'scheme', 'edition', 'rank', 'top_tier', 'venue_source_id', 'source_id', ...(category ? ['category'] : [])], at);
+  for (const key of ['venue', 'scheme', 'edition', 'rank']) text(ranking[key], `${at}.${key}`);
+  if (category) text(ranking.category, `${at}.category`);
+  if (typeof ranking.top_tier !== 'boolean') fail(`${at}.top_tier: expected boolean`);
+  for (const key of ['venue_source_id', 'source_id']) {
+    if (!sources.has(ranking[key])) fail(`${at}.${key}: source must be registered`);
+  }
+}
+function venueRankKey({ venue, scheme, edition, category = '' }) {
+  return JSON.stringify([venue, scheme, edition, category].map(value => value.trim().toLowerCase()));
+}
 export function validateCandidate(data) {
   oneOf(data?.mode, ['project-application', 'paper-relations'], 'mode');
   const projectMode = data.mode === 'project-application';
@@ -37,7 +50,8 @@ export function validateCandidate(data) {
   }
   const claims = new Map();
   for (const paper of data.papers) {
-    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...['topic', 'publication', 'citations', 'venue_rank'].filter(key => Object.hasOwn(paper, key))], `paper.${paper.id}`);
+    const optionalFields = ['topic', 'publication', 'citations', 'reading_reason', 'venue_rank', 'additional_venue_ranks'];
+    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...optionalFields.filter(key => Object.hasOwn(paper, key))], `paper.${paper.id}`);
     if (Object.hasOwn(paper, 'publication')) {
       object(paper.publication, ['date', 'edition_date', 'source_id'], `paper.${paper.id}.publication`);
       const published = publicationDate(paper.publication.date, `paper.${paper.id}.publication.date`);
@@ -56,18 +70,21 @@ export function validateCandidate(data) {
       if (citations.checked_on.length !== 10) fail(`${at}.checked_on: expected YYYY-MM-DD`);
       if (!sources.has(citations.source_id)) fail(`${at}.source_id: citation source must be registered`);
     }
-    if (Object.hasOwn(paper, 'venue_rank')) {
-      const at = `paper.${paper.id}.venue_rank`;
-      const ranking = paper.venue_rank;
-      const category = ranking?.category !== undefined;
-      object(ranking, ['venue', 'scheme', 'edition', 'rank', 'top_tier', 'venue_source_id', 'source_id', ...(category ? ['category'] : [])], at);
-      for (const key of ['venue', 'scheme', 'edition', 'rank']) text(ranking[key], `${at}.${key}`);
-      if (category) text(ranking.category, `${at}.category`);
-      if (typeof ranking.top_tier !== 'boolean') fail(`${at}.top_tier: expected boolean`);
-      for (const key of ['venue_source_id', 'source_id']) {
-        if (!sources.has(ranking[key])) fail(`${at}.${key}: source must be registered`);
-      }
+    if (Object.hasOwn(paper, 'venue_rank')) validateVenueRank(paper.venue_rank, `paper.${paper.id}.venue_rank`, sources);
+    if (Object.hasOwn(paper, 'additional_venue_ranks')) {
+      const at = `paper.${paper.id}.additional_venue_ranks`;
+      list(paper.additional_venue_ranks, at);
+      if (paper.additional_venue_ranks.length && !paper.venue_rank) fail(`${at}: expected a representative venue_rank`);
+      const seen = new Set(paper.venue_rank ? [venueRankKey(paper.venue_rank)] : []);
+      paper.additional_venue_ranks.forEach((rank, index) => {
+        const entry = `${at}[${index}]`;
+        validateVenueRank(rank, entry, sources);
+        const key = venueRankKey(rank);
+        if (seen.has(key)) fail(`${entry}: duplicate venue, scheme, edition and category`);
+        seen.add(key);
+      });
     }
+    if (Object.hasOwn(paper, 'reading_reason')) text(paper.reading_reason, `paper.${paper.id}.reading_reason`);
     if (Object.hasOwn(paper, 'topic')) { text(paper.topic, 'paper.topic'); if (paper.topic.length > 40) fail('paper.topic: maximum 40 characters'); }
     if (enhanced) { text(paper.short_title, 'paper.short_title'); paragraphs(paper.notes, 'paper.notes'); }
     text(paper.title, `paper.${paper.id}.title`);

@@ -120,6 +120,60 @@ test('optional metrics preserve a measured zero and attribute venue ranks to the
   }
 });
 
+test('reading reason comes first and additional ranks stay in the paper disclosure', () => {
+  const data = fixture('paper-relations', 2);
+  data.language = 'ko';
+  const paper = data.papers[0];
+  const original = data.sources[0];
+  const primarySource = { ...original, id: 'rank-icore', url: 'https://portal.core.edu.au/conf-ranks/98/' };
+  const otherSource = { ...original, id: 'rank-ccf', title: 'CCF catalog', locator: 'p. 58', scope: 'Full papers only', url: 'https://example.org/ccf#page=58' };
+  const otherVenue = { ...original, id: 'other-venue', title: 'Conference proceedings', locator: 'Main track, article 4', scope: 'Published edition', url: 'https://example.org/proceedings/4' };
+  data.sources.push(primarySource, otherSource, otherVenue);
+  paper.reading_reason = '이 방법이 이후 연구와 어떻게 연결되는지 살펴봅니다.';
+  paper.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A', top_tier: false, venue_source_id: original.id, source_id: primarySource.id };
+  paper.additional_venue_ranks = [{ ...paper.venue_rank, scheme: 'CCF', rank: 'B', source_id: otherSource.id }];
+  validateCandidate(data);
+  const view = openResearchPaper(data, paper.id);
+  const content = view.elements.get('content');
+  assert.equal(content.children[0].textContent, '이 논문을 읽을 이유' + paper.reading_reason);
+  assert.match(view.elements.get('items').textContent, /ICORE A/);
+  assert.doesNotMatch(view.elements.get('items').textContent, /CCF/);
+  assert.doesNotMatch(view.elements.get('venue-guide').textContent, /CCF/);
+  const metrics = content.children.find(child => child.children[0]?.textContent === '게재처 등급');
+  const disclosure = metrics.children.find(child => child.children?.[0]?.textContent === '추가 게재처 등급');
+  assert.equal(disclosure.tagName, 'DETAILS');
+  assert.match(disclosure.textContent, /CCF 2026BCCF catalog · p\. 58/);
+  assert.match(disclosure.textContent, /Full papers only/);
+  assert.equal(disclosure.children[1].children.at(-1).href, otherSource.url);
+  const fields = performanceFields(data);
+  assert.equal(fields.get('/papers/0/reading_reason').value, paper.reading_reason);
+
+  primarySource.url = null;
+  paper.additional_venue_ranks[0].venue_source_id = otherVenue.id;
+  const withoutPrimary = openPaper(data, paper.id);
+  assert.match(withoutPrimary.textContent, /대표 등급 미확인/);
+  assert.match(withoutPrimary.textContent, /추가 게재처 등급/);
+  const extra = withoutPrimary.children.find(child => child.children[0]?.textContent === '게재처 등급')
+    .children.find(child => child.children[0]?.textContent === '추가 게재처 등급').children[1];
+  assert.ok(extra.children.some(child => child.href === otherSource.url));
+  const publication = extra.children.find(child => child.tagName === 'DETAILS');
+  assert.match(publication.textContent, /Main track, article 4/);
+  assert.match(publication.textContent, /Published edition/);
+  assert.equal(publication.children.at(-1).href, otherVenue.url);
+  primarySource.url = 'https://portal.core.edu.au/conf-ranks/98/';
+
+  const duplicate = structuredClone(data);
+  duplicate.papers[0].additional_venue_ranks.push({ ...paper.venue_rank, scheme: 'icore', rank: 'B', source_id: otherSource.id });
+  assert.throws(() => validateCandidate(duplicate), /duplicate venue, scheme, edition and category/);
+  otherSource.url = null;
+  assert.doesNotMatch(openPaper(data, paper.id).textContent, /추가 게재처 등급/);
+  const invalid = structuredClone(data);
+  invalid.papers[0].additional_venue_ranks[0].source_id = 'missing';
+  assert.throws(() => validateCandidate(invalid), /additional_venue_ranks\[0\]\.source_id: source must be registered/);
+  delete paper.venue_rank;
+  assert.throws(() => validateCandidate(data), /expected a representative venue_rank/);
+});
+
 test('JCR uses all four localized quartiles while other Q labels retain their scheme', () => {
   const data = fixture('paper-relations', 2);
   const [jcr, other] = data.papers;
@@ -581,6 +635,25 @@ test('all new concept/background prose is screened without changing the old cano
   const previous = fixture('paper-relations', 2);
   assert.deepEqual(overviewFor(previous), overviewFor({ ...previous, concepts: [], backgrounds: [] }));
   assert.match(data.description, /Concept backgrounds: 1/);
+});
+
+test('reading reason requires performance screening and cannot introduce an unbound count', () => {
+  const data = fixture('paper-relations', 2);
+  const paper = data.papers[0];
+  const reasonPath = '/papers/0/reading_reason';
+  paper.reading_reason = 'Read the method before comparing the papers.';
+  Object.assign(data, overviewFor(data));
+  const screening = () => performancePlan(data).map(entry => ({ ...entry, kind: 'non-performance', reason: 'Synthetic reading guidance.' }));
+  const evidence = { version: 2, sources: [], counts: [], tables: [], performance: screening() };
+  verifyEvidence(data, evidence, '.');
+  assert.throws(() => verifyEvidence(data, {
+    ...evidence, performance: evidence.performance.filter(entry => entry.path !== reasonPath),
+  }, '.'), /missing performance screening/);
+
+  paper.reading_reason = 'Read how the authors selected 17 records.';
+  assert.throws(() => verifyEvidence(data, {
+    ...evidence, performance: screening(),
+  }, '.'), /record\/pair count statement needs source-bound evidence/);
 });
 
 test('new concept/background text cannot bypass source-bound record and pair counts', () => {

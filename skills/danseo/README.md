@@ -4,7 +4,7 @@ Summary: Use your existing agent to read evidence, manage research records throu
 
 ## What is included
 
-[SKILL.md](SKILL.md) is the canonical agent procedure. It connects discovery, source collection, analysis, claim review, comparison, and source verification. The instructions, detailed usage references and [CLI guide](../../docs/CLI.en.md) are in English.
+[SKILL.md](SKILL.md) selects a workflow from your request. Open-ended requests to read a named paper start with [a standalone research map](references/paper-orientation.md). For selection, PDF collection, analysis, comparison, or existing records, use the [connected workspace procedure](references/connected-workspace.md). The skill instructions and bundled guides are in English.
 
 `agents/openai.yaml` provides display metadata, not an autonomous agent or model configuration.
 
@@ -14,9 +14,11 @@ Standalone research HTML uses `language: "ko"` or `"en"` for fixed controls and 
 
 ## Install and connect
 
-For standalone relationship HTML, use Node.js 22 or 24 and the **complete skill folder**, including `scripts/`, `references/`, and `assets/`. No npm installation, Danseo build, or server is needed for this path. Follow the [installation guide](../../README.md#install-the-skill) for host-specific destinations, duplicate-installation checks, updates, and a first prompt.
+For standalone relationship HTML, use Node.js 22 or 24 and the **complete skill folder**, including `scripts/`, `references/`, and `assets/`. No npm installation, Danseo build, or server is needed for this path. Follow the [installation guide](https://github.com/OstenHun/danseo#install-the-skill) for host-specific destinations, duplicate-installation checks, updates, and a first prompt.
 
-For topic and card management, build the Danseo CLI separately and follow [CLI and agent setup](../../docs/CLI.en.md). Reuse existing connection values and private records. Do not automatically replace global installations or copy private research into product source.
+For topic and card management, use a separate Danseo CLI build. Read `docs/CLI.en.md` in that build's Danseo source or package root for setup. Reuse existing connection values and private records. Do not automatically replace global installations or copy private research into product source.
+
+To resume, try “Use Danseo to reopen the topic in this folder and show the papers I selected.”
 
 ## Evidence workflow
 
@@ -31,5 +33,7 @@ The bundled generators support paper relationships and project-application views
 The [research-view contract](references/research-view.md) describes input formats. Automated checks, source-meaning review, actual rendered reading, and user understanding are separate evidence. The full CLI's read-only topic comparison app is a separate workflow; it is not a card editor or a separate learning-HTML skill.
 
 Select a paper node or its matching list entry to find **Read the paper** at the top of its details. **Open original source ↗** opens a registered URL in a new tab, with all recorded reading locations shown alongside it. Missing URLs are not inferred. See [source shortcuts and scope](references/research-view.md#open-the-original-from-a-paper-node). Regenerate existing HTML after updating the skill.
+
+When provided, the reading reason appears first in the paper detail. The map and list show one representative venue badge, and the detail lets readers expand additional grades and their sources. See [reading reasons and venue ranks](references/research-view.md#reading-reasons-and-venue-ranks).
 
 Optional [concept backgrounds](references/research-view.md#optional-concept-backgrounds) open a separate map from the current paper to a concept and selected background papers. Selection reasons, reading locations and a return question guide a bounded detour. Actual citations, AI-selected background and suggested reading order remain separate. See the [synthetic input](assets/paper-backgrounds.v2.example.json); new fields require the updated complete skill folder.
