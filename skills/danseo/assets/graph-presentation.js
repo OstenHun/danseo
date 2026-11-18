@@ -98,14 +98,32 @@
     if (text !== undefined) node.textContent = text;
     return node;
   }
-  function paperCard(paper) {
+  function nodeDimensions(citations) {
+    if (citations === undefined) return { width: card.width, height: card.height };
+    const citationCap = 150_000;
+    const fraction = Math.sqrt(Math.min(citations, citationCap) / citationCap);
+    // Leave at least 12 pixels between the largest nodes in the topic grid.
+    return { width: 156 + 48 * fraction, height: card.height + 12 * fraction };
+  }
+  function paperCard(paper, { width, height }) {
     const node = element('article', 'graph-paper');
     node.dataset.paperId = paper.id;
-    node.style.width = card.width + 'px';
-    node.style.height = card.height + 'px';
+    node.style.width = width + 'px';
+    node.style.height = height + 'px';
     const top = element('div', 'graph-paper-top');
-    top.append(element('span', 'graph-paper-type', t('Paper')));
-    if (paper.reviewStatus === 'needs-recheck') top.append(element('span', 'graph-paper-review', t('Evidence needs rechecking')));
+    if (paper.venueRank) {
+      const { scheme, rank, top_tier: topTier } = paper.venueRank;
+      const rankBadge = element('span', 'graph-venue-rank');
+      rankBadge.classList.toggle('is-top-tier', topTier);
+      rankBadge.append(element('span', 'graph-venue-scheme', scheme), element('span', 'graph-venue-grade', rank));
+      top.append(rankBadge);
+    } else {
+      top.append(element('span', 'graph-paper-type', t('Paper')));
+    }
+    if (paper.reviewStatus === 'needs-recheck') {
+      const compactReview = paper.venueRank || width < card.width;
+      top.append(element('span', 'graph-paper-review', t(compactReview ? 'Recheck' : 'Evidence needs rechecking')));
+    }
     const title = element('p', 'graph-paper-title', shortTitle(paper));
     title.title = paper.title;
     const date = element('p', 'graph-paper-date', paper.dateLabel);
@@ -116,7 +134,7 @@
   function syncCard(cardElement, graphNode) {
     const position = graphNode.position();
     cardElement.hidden = graphNode.hasClass('hidden');
-    cardElement.style.transform = `translate(${position.x - card.width / 2}px,${position.y - card.height / 2}px)`;
+    cardElement.style.transform = `translate(${position.x - graphNode.width() / 2}px,${position.y - graphNode.height() / 2}px)`;
     for (const state of ['selected', 'connected', 'faded', 'hovered']) cardElement.classList.toggle('is-' + state, graphNode.hasClass(state));
   }
   function edgeStyles() {
@@ -130,5 +148,5 @@
       { selector: 'edge.selected', style: { width: 2.6, label: '' } }
     ];
   }
-  window.DanseoGraph = Object.freeze({ card, kindNames, category, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer });
+  window.DanseoGraph = Object.freeze({ card, kindNames, category, nodeDimensions, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer });
 })();

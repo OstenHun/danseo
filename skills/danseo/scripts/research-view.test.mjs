@@ -56,6 +56,56 @@ const elementIds = ['candidate','skip','items','count','position','item-title','
 const fixture = (mode, version = 1) => JSON.parse(readFileSync(new URL('../assets/' + mode + (version === 2 ? '.v2' : '') + '.example.json', import.meta.url), 'utf8'));
 const openPaper = (data, id) => openView(data, '#paper=' + id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:data.mode==='project-application'?'#application=':'#paper=',title:'item-title'}).elements.get('content');
 
+test('citation nodes grow on a bounded scale and keep a gap in the topic grid', () => {
+  const window = {};
+  runInNewContext(readFileSync(new URL('../assets/graph-presentation.js', import.meta.url), 'utf8'), { window });
+  const { card, nodeDimensions } = window.DanseoGraph;
+  assert.equal(nodeDimensions(undefined).width, card.width);
+  assert.equal(nodeDimensions(0).width, 156);
+  assert.ok(nodeDimensions(25).width > nodeDimensions(0).width);
+  assert.ok(nodeDimensions(150_000).height > nodeDimensions(25).height);
+  assert.ok(nodeDimensions(150_000).width - nodeDimensions(687).width >= 35);
+  assert.ok(nodeDimensions(150_000).width > nodeDimensions(99_434).width);
+  assert.equal(nodeDimensions(150_000).width, nodeDimensions(Number.MAX_SAFE_INTEGER).width);
+  assert.ok(nodeDimensions(150_000).width <= card.column - 12);
+  assert.ok(nodeDimensions(150_000).height <= card.row - 12);
+});
+
+test('optional metrics preserve a measured zero and attribute venue ranks to their own scheme', () => {
+  const data = fixture('paper-relations', 2);
+  data.language = 'ko';
+  const [first, second] = data.papers;
+  const sourceId = data.sources[0].id;
+  first.citations = { count: 0, checked_on: '2026-11-18', source_id: sourceId };
+  first.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A*', top_tier: true, venue_source_id: sourceId, source_id: sourceId };
+  second.venue_rank = { venue: 'Example Journal', scheme: 'Channel Register', edition: '2026', rank: 'Level 2', top_tier: false, venue_source_id: sourceId, source_id: sourceId };
+  validateCandidate(data);
+  const firstDetail = openPaper(data, first.id).textContent;
+  assert.match(firstDetail, /인용 0회 · 2026-11-18 조회/);
+  assert.match(firstDetail, /Example Conference · ICORE 2026 · A\* · 이 평가 기준의 최상위 등급/);
+  assert.ok(firstDetail.includes(data.sources[0].title));
+  const secondDetail = openPaper(data, second.id).textContent;
+  assert.match(secondDetail, /인용수 미확인/);
+  assert.match(secondDetail, /Example Journal · Channel Register 2026 · Level 2/);
+  assert.doesNotMatch(secondDetail, /최상위 등급/);
+
+  for (const count of [-1, 1.5, '2', Number.MAX_SAFE_INTEGER + 1]) {
+    const invalid = structuredClone(data);
+    invalid.papers[0].citations.count = count;
+    assert.throws(() => validateCandidate(invalid), /nonnegative safe integer/);
+  }
+  for (const date of ['2026-11', '2026-02-30']) {
+    const invalid = structuredClone(data);
+    invalid.papers[0].citations.checked_on = date;
+    assert.throws(() => validateCandidate(invalid), /citations\.checked_on/);
+  }
+  for (const field of ['source_id', 'venue_source_id']) {
+    const invalid = structuredClone(data);
+    invalid.papers[0].venue_rank[field] = 'unknown';
+    assert.throws(() => validateCandidate(invalid), /source must be registered/);
+  }
+});
+
 test('paper details show distinct sourced publication and edition dates without a publication-like draft badge', () => {
   for (const language of ['en', 'ko']) {
     const data = fixture('paper-relations', 2); data.language = language;

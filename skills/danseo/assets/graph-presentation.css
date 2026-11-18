@@ -28,6 +28,17 @@
   overflow: hidden; word-break: keep-all; overflow-wrap: break-word; text-wrap: pretty;
 }
 .paper-map .graph-paper-date { margin: 2px 0 0; font-size: 11px; line-height: 1.5; color: var(--graph-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.paper-map .graph-venue-rank {
+  display: inline-flex; gap: 4px; min-width: 0; padding: 0 6px; border-radius: 4px;
+  color: var(--graph-muted); background: #edf0f5; font: 600 11px/1.45 'Segoe UI', 'Malgun Gothic', sans-serif;
+}
+.paper-map .graph-venue-scheme, .paper-map .graph-venue-grade {
+  min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.paper-map .graph-venue-grade { flex: none; max-width: 100%; }
+.paper-map .graph-venue-rank + .graph-paper-review { flex: none; }
+.paper-map .graph-venue-rank.is-top-tier { color: #fff; background: #29438f; }
 .paper-map .graph-paper-meta { display: flex; margin-top: auto; padding-top: 7px; border-top: 1px solid var(--graph-line); color: var(--graph-muted); font-size: 10px; line-height: 1.4; }
 .paper-map .graph-paper-id { font-family: Consolas, monospace; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .paper-map .graph-paper.is-undated { border-style: dashed; }

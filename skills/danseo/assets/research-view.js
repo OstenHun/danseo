@@ -44,21 +44,39 @@
     if (!values.length) parent.append(node('p', 'empty-note', empty));
     else for (const value of values) parent.append(p(value));
   }
-  function evidence(parent, evidenceIds) {
+  function evidence(parent, evidenceIds, { bibliographic = false } = {}) {
     if (!evidenceIds.length) { parent.append(node('p', 'empty-note', t('No linked source location · source coverage is not inferred.'))); return; }
     for (const id of evidenceIds) {
       const source = sources.get(id), detail = node('details', 'source');
-      detail.append(node('summary', '', source.title + (source.verification === 'agent-checked' ? t(' · Recorded source check') : data.version === 2 ? t(' · No source check in this run') : t(' · Source unchecked'))),
-        p(t('Location: ') + source.locator), p(t('Check scope: ') + source.scope),
-        p(t('Check status is declared by the recorder. It does not establish full-paper reading, independent review or reproduction.')));
+      const status = bibliographic ? '' : source.verification === 'agent-checked' ? t(' · Recorded source check') : data.version === 2 ? t(' · No source check in this run') : t(' · Source unchecked');
+      detail.append(node('summary', '', source.title + status), p(t('Location: ') + source.locator), p(t('Check scope: ') + source.scope));
+      if (!bibliographic) detail.append(p(t('Check status is declared by the recorder. It does not establish full-paper reading, independent review or reproduction.')));
       if (source.url !== null) {
-        const link = node('a', '', t('Open original source ↗')); link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; detail.append(link);
+        const link = node('a', '', t(bibliographic ? 'Open metadata source ↗' : 'Open original source ↗')); link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; detail.append(link);
       } else detail.append(p(t('No external link recorded · use the specified local original.')));
       parent.append(detail);
     }
   }
   function appendPaperSources(parent, paper) {
     appendSourceLinks(parent, paper.title, paper.claims.flatMap(claim => claim.evidence));
+  }
+  function appendPaperMetrics(parent, paper) {
+    const citations = paper.citations, ranking = paper.venue_rank;
+    if (!citations && !ranking && !data.papers.some(item => item.citations || item.venue_rank)) return;
+    const metrics = section(t('Citations and venue ranking'));
+    if (citations) {
+      const count = new Intl.NumberFormat(data.language ?? 'en').format(citations.count);
+      metrics.append(p(t('Citations · {count} · checked {date}', { count, date: citations.checked_on })));
+      evidence(metrics, [citations.source_id], { bibliographic: true });
+    } else {
+      metrics.append(p(t('Citation count unavailable')));
+    }
+    if (ranking) {
+      const label = `${ranking.venue} · ${ranking.scheme} ${ranking.edition} · ${ranking.rank}`;
+      metrics.append(p(label + (ranking.top_tier ? t(' · Top tier in this ranking') : '')));
+      evidence(metrics, [...new Set([ranking.venue_source_id, ranking.source_id])], { bibliographic: true });
+    }
+    parent.append(metrics);
   }
   function appendSourceLinks(parent, paperTitle, evidenceIds) {
     const linked = new Map();
@@ -120,6 +138,13 @@
     byId('map-heading').textContent = scene === 'context' ? data.project_context.title : projectMode ? t('Current question and paper evidence') : t('Connections between papers');
     byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
     byId('map-legend').textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
+    if (scene === 'papers') {
+      const legend = byId('map-legend');
+      legend.append(node('br'), node('span', '', t('Node size = citation count · capped; unavailable counts use the base size.')));
+      if (data.papers.some(paper => paper.venue_rank)) {
+        legend.append(node('br'), node('span', '', t('Dark venue badge = top tier in the named ranking.')));
+      }
+    }
     const links = scene === 'context' ? data.project_context.links : projectMode ? items.flatMap(app => data.papers.filter(paper => app.claim_refs.some(ref => ref.paper_id === paper.id)).map(paper => ({ app, paper }))) : data.relations;
     byId('map-links').append(node('h3', '', scene === 'context' ? t('Suggested order and connection rationale') : projectMode ? t('Corresponding evidence references') : t('Corresponding relations')));
     if (!links.length) byId('map-links').append(node('p', 'empty-note', t('No registered relations · disconnected items are still shown.')));
@@ -236,6 +261,7 @@
       appendPublication(meta, item);
       meta.append(badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
       appendPaperSources(content, item);
+      appendPaperMetrics(content, item);
       if (backgroundReading) {
         const { background, reading } = backgroundReading, returning = section(t('Return and compare'));
         returning.append(p(reading.return_question), localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'), localLink('background', background.id, t('Return to concept background · ') + concepts.get(background.concept_id).title, 'map-item'));
@@ -268,6 +294,7 @@
     appendPublication(meta, paper);
     meta.append(badge(t('Edition · ') + (paper.edition ?? t('Not recorded'))));
     appendPaperSources(content, paper);
+    appendPaperMetrics(content, paper);
     const connected = section(t('Application records linked by this project'));
     const linked = items.filter(app => app.claim_refs.some(ref => ref.paper_id === id));
     if (!linked.length) connected.append(node('p', 'empty-note', t('No application referencing this paper is included in the input scope.')));

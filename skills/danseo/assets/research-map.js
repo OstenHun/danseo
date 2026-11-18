@@ -77,11 +77,17 @@
   function mountPapers(container, data, scene, onSelect, onFilter, paperState) {
     const presentation = window.DanseoGraph;
     const elements = build(data, scene);
+    const hasCitationCounts = data.papers.some(paper => paper.citations !== undefined);
+    const nodeSizes = new Map(data.papers.map(paper => [
+      paper.id,
+      presentation.nodeDimensions(hasCitationCounts ? paper.citations?.count ?? 0 : undefined)
+    ]));
     const relations = new Map(data.relations.map(item => [item.id, item]));
     const layout = presentation.topicLayout(data.papers);
     for (const item of elements) {
       if (item.group === 'nodes') {
         item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
+        Object.assign(item.data, nodeSizes.get(item.data.recordId));
       } else {
         const relation = relations.get(item.data.recordId);
         item.data.category = presentation.category(relation);
@@ -92,7 +98,7 @@
     container.classList.add('paper-map');
     const cy = cytoscape({ container, elements, layout: { name: 'preset' }, minZoom: .25, maxZoom: 2.5, wheelSensitivity: .2, boxSelectionEnabled: false,
       style: [
-        { selector: 'node', style: { shape: 'roundrectangle', width: presentation.card.width, height: presentation.card.height, 'background-opacity': 0, 'border-width': 0, label: '', 'overlay-opacity': 0 } },
+        { selector: 'node', style: { shape: 'roundrectangle', width: 'data(width)', height: 'data(height)', 'background-opacity': 0, 'border-width': 0, label: '', 'overlay-opacity': 0 } },
         ...presentation.edgeStyles()
       ]
     });
@@ -100,7 +106,14 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
-      const card = presentation.paperCard({ id: paper.id, title: paper.title, short_title: paper.short_title, reviewStatus: paper.review_status, dateLabel: paper.publication?.date.slice(0, 4) ?? t('Publication year unknown') });
+      const card = presentation.paperCard({
+        id: paper.id,
+        title: paper.title,
+        short_title: paper.short_title,
+        reviewStatus: paper.review_status,
+        dateLabel: paper.publication?.date.slice(0, 4) ?? t('Publication year unknown'),
+        venueRank: paper.venue_rank
+      }, nodeSizes.get(paper.id));
       cards.set(paper.id, card); world.append(card);
     }
     presentation.drawTopics(world, layout.headings);
