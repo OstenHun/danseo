@@ -11,7 +11,7 @@
 
 Danseo uses your AI agent to map how papers connect and where to read the evidence. The optional CLI saves and compares evidence across a research topic.
 
-![Attention Is All You Need selected, with earlier Seq2Seq and Bahdanau attention papers and later work including BERT, T5, and Vision Transformer](assets/readme/paper-graph-preview.png)
+![Nine-paper Transformer map with the focal paper's reading guidance, dates, and source locations](assets/readme/paper-graph-preview.png)
 
 This preview connects [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) to earlier work on sequence modeling and to later papers including BERT, T5, and Vision Transformer. Solid green lines show source-checked connections. Dashed lines show suggestions or connections that need a source check. [View the full-size screenshot](assets/readme/paper-graph-preview.png).
 
@@ -22,7 +22,7 @@ This preview connects [*Attention Is All You Need*](https://arxiv.org/abs/1706.0
 ![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
 ![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-[한국어](README.ko.md) · [Documentation](docs/README.md)
+[Korean README](README.ko.md) · [Documentation](docs/README.md)
 
 <a id="skill-설치"></a>
 
@@ -48,9 +48,9 @@ You can also use **Code → Download ZIP** on GitHub. Extract the ZIP, open a te
 
 From the downloaded source folder, run the block for your operating system and enter the choice shown for your agent. The commands copy the complete skill folder to your home directory so Danseo is available across projects.
 
-- For [Codex](https://developers.openai.com/codex/skills/), enter `codex`. In a new chat, choose Danseo in the skill picker or type `$danseo`.
-- For [Claude Code](https://code.claude.com/docs/en/skills), enter `claude`. In a new chat, type `/danseo`.
-- For [Antigravity CLI](https://antigravity.google/docs/skills/), enter `agy`. Start a new conversation in the interactive CLI, then type `/danseo`.
+- For [Codex](https://developers.openai.com/codex/skills/), enter `codex`.
+- For [Claude Code](https://code.claude.com/docs/en/skills), enter `claude`.
+- For [Antigravity CLI](https://antigravity.google/docs/skills/), enter `agy`.
 
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
@@ -111,19 +111,24 @@ The script prints `Installed Danseo at` followed by the skill folder path. If yo
 
 ### 3. Create and open your first graph
 
-Start a new chat in a folder where your agent can save files. In Codex, insert Danseo from the skill picker or start your message with `$danseo`. In Claude Code or Antigravity CLI, start your message with `/danseo`. Add the prompt below and send it in the same message.
+Start a new chat in a folder where your agent can save files. Try this request:
 
 ```text
-I want to read Attention Is All You Need. Use Danseo to find a few related
-papers from before and after it. Create an interactive HTML graph in English
-and save it as attention-paper-graph.html in this folder. Show the source
-location for checked connections and label reading suggestions separately.
-Give me the path to the HTML file.
+I want to read Attention Is All You Need. Find a few related papers from
+before and after it. Create an interactive HTML graph in English and save it
+as attention-paper-graph.html in this folder. Show the source location for
+checked connections and label reading suggestions separately. Add a short
+reason to read each paper. Use source records to verify first-publication
+and selected-edition dates when available. Give me the path to the HTML file.
 ```
 
-Open `attention-paper-graph.html` in a desktop browser. You should see *Attention Is All You Need* as the focal paper. Select it to find page or section references, or select a source-checked connection to see its evidence. Which related papers appear depends on the sources your agent can access.
+If your agent does not pick up Danseo, choose it in the Codex skill picker or start the message with `$danseo`. In Claude Code or Antigravity CLI, start the message with `/danseo` and add the prompt.
 
-When your agent verifies a venue and its rank, the graph shows a badge. The guide explains the ICORE, JCR, and Norwegian Register scales. Paper details show the ranking edition and link to its source. JCR details include the subject category when available. The T5 badge in the preview comes from the China Computer Federation (CCF). Compare grades within the same ranking system.
+Open `attention-paper-graph.html` in a desktop browser. Select the focal paper for its reading guidance and any available page or section references. Select a source-checked connection to see its evidence. Which related papers appear depends on the sources your agent can access.
+
+Paper nodes show the verified first-publication year when available. Paper details show the date and its source, along with the selected edition's date when verified.
+
+When your agent verifies a venue and its rank, the graph shows a representative badge. Expand the paper's additional rankings to see other verified grades and their sources. The guide explains the ICORE, JCR, and Norwegian Register scales. JCR details include the subject category when available. The T5 badge in the preview comes from the China Computer Federation (CCF). Compare grades within the same ranking system.
 
 If the agent can't access online sources, give it absolute paths to two or more local PDFs it can read. Ask for a graph using those files and have it report any connections it could not check. Review your agent's file permissions and provider settings before sharing private PDFs.
 
@@ -148,6 +153,8 @@ node ./dist/cli.js validate --workspace ./examples/minimal --json
 The first command fetches the locked dependencies. After the build, the example should report `ok: true`, three records, two projects, and one expected draft warning. These checks cover file structure and references. The example uses synthetic cards with Korean body text. The CLI messages are in English.
 
 For your own research, follow the [CLI and agent guide](docs/CLI.en.md#find-collect-analyze-and-compare) to create a topic folder, collect sources, and open a local comparison. For reusable Paper and Application cards, see [connect your own workspace](docs/CLI.en.md#connect-your-own-workspace).
+
+To continue a search with the connected CLI in a new chat, give your agent the existing topic folder path and ask for another search round. The folder keeps your earlier rounds and selections.
 
 ### Companion skills and output language
 
