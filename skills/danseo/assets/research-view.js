@@ -68,9 +68,48 @@
   function appendPaperSources(parent, paper) {
     appendSourceLinks(parent, paper.title, paper.claims.flatMap(claim => claim.evidence));
   }
+  function appendReadingReason(parent, paper) {
+    if (!paper.reading_reason) return;
+    const reason = section(t('Why read this paper'));
+    reason.append(p(paper.reading_reason));
+    parent.append(reason);
+  }
+  function appendRankLabel(parent, ranking) {
+    const label = node('p', 'venue-rank-line');
+    label.append(node('span', '', ranking.scheme + ' ' + ranking.edition), presentation.venueBadge(ranking, { includeScheme: false }));
+    parent.append(p(ranking.venue), label);
+    if (presentation.isJcr(ranking.scheme)) {
+      parent.append(p(ranking.category
+        ? t('JCR subject category · {category}', { category: ranking.category })
+        : t('JCR subject category unreported')));
+    } else if (ranking.category) parent.append(p(t('Subject category · {category}', { category: ranking.category })));
+  }
+  function rankingLink(ranking) {
+    const link = node('a', '', t('Open ranking source ↗'));
+    link.href = sources.get(ranking.source_id).url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    return link;
+  }
+  function appendAdditionalRanks(parent, rankings, representative) {
+    if (!rankings.length) return;
+    const disclosure = node('details', 'source');
+    disclosure.append(node('summary', '', t('Other venue rankings')));
+    for (const ranking of rankings) {
+      const entry = node('div', 'additional-venue-rank');
+      appendRankLabel(entry, ranking);
+      const source = sources.get(ranking.source_id);
+      entry.append(p(source.title + ' · ' + source.locator), p(t('Check scope: ') + source.scope), rankingLink(ranking));
+      if (ranking.venue_source_id !== ranking.source_id && ranking.venue_source_id !== representative?.venue_source_id) {
+        evidence(entry, [ranking.venue_source_id], { bibliographic: true });
+      }
+      disclosure.append(entry);
+    }
+    parent.append(disclosure);
+  }
   function appendPaperMetrics(parent, paper) {
     const citations = paper.citations, ranking = venueRanks.get(paper.id);
     if (projectMode && !hasCitationCounts && !hasVenueMetadata) return;
+    const additionalRanks = (paper.additional_venue_ranks ?? [])
+      .map(rank => presentation.linkedVenueRank(rank, sources)).filter(Boolean);
     const metrics = section(t(hasCitationCounts || projectMode ? 'Citations and venue ranking' : 'Venue ranking'));
     if (citations) {
       const count = new Intl.NumberFormat(data.language ?? 'en').format(citations.count);
@@ -80,19 +119,14 @@
       metrics.append(p(t('Citation count unavailable')));
     }
     if (ranking) {
-      const label = node('p', 'venue-rank-line');
-      label.append(node('span', '', ranking.scheme + ' ' + ranking.edition), presentation.venueBadge(ranking, { includeScheme: false }));
-      metrics.append(p(ranking.venue), label);
-      if (presentation.isJcr(ranking.scheme)) {
-        metrics.append(p(ranking.category
-          ? t('JCR subject category · {category}', { category: ranking.category })
-          : t('JCR subject category unreported')));
-      }
+      appendRankLabel(metrics, ranking);
       if (ranking.top_tier) metrics.append(p(t('Top tier in this ranking')));
       evidence(metrics, [...new Set([ranking.venue_source_id, ranking.source_id])], { bibliographic: true });
     } else if (!projectMode || paper.venue_rank) {
-      metrics.append(presentation.venueBadge(), p(t('Publication and ranking sources are required for a venue rank.')));
+      if (additionalRanks.length) metrics.append(p(t('Representative rank unverified')));
+      else metrics.append(presentation.venueBadge(), p(t('Publication and ranking sources are required for a venue rank.')));
     }
+    appendAdditionalRanks(metrics, additionalRanks, ranking);
     parent.append(metrics);
   }
   function venueGuide() {
@@ -124,11 +158,6 @@
         const tr = node('tr', ''), grade = node('td', ''), description = node('td', '');
         grade.append(presentation.venueBadge(ranking, { includeScheme: false }));
         description.append(...contents); tr.append(grade, description); body.append(tr);
-      }
-      function rankingLink(ranking) {
-        const link = node('a', '', t('Open ranking source ↗'));
-        link.href = sources.get(ranking.source_id).url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-        return link;
       }
       if (scale) {
         for (const [rank, meaning] of scale.grades) {
@@ -346,6 +375,7 @@
     } else {
       appendPublication(meta, item);
       meta.append(badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
+      appendReadingReason(content, item);
       appendPaperSources(content, item);
       appendPaperMetrics(content, item);
       if (backgroundReading) {
@@ -379,6 +409,7 @@
     byId('position').textContent = t('PAPER · ') + paper.id; byId('item-title').textContent = paper.title;
     appendPublication(meta, paper);
     meta.append(badge(t('Edition · ') + (paper.edition ?? t('Not recorded'))));
+    appendReadingReason(content, paper);
     appendPaperSources(content, paper);
     appendPaperMetrics(content, paper);
     const connected = section(t('Application records linked by this project'));

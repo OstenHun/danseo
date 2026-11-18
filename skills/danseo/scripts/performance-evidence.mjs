@@ -21,6 +21,7 @@ export function performanceFields(candidate) {
     const all = paper.claims.flatMap(c => c.evidence);
     if (paper.short_title) add(`/papers/${p}/short_title`, paper.short_title, all);
     if (paper.topic) add(`/papers/${p}/topic`, paper.topic, all);
+    if (paper.reading_reason) add(`/papers/${p}/reading_reason`, paper.reading_reason, all);
     (paper.notes ?? []).forEach((s, n) => add(`/papers/${p}/notes/${n}`, s, all));
     paper.claims.forEach((claim, c) => {
       const base = `/papers/${p}/claims/${c}`;
