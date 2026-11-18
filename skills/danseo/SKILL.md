@@ -67,6 +67,8 @@ Before authoring v2 JSON, read the bundled [complete candidate example](assets/p
 
 Normal delivery finishes the original-source comparison of displayed claims and source relations, verifies source-linked first-publication and edition dates, and uses the [complete-output gate](references/evidence-gate.md#finish-source-checking-before-normal-delivery). Preserve whole-Paper record states; selected-passage completion does not require changing `draft`. Unavailable originals require an explicitly partial scope, never a silent fallback to unchecked output. Use one view-level AI authorship notice and meaningful source/suggestion labels rather than repeated AI badges.
 
+For paper relationship maps, include citation counts and venue ranks when you can match them to the paper and source within the requested scope. Follow the [research view input guide](references/research-view.md) for links and ranking editions. Omit unavailable values.
+
 <a id="논문-관계-그래프의-기본-구성"></a>
 
 ## Default paper relationship graph

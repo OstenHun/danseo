@@ -37,7 +37,7 @@ export function validateCandidate(data) {
   }
   const claims = new Map();
   for (const paper of data.papers) {
-    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...['topic', 'publication'].filter(key => Object.hasOwn(paper, key))], `paper.${paper.id}`);
+    object(paper, ['id', 'title', 'edition', 'review_status', 'claims', ...(enhanced ? ['short_title', 'notes'] : []), ...['topic', 'publication', 'citations', 'venue_rank'].filter(key => Object.hasOwn(paper, key))], `paper.${paper.id}`);
     if (Object.hasOwn(paper, 'publication')) {
       object(paper.publication, ['date', 'edition_date', 'source_id'], `paper.${paper.id}.publication`);
       const published = publicationDate(paper.publication.date, `paper.${paper.id}.publication.date`);
@@ -46,6 +46,25 @@ export function validateCandidate(data) {
         if (edition.end < published.start) fail(`paper.${paper.id}: edition date precedes first publication`);
       }
       if (!sources.has(paper.publication.source_id)) fail(`paper.${paper.id}: publication source must be registered`);
+    }
+    if (Object.hasOwn(paper, 'citations')) {
+      const at = `paper.${paper.id}.citations`;
+      const citations = paper.citations;
+      object(citations, ['count', 'checked_on', 'source_id'], at);
+      if (!Number.isSafeInteger(citations.count) || citations.count < 0) fail(`${at}.count: expected a nonnegative safe integer`);
+      publicationDate(citations.checked_on, `${at}.checked_on`);
+      if (citations.checked_on.length !== 10) fail(`${at}.checked_on: expected YYYY-MM-DD`);
+      if (!sources.has(citations.source_id)) fail(`${at}.source_id: citation source must be registered`);
+    }
+    if (Object.hasOwn(paper, 'venue_rank')) {
+      const at = `paper.${paper.id}.venue_rank`;
+      const ranking = paper.venue_rank;
+      object(ranking, ['venue', 'scheme', 'edition', 'rank', 'top_tier', 'venue_source_id', 'source_id'], at);
+      for (const key of ['venue', 'scheme', 'edition', 'rank']) text(ranking[key], `${at}.${key}`);
+      if (typeof ranking.top_tier !== 'boolean') fail(`${at}.top_tier: expected boolean`);
+      for (const key of ['venue_source_id', 'source_id']) {
+        if (!sources.has(ranking[key])) fail(`${at}.${key}: source must be registered`);
+      }
     }
     if (Object.hasOwn(paper, 'topic')) { text(paper.topic, 'paper.topic'); if (paper.topic.length > 40) fail('paper.topic: maximum 40 characters'); }
     if (enhanced) { text(paper.short_title, 'paper.short_title'); paragraphs(paper.notes, 'paper.notes'); }
@@ -190,7 +209,7 @@ export function renderCandidate(candidate, { complete = false, completionScope =
 <body class="${project ? 'project-application' : 'paper-relations'}"><a class="skip" id="skip" href="#item-title">${ui("Skip to content")}</a>
 <header class="topbar"><span class="brand">Danseo<span class="brand-dot">.</span></span><span class="product">${ui("RESEARCH DESK")}</span><span class="local">${project ? ui('From papers to projects') : ui('Connections between papers')}</span></header>
 <main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description authorship">${ui('Prepared with an AI agent. Source relations and reading suggestions are distinguished.')}</p><p class="description">${escape(candidate.description)}</p>${!project ? `<p class="description source-coverage">${ui(complete ? 'Recorded source checks complete for the displayed claims and source relations.' : 'Exploration view: source checks may be incomplete. Read the evidence status before using a claim or relation.')}</p>` : ''}${complete ? `<details class="source-check-scope"><summary>${ui('Read the recorded source-check scope')}</summary><p>${escape(completionScope)}</p></details>` : ''}<p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : ui('View scope')}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? ui('Explore all input papers and their recorded relations together.'))}</p>${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
-<div class="research-workspace"><section class="map-area" aria-label="${ui("Map and record list")}"><div class="map-toolbar"><h2 id="map-heading">${ui("Connections")}</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="${ui("Zoom out")}">−</button><button type="button" id="zoom-in" aria-label="${ui("Zoom in")}">+</button><button type="button" id="fit-map">${ui("Fit all")}</button></div></div><div class="scene-controls" id="scene-controls"></div><p class="map-notice" id="map-notice"></p><div id="research-map" role="img" aria-label="${ui("Pan and zoom the relation map. Use the matching record list below for keyboard navigation.")}"></div><p id="map-status" class="map-status" aria-live="polite"></p><p class="map-legend" id="map-legend"></p><section class="map-records" aria-label="${ui("Records shown on the map")}"><nav id="map-node-navigation" aria-label="${project ? ui('Projects and papers') : ui('Paper list')}"><p class="nav-heading"><span id="node-kind">${project ? ui('Projects · papers') : ui('Paper')}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>${ui("View scope and rationale")}</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? ui('Only records declared in the input are shown.'))}</p><div id="provenance"></div></details></section>
+<div class="research-workspace"><section class="map-area" aria-label="${ui("Map and record list")}"><div class="map-toolbar"><h2 id="map-heading">${ui("Connections")}</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="${ui("Zoom out")}">−</button><button type="button" id="zoom-in" aria-label="${ui("Zoom in")}">+</button><button type="button" id="fit-map">${ui("Fit all")}</button></div></div><div class="scene-controls" id="scene-controls"></div><p class="map-notice" id="map-notice"></p><p class="map-legend" id="map-legend"></p><div id="research-map" role="img" aria-label="${ui("Pan and zoom the relation map. Use the matching record list below for keyboard navigation.")}"></div><p id="map-status" class="map-status" aria-live="polite"></p><section class="map-records" aria-label="${ui("Records shown on the map")}"><nav id="map-node-navigation" aria-label="${project ? ui('Projects and papers') : ui('Paper list')}"><p class="nav-heading"><span id="node-kind">${project ? ui('Projects · papers') : ui('Paper')}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>${ui("View scope and rationale")}</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? ui('Only records declared in the input are shown.'))}</p><div id="provenance"></div></details></section>
 <article class="lesson research detail-area" aria-labelledby="item-title"><div class="lesson-header"><p class="eyebrow" id="position"></p><h2 id="item-title" tabindex="-1"></h2><div id="metadata" class="metadata"></div></div><div id="content"></div><div class="controls"><button id="previous" type="button">${ui("← Previous record")}</button><span id="current-count"></span><button id="next" type="button">${ui("Next record →")}</button></div></article></div>
 <footer><span>${ui("Danseo · view derived from research records")}</span><span>${ui("Source verification, project adoption and experiment reproduction are separate.")}</span></footer></main>
 <noscript><p class="no-script">${ui("JavaScript is required to explore records. You can read the original candidate JSON directly.")}</p></noscript>
