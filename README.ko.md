@@ -6,41 +6,35 @@
   <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
   <source media="(max-width: 640px)" srcset="assets/brand/banner-compact-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
-  <img src="assets/brand/banner-light.svg" alt="Danseo — 논문 근거를 프로젝트의 판단으로 연결합니다." width="100%">
+  <img src="assets/brand/banner-light.svg" alt="Danseo 로고와 터미널 아이콘" width="100%">
 </picture>
-
-**논문의 근거를, 내 프로젝트의 판단으로.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node.js 22 또는 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
 ![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-한국어 · [English](README.md) · [Skill 설치](#skill-설치) · [논문 그래프 요청](#논문-그래프-생성-요청) · [빠른 시작](#빠른-시작) · [문서](docs/README.ko.md) · [기여하기](CONTRIBUTING.md)
+한국어 · [English](README.md) · [스킬 설치](#skill-설치) · [지도 만들기](#논문-그래프-생성-요청) · [CLI 빠른 시작](#빠른-시작) · [문서](docs/README.ko.md) · [기여하기](CONTRIBUTING.md)
 
 </div>
 
-요약: 기존 AI 에이전트와 논문을 찾고, 고른 논문의 원문·답변·비교 근거를 로컬 파일로 연결한다. CLI와 읽기 전용 연구 비교 화면을 제공하는 개발 프리뷰다.
+Danseo는 AI 에이전트로 찾은 논문을 지도에 보여 줍니다. 논문을 누르면 읽을 이유를, 연결을 누르면 근거가 된 원문 위치를 볼 수 있습니다. 검색과 읽기를 다음 채팅에서 이어갈 때는 CLI로 주제 폴더에 기록하세요.
 
-논문을 읽고 나면 결과가 나온 조건, 확인한 원문 위치, 내 프로젝트에 적용할 수 있는지를 다음 대화에서도 이어 볼 수 있어야 한다.
+## 논문 지도 미리 보기
 
-Danseo(단서)는 그 판단에 필요한 실마리를 남긴다. 논문 자체의 주장과 프로젝트별 적용 판단을 나누고, 같은 논문의 근거를 여러 프로젝트에서 참조한다.
+![Transformer를 중심으로 앞선 연구와 후속 논문을 연결한 지도. 오른쪽에 날짜, 읽을 이유, 원문 위치가 보입니다.](assets/readme/paper-graph-preview.png)
 
-## 논문을 찾는 순간부터 비교할 때까지
+*Attention Is All You Need*를 고르면 오른쪽에 읽을 이유와 원문에서 볼 곳이 나옵니다. 초록 실선은 원문에서 확인한 관계입니다. 점선은 AI가 제안했거나 원문 확인이 더 필요한 연결을 뜻합니다. [이미지 크게 보기](assets/readme/paper-graph-preview.png)
 
-| 단계 | 남기는 기록 |
-| --- | --- |
-| **탐색·선택** | 검색 회차와 고정 번호, 고를 당시의 출처·판본·추천 이유 |
-| **원문 수집** | PDF 관리 사본 또는 기존 파일 연결, 제목·저자·판본 확인과 초고 사용 동의 |
-| **분석·재개** | 공통 Paper 카드와 주제별 Markdown 답변·메모, 후속 질문과 다음 읽을 위치 |
-| **연구 비교** | 현재 원문과 대조해 지지를 확인한 주장, 평가 조건·한계·원문 위치와 AI 제안 이유 |
+- **논문을 지도에서 보고 싶다면** [스킬 설치](#skill-설치)부터 시작하세요.
+- **검색과 메모를 다음 채팅에서 이어가려면** [CLI 빠른 시작](#빠른-시작)으로 가세요.
 
-`topic compare`의 지도에서 논문이나 기준을 골라 PDF와 분석 문서를 열 수 있다. 원문에 명시된 관계와 AI 제안을 구분하고, 바뀌거나 없어진 근거는 보류한다. [비교 화면 사용법](docs/RESEARCH_COMPARISON.md)
+<a id="skill-설치"></a>
 
-**검색·다운로드·실제 독해·비교 기준 작성은 기존 에이전트가 맡는다.** Danseo는 그 기록을 파일로 연결하며, 자체 LLM이나 자동 논문 요약 서비스가 아니다. 비교에는 에이전트가 준비한 Paper 카드·주장별 검토·`comparison.json`이 필요하다.
+## 스킬 설치
 
-## Skill 설치
+논문 지도를 HTML 파일로 만들려면 **Node.js 22 또는 24 LTS**와 `skills/danseo` 폴더가 필요합니다. npm 패키지 설치나 빌드 없이 폴더를 복사해 씁니다. 생성한 지도는 브라우저에서 바로 열립니다.
 
-**논문 관계 그래프를 독립 HTML로 만들려면 Node.js 22 또는 24와 `skills/danseo` 폴더 전체만 있으면 된다.** npm 패키지 설치·빌드·서버 실행은 필요하지 않다. Codex, Claude Code 또는 Antigravity CLI를 먼저 설치하고 로그인한 뒤, 해당 에이전트가 논문 파일을 읽고 Node 명령을 실행할 수 있는 환경에서 사용한다. 일반 웹 채팅에 폴더 경로만 붙이는 방식은 지원하지 않는다.
+Codex, Claude Code 또는 Antigravity CLI에 로그인한 뒤 에이전트가 내 컴퓨터의 파일을 읽고 Node 명령을 실행할 수 있는지 확인하세요.
 
 ### 1. GitHub에서 내려받기
 
@@ -50,26 +44,24 @@ cd danseo
 node --version
 ```
 
-Git이 없으면 저장소의 **Code → Download ZIP**으로 내려받아 압축을 풀고, `README.md`와 `skills`가 있는 폴더에서 터미널을 연다. `SKILL.md`만 복사하면 생성기와 디자인 파일이 빠지므로 **`danseo` 폴더 전체**를 설치한다.
+Git이 없으면 저장소에서 **Code → Download ZIP**을 눌러 내려받으세요. 압축을 풀고 `README.md`와 `skills`가 보이는 폴더에서 터미널을 열면 됩니다. 생성기와 화면에 필요한 파일도 함께 쓰므로 `danseo` 폴더 전체를 복사합니다.
 
 ### 2. 사용할 에이전트에 설치하기
 
-아래는 모든 프로젝트에서 사용하는 개인 설치 경로다. `~`는 사용자 홈 폴더다. Argon 안내는 **Antigravity CLI(`agy`)에서 Argon 모델을 사용하는 환경**을 뜻한다.
+아래 경로에 설치하면 어느 프로젝트에서든 쓸 수 있습니다. `~`는 홈 폴더를 뜻합니다. Antigravity CLI에서 Argon을 쓰고 싶다면 `agy models`로 선택할 수 있는 모델을 확인하세요.
 
-| 에이전트 | 설치할 폴더 | 새 채팅에서 호출 |
-| --- | --- | --- |
-| Codex | `~/.agents/skills/danseo` | `$danseo` 또는 skill 선택 메뉴 |
-| Claude Code | `~/.claude/skills/danseo` | `/danseo` |
-| Argon · Antigravity CLI | `~/.gemini/config/skills/danseo` | `/danseo` |
+- **Codex** · `~/.agents/skills/danseo`
+- **Claude Code** · `~/.claude/skills/danseo`
+- **Antigravity CLI** · `~/.gemini/config/skills/danseo`
 
-설치 경로와 호출 방식: [Codex 공식 안내](https://developers.openai.com/codex/skills/) · [Claude Code 공식 안내](https://code.claude.com/docs/en/skills) · [Antigravity 공식 안내](https://antigravity.google/docs/skills/). Argon 모델은 `agy models`로 사용 가능한 이름을 확인하고 선택한다.
+[Codex 설치 안내](https://developers.openai.com/codex/skills/) · [Claude Code 설치 안내](https://code.claude.com/docs/en/skills) · [Antigravity 설치 안내](https://antigravity.google/docs/skills/)
 
-사용하는 운영체제의 예시를 펼쳐 **대상 경로 한 줄만 선택**해 실행한다. 기존 설치가 있으면 아래 명령은 중단한다. Codex의 기존 `~/.codex/skills/danseo`나 프로젝트별 설치가 있다면 중복 설치하지 말고, 에이전트가 표시하는 기존 경로부터 확인한다.
+운영체제에 맞는 예시를 펼쳐 설치 경로 한 줄을 고른 뒤 실행하세요. 같은 경로에 이미 설치했다면 명령이 멈춥니다. Codex의 `~/.codex/skills/danseo`나 프로젝트 폴더에 이전 설치본이 있다면, 어느 쪽을 읽고 있는지 먼저 확인하세요.
 
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
 
-저장소 루트에서 실행한다. 아래 기본값은 Codex다. Claude·Argon은 주석의 경로로 `$danseoTarget` 한 줄을 바꾼다.
+내려받은 저장소 폴더에서 실행하세요. 기본 경로는 Codex용입니다. Claude Code나 Antigravity CLI라면 주석에 나온 경로를 골라 `$danseoTarget` 한 줄을 바꾸면 됩니다.
 
 ```powershell
 $danseoTarget = Join-Path $HOME '.agents/skills/danseo'
@@ -87,7 +79,7 @@ node --test "$danseoTarget/scripts/research-evidence.test.mjs"
 <details>
 <summary><strong>macOS·Linux · Bash 또는 Zsh</strong></summary>
 
-저장소 루트에서 실행한다. 아래 기본값은 Codex다. Claude·Argon은 주석의 경로로 `danseo_target` 한 줄을 바꾼다.
+여기서도 내려받은 저장소 폴더에서 실행하세요. Codex 외에는 주석을 보고 `danseo_target` 한 줄을 바꿉니다.
 
 ```sh
 danseo_target="$HOME/.agents/skills/danseo"
@@ -105,60 +97,60 @@ fi
 
 </details>
 
-테스트 결과의 `fail 0`은 포함된 검증기 회귀 검사가 통과했다는 뜻이다. 모델의 skill 인식이나 실제 논문 독해까지 확인한 결과는 아니다.
+테스트 출력에서 `fail 0`을 확인하세요. 복사한 검증기가 예제 입력을 처리한다는 뜻입니다. 설치한 스킬을 찾아 쓰는지는 아래처럼 새 채팅에서 확인할 수 있습니다.
 
 ### 3. 새 채팅에서 확인하기
 
-새 채팅을 열어 위 표의 호출로 Danseo를 선택하고 [아래 요청 예시](#논문-그래프-생성-요청)를 보낸다. 목록에 없으면 앱이나 CLI를 재시작하고, `<설치 경로>/SKILL.md`와 `scripts`, `references`, `assets`가 같은 폴더에 있는지 확인한다. 그래도 인식되지 않으면 **설치된 `SKILL.md`의 절대 경로를 명시해 읽도록 요청**한다. 다른 폴더의 동명 skill을 읽었다면 사용하려는 경로를 지정한다.
+파일을 저장할 수 있는 폴더에서 새 채팅을 열고 [지도 요청 예시](#논문-그래프-생성-요청)를 보내 보세요. 에이전트가 스킬을 고르지 않으면 Codex에서는 스킬 선택 메뉴나 `$danseo`를, Claude Code와 Antigravity CLI에서는 `/danseo`를 쓰면 됩니다.
 
-GitHub의 변경이 복사한 설치본에 자동 반영되지는 않는다. 업데이트할 때는 최신 소스를 받은 뒤 기존 `danseo` 폴더를 skill 검색 경로 밖에 백업하고, 폴더 전체를 다시 복사해 검사한다.
+목록에 Danseo가 없다면 앱이나 CLI를 다시 열어 보세요. 설치 폴더에 `SKILL.md`, `scripts`, `references`, `assets`가 함께 있는지도 확인합니다. 끝까지 못 찾거나 이름이 같은 다른 복사본을 읽으면, 쓰려는 `SKILL.md`의 절대 경로를 알려 주세요.
 
-### 보조 스킬과 결과 언어
-
-배포 지침·설정·기본 합성 예제는 영어이며, 설명과 생성 결과는 요청 언어를 따른다. 한국어로 요청하면 한국어 결과를 만든다.
-
-- [`danseo-reading`](skills/danseo-reading/SKILL.md): 질문·원문 피드백과 개념 학습 화면.
-- [`paper-to-project`](skills/paper-to-project/SKILL.md): 논문과 프로젝트의 조건 비교, 적용 판단.
-
-필요한 보조 스킬은 위 설치 방법의 원본·대상 폴더 이름을 모두 해당 이름으로 바꿔 폴더 전체를 복사한다. 학습 생성기는 Node.js 22 또는 24가 필요하며, 적용 판단 스킬은 지침만 포함한다. 연구·학습 HTML의 고정 안내는 `language: en | ko`로 선택한다. 생략한 기존 입력은 연구 화면 영어·학습 화면 한국어를 유지한다. 다른 언어의 본문은 요청대로 작성하되 고정 안내는 영어로 표시한다. 기존 HTML은 다시 생성해야 바뀐다. CLI·비교 웹앱의 고정 안내는 영어다.
+업데이트할 때는 GitHub에서 최신 소스를 받습니다. 기존 `danseo`를 스킬 검색 경로 밖에 백업하고, 새 폴더 전체를 복사한 뒤 테스트를 한 번 더 실행하세요.
 
 ## 논문 그래프 생성 요청
 
-세 에이전트에서 같은 요청을 사용할 수 있다. 아래 경로는 **내 컴퓨터의 실제 절대 경로**로 바꾼다. Codex에서는 `$danseo`, Claude Code·Argon에서는 `/danseo`를 먼저 선택하거나 요청 앞에 붙인다.
+제목만 알고 있다면 이렇게 요청해 보세요. 관련 논문까지 찾아보려면 에이전트가 웹에서 논문을 검색하고 출처를 열 수 있어야 합니다.
 
-```text
-Danseo skill로 이 논문들의 관계 그래프를 독립 HTML로 만들어줘.
-논문 폴더: C:/research/my-topic/papers
-연구 질문: 각 논문은 검색 결과의 근거를 답변에 어떻게 연결하고 평가하나?
-결과 폴더: C:/research/my-topic/output
-```
+> Attention Is All You Need를 읽으려고 해. 관련 있는 선행·후속 논문을 찾아 한국어로 논문 지도를 만들어 줘. 각 논문을 읽을 이유와 확인한 출처를 남기고, 최초 공개일과 지도에서 다룬 판본의 날짜도 확인할 수 있으면 넣어 줘. 이 폴더에 `attention-paper-graph.html`로 저장하고 파일 위치를 알려 줘.
 
-macOS·Linux에서는 `/Users/me/research/my-topic/papers` 또는 `/home/me/research/my-topic/papers` 같은 실제 경로를 쓴다. 에이전트가 해당 PDF를 읽을 수 있어야 하며, 웹에서 논문을 추가로 찾게 하려면 검색·다운로드 도구도 필요하다.
+이미 PDF를 모아 뒀다면 아래처럼 폴더를 알려 주세요. 예시 경로는 에이전트가 읽고 쓸 수 있는 실제 절대 경로로 바꾸면 됩니다.
 
-Danseo의 기본 흐름은 **원문·판본 확인 → 관계와 근거 작성 → 원문/AI 구분 → 개요·수량 검사 → 공통 HTML 생성 → 실제 화면 확인**이다. 원문 관계에는 페이지·절 등 확인 위치를 남기고, AI가 제안한 연결은 제안 상태로 유지한다. HTML과 함께 후보 JSON·검증 근거 파일을 보존하므로 이후 수정에서도 같은 생성기를 쓸 수 있다. [원문 검증 절차](skills/danseo/references/relation-verification.md) · [자동 검사 범위](skills/danseo/references/evidence-gate.md)
+> `C:/research/my-topic/papers`에 있는 논문을 읽고, 논문 사이의 관계를 HTML 지도로 만들어 줘. 각 논문이 검색 결과에서 찾은 근거를 답변에 어떻게 쓰고 평가하는지 보고 싶어. 결과는 `C:/research/my-topic/output`에 저장해 줘.
 
-디자인과 검증 절차를 매번 따로 요청하지 않아도 된다. PC·노트북에서 사용하는 데스크톱 화면을 기준으로 검수한다. 짧은 논문 이름·주제별 배치·선택한 논문의 연결을 기본으로 사용하며, 근거 상태와 관계 종류를 걸러 보거나 전체 연결을 켤 수 있다. 전체 제목과 관계 데이터는 상세에 보존하며 주제 분류는 AI의 편집상 해석으로 구분한다. 자동 skill 선택은 호스트 설정에 따라 다르므로 발견되지 않으면 위의 명시 호출을 사용한다.
+macOS에서는 `/Users/me/research/my-topic/papers`, Linux에서는 `/home/me/research/my-topic/papers`처럼 경로를 적습니다. PDF를 더 찾아 달라고 할 때는 에이전트에 검색과 다운로드 권한도 필요합니다.
 
-정상 결과에서는 논문 노드와 연결을 선택해 근거·조건·원문/AI 표시를 확인할 수 있다. 검사 실패는 원문과 입력을 고친 뒤 다시 확인하며, 브라우저 도구가 없어 실제 화면을 확인하지 못했다면 그 범위를 밝힌다. **자동 검사 통과는 모든 관계 해석이 타당하다는 인증이 아니다.** 원문 의미 대조와 화면 확인은 별도 단계다.
+저장한 HTML을 데스크톱 브라우저에서 열어 보세요. 짧은 이름이 붙은 논문을 누르면 전체 제목과 읽을 이유를 볼 수 있습니다. 연결을 누르면 확인한 페이지나 절이 나옵니다. 처음에는 선택한 논문의 연결이 보이고, 필요하면 전체 연결을 켜거나 근거 상태와 관계 종류로 걸러 볼 수 있습니다. 지도에서 논문을 묶는 방식은 읽기 편하도록 에이전트가 정한 분류입니다.
 
-기존 결과를 다시 검토할 때도 같은 skill을 호출한다.
+최초 공개일을 확인한 논문은 지도에 연도가 표시됩니다. 논문 상세에서 정확한 날짜와 출처를 볼 수 있고, 읽을 판본의 날짜를 확인했다면 함께 표시합니다. 게재처 등급도 확인된 범위에서 보여 줍니다. 등급이 여러 개라면 상세에서 다른 등급과 그 출처를 펼쳐 볼 수 있습니다.
 
-```text
-이전에 만든 후보 JSON과 검증 근거 파일, 원문 PDF를 다시 대조해줘.
-자료 폴더: C:/research/my-topic/output
-원문 관계와 AI 제안이 섞였거나 기록·문서·쌍의 수량이 다르면 바로잡고,
-기존 결과를 보존한 새 HTML로 만들어줘. 실제 화면을 확인한 범위도 알려줘.
-```
+스킬은 원문과 판본을 확인한 뒤 근거를 붙이고, 개요와 자료에 나온 수량을 검사해 HTML을 만듭니다. 원문에서 확인한 관계와 AI가 제안한 연결은 지도와 상세에서 구분합니다. 같은 자료로 다시 만들거나 수정할 수 있도록 HTML과 함께 후보 JSON과 근거 파일을 보관하세요.
+
+자동 검사는 입력의 구조와 근거 파일, 수치 표기를 확인합니다. 논문 사이의 관계를 제대로 해석했는지는 원문과 대조해야 합니다. 검사가 실패하면 원문과 입력을 확인한 뒤 다시 실행하세요. 에이전트가 브라우저를 쓸 수 없다면 화면에서 어디까지 확인했는지도 물어보세요. [원문 확인 절차](skills/danseo/references/relation-verification.md) · [자동 검사 범위](skills/danseo/references/evidence-gate.md)
+
+이미 만든 지도를 다시 확인할 때는 다음처럼 요청할 수 있습니다.
+
+> `C:/research/my-topic/output`에 이전에 만든 자료가 있어. 후보 JSON과 근거 파일을 원문 PDF와 다시 대조해 줘. 원문에서 확인한 관계와 AI 제안이 섞였거나 기록·문서·쌍의 수가 다르면 고쳐 줘. 기존 파일은 그대로 두고 새 HTML로 저장해 줘. 화면에서 확인한 것도 알려 줘.
+
+### 보조 스킬과 결과 언어
+
+배포하는 스킬 안내와 설정, 기본 지도 예제는 영어입니다. 설명과 생성 결과에 쓸 언어는 요청할 때 정하면 됩니다.
+
+- [`danseo-reading`](skills/danseo-reading/SKILL.md)은 논문에 대해 질문하고, 원문을 근거로 답을 확인하거나 개념 지도를 보는 데 씁니다.
+- [`paper-to-project`](skills/paper-to-project/SKILL.md)는 논문의 실험 조건을 내 프로젝트와 비교하고 적용 여부를 판단할 때 씁니다.
+
+보조 스킬을 설치하려면 위 설치 예시의 원본과 대상에서 폴더 이름을 원하는 스킬 이름으로 바꾼 뒤 폴더 전체를 복사하세요. 학습 지도를 만드는 데는 Node.js 22 또는 24가 필요합니다. 프로젝트에 적용할지를 판단하는 스킬은 지침만 담고 있습니다.
+
+논문 지도와 학습 HTML의 메뉴를 한국어로 표시하려면 `language`를 `ko`로, 영어로 표시하려면 `en`으로 지정하세요. 이 값이 없는 기존 입력은 논문 지도가 영어, 학습 화면이 한국어입니다. 그 밖의 언어는 본문에 쓸 수 있고 메뉴는 영어로 표시합니다. 저장한 HTML에 바뀐 언어를 적용하려면 다시 생성해야 합니다. CLI와 비교 화면의 메뉴는 영어입니다.
 
 ## 빠른 시작
 
 ### 전체 CLI로 주제·카드 관리하기
 
-논문 탐색 이력·Paper 카드·프로젝트별 적용 판단을 파일로 관리하려면 아래 전체 CLI를 준비한다. 독립 그래프만 만들 때는 위 skill 설치로 충분하다.
+검색 내역이나 논문 메모를 다음 채팅에서도 이어가고 싶다면 CLI를 준비하세요. CLI로 논문을 기록한 Paper 카드와 프로젝트별 적용 결과도 관리할 수 있습니다. 지도만 만들려면 위에서 설치한 스킬을 쓰면 됩니다.
 
-**Node.js 22 또는 24 LTS와 npm**이 필요하다. 새 설치에는 24의 최신 패치를 권장한다. 공개 저장소를 clone하거나 Download ZIP으로 소스를 내려받는다. npm에는 아직 게시하지 않았으므로 이름이 같은 외부 패키지를 설치하지 않는다.
+**Node.js 22 또는 24 LTS와 npm**이 필요합니다. 새로 설치한다면 Node.js 24의 최신 패치를 권장합니다. [GitHub에서 내려받은 소스](#1-github에서-내려받기)로 설치하세요. Danseo는 아직 npm에 게시되지 않았습니다.
 
-내려받은 소스 폴더에서 실행한다.
+내려받은 소스 폴더에서 아래 명령을 실행합니다.
 
 ```sh
 npm ci
@@ -166,44 +158,55 @@ npm run build
 node ./dist/cli.js validate --workspace ./examples/minimal --json
 ```
 
-합성 예제는 `ok: true`, 기록 3개·프로젝트 2개와 `draft` 경고를 출력한다. 경고는 정상이며 검사는 구조·참조만 확인한다. [지원 환경](docs/RUNTIME_SUPPORT.md)
+예제에서 `ok: true`와 기록 3개, 프로젝트 2개가 나오면 파일 구조와 참조 검사에 성공한 겁니다. 예제에 초안 카드가 있어 `draft` 경고도 함께 나옵니다. [지원 환경](docs/RUNTIME_SUPPORT.md)
 
 ### 내 주제로 시작하기
 
-파일을 읽고 명령을 실행할 수 있는 AI 에이전트에 Danseo 폴더의 절대 경로와 개인 주제 폴더를 알려준다. 논문 탐색에는 에이전트의 검색 기능도 필요하다.
+명령과 웹 검색을 쓸 수 있는 에이전트에 CLI를 설치한 Danseo 폴더의 절대 경로와 검색 내역을 저장할 주제 폴더를 알려 주세요. 처음 시작한다면 [논문 찾기와 원문 모으기](docs/CLI.md#주제-채팅에서-논문-찾기)를 따라 연구 질문을 적고 주제 폴더를 만듭니다.
 
-```text
-이 Danseo 폴더의 skills/danseo/SKILL.md를 읽고,
-내 개인 주제 폴더에서 연구 질문에 맞는 논문을 찾아줘.
-출처·판본·추천 이유를 보여주면 내가 고를게.
-```
+이미 검색한 주제라면 새 채팅에서 같은 폴더를 열고 이렇게 요청해 보세요.
 
-1. 후보를 고르고 같은 폴더에서 “고른 논문 원문을 모아줘”로 이어간다.
-2. “1번 논문을 읽고 이 질문에 답해줘”로 답과 원문 위치를 남긴다.
-3. “확인한 근거로 두 논문을 비교해줘”로 비교 기준과 화면을 준비한다.
+> 이 주제 폴더에 적힌 질문에 맞는 논문을 더 찾아서 다음 검색 회차에 저장해 줘. 전에 고른 논문은 그대로 두고 새 후보의 출처, 판본, 추천 이유를 알려 줘.
 
-새 채팅에서도 같은 도구·skill·주제 폴더를 알려준다. [탐색·수집](docs/CLI.md#주제-채팅에서-논문-찾기) → [분석·재개](docs/PAPER_ANALYSIS.md) → [비교](docs/RESEARCH_COMPARISON.md)
+1. 후보를 고른 뒤 같은 폴더에서 “고른 논문 원문을 모아 줘”라고 요청합니다.
+2. “1번 논문을 읽고 이 질문에 답해 줘”라고 하면 답과 원문 위치를 남길 수 있습니다.
+3. “확인한 근거로 두 논문을 비교해 줘”라고 요청해 비교 기준과 화면을 준비합니다.
+
+지난 검색과 선택은 폴더에 남습니다. 새 채팅에서 에이전트가 CLI를 찾지 못하면 설치 경로를 함께 알려 주세요. [읽다 만 논문 이어서 보기](docs/PAPER_ANALYSIS.md) · [논문 비교하기](docs/RESEARCH_COMPARISON.md)
 
 <details>
 <summary><strong>이미 있는 카드와 프로젝트에 연결하기</strong></summary>
 
-Paper는 논문의 주장과 출처를, Application은 프로젝트의 적용 판단을 기록한다. [합성 workspace](examples/minimal/workspace.json)처럼 카드와 프로젝트를 명시적으로 등록하고, [CLI 첫 실행](docs/CLI.md#첫-실행)의 네 연결값을 에이전트에 전달한다.
+Paper에는 논문의 주장과 출처를 기록하고, Application에는 그 근거를 내 프로젝트에 적용할지 적습니다. [예제 workspace](examples/minimal/workspace.json)처럼 카드와 프로젝트를 등록한 뒤 [CLI 첫 실행](docs/CLI.md#첫-실행)에 나온 연결 정보 네 가지를 에이전트에 알려 주세요.
 
-`validate`는 구조·참조를 검사하고, `list`/`show`는 카드를 조회한다. `export`는 현재 질문과 관련 카드 전문을 Markdown/JSON으로 내보낸다. 본문·주석·확장 필드와 원문 위치를 보존하며 `--out`은 새 파일만 만든다.
+`validate`로 구조와 참조를 검사하고, `list`나 `show`로 카드를 확인할 수 있습니다. `export`는 현재 질문과 관련 카드 전문을 Markdown이나 JSON으로 내보냅니다. 카드 본문, 주석, 확장 필드와 원문 위치까지 담고, `--out`을 지정하면 새 파일에만 저장합니다.
 
 ```sh
 node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
 ```
 
-합성 예제는 draft이므로 `--include-drafts`를 쓴다. 이 옵션은 검토 상태를 바꾸지 않는다. [카드 모델](docs/CARD_MODEL.md)
+예제에는 초안이 들어 있어 `--include-drafts`를 붙였습니다. 내보낸 뒤에도 카드의 검토 상태는 그대로입니다. [카드 모델](docs/CARD_MODEL.md)
 
 </details>
 
+## 논문을 찾는 순간부터 비교할 때까지
+
+| 하는 일 | 남기는 기록 |
+| --- | --- |
+| 논문 찾기 | 검색 회차와 논문 번호, 선택할 때 확인한 출처·판본·추천 이유 |
+| 원문 모으기 | 저장한 PDF 사본이나 기존 파일의 경로, 제목·저자·판본을 확인한 결과와 초고 사용 동의 |
+| 읽고 메모하기 | Paper 카드, 주제별 Markdown 답변과 메모, 이어서 읽을 곳과 후속 질문 |
+| 논문 비교하기 | 원문에서 근거를 확인한 주장, 평가 조건과 한계, 원문 위치, AI가 비교 기준을 제안한 이유 |
+
+논문 검색, 다운로드, 읽기, 비교 기준 작성은 에이전트가 맡습니다. Danseo에 남긴 Paper 카드와 원문 근거는 다른 프로젝트에서도 다시 쓸 수 있습니다.
+
+`topic compare`로 비교 화면을 열어 보세요. 논문이나 비교 항목을 누르면 PDF와 분석 문서를 열 수 있습니다. 원문을 확인한 관계와 AI 제안은 화면에서 구분합니다. 근거가 바뀌거나 없어지면 비교에서 보류합니다. 비교를 열기 전에 Paper 카드와 주장별 검토, `comparison.json`을 준비합니다. [비교 화면 사용법](docs/RESEARCH_COMPARISON.md)
+
 ## 내 자료와 판단은 로컬에
 
-- 개인 PDF·주제 기록·카드는 제품 소스와 분리해 보관한다. 내보낸 묶음에는 카드 전문과 로컬 절대 경로가 들어가므로 외부 공유 전에 확인한다.
-- CLI에는 모델 키·DB·상시 서버가 필요하지 않으며 자체 외부 요청도 보내지 않는다. 비교 화면을 실행할 때만 로컬 읽기 전용 서버를 열고 Ctrl+C로 종료한다. 에이전트의 외부 검색·다운로드·모델 전송은 해당 도구의 설정과 권한을 따른다.
-- 저자 주장·AI 해석·프로젝트 관찰·채택 결정을 구분한다. 구조 검사와 원문 지지 검토는 논문 재현이나 사용자 이해의 인증이 아니다.
+- 개인 PDF, 주제 기록, 카드는 소스 코드와 다른 폴더에 보관하세요. 내보낸 파일에는 카드 전문과 내 컴퓨터의 절대 경로가 담기므로 공유하기 전에 살펴보세요.
+- CLI 자체는 모델 키나 DB 없이 로컬에서 동작하며 외부로 요청을 보내지 않습니다. 비교 화면을 열 때만 읽기 전용 서버를 실행하며, 터미널에서 `Ctrl+C`를 누르면 끝납니다. 에이전트가 웹에서 검색하거나 파일을 받거나 자료를 모델에 보낼 때는 그 도구의 권한과 설정이 적용됩니다.
+- 저자의 주장, AI의 해석, 프로젝트에서 관찰한 결과, 실제 채택 결정은 따로 기록합니다. 구조 검사와 원문 대조를 마친 뒤에도 결과를 재현할 수 있는지, 내가 논문을 이해했는지는 각각 확인해야 합니다.
 
 ## 문서
 
@@ -211,17 +214,17 @@ node ./dist/cli.js export --workspace ./examples/minimal --project demo --applic
 | --- | --- |
 | [CLI 안내](docs/CLI.md) · [시작하기](docs/CLI.en.md) | 설치와 주제별 흐름 |
 | [분석](docs/PAPER_ANALYSIS.md) · [비교](docs/RESEARCH_COMPARISON.md) | 논문 답변과 원문 근거 |
-| [Skill](skills/danseo/SKILL.md) · [연동](docs/AGENT_COMPATIBILITY.md) | 근거 읽기와 연결 조건 |
+| [스킬](skills/danseo/SKILL.md) · [에이전트 연결](docs/AGENT_COMPATIBILITY.md) | 근거 읽는 법과 연결에 필요한 설정 |
 | [문서 목록](docs/README.ko.md) · [공개 범위](docs/OPEN_SOURCE.md) | 데이터 형식과 공유 조건 |
 
 ## 개발 상태
 
-`0.1.0-dev.1` 개발 프리뷰다. CLI와 파일 형식은 바뀔 수 있다. 공개 후보에는 탐색·수집·분석·비교와 기존 카드 내보내기, 별도로 설치하는 학습·프로젝트 적용 스킬을 포함한다. 카드 편집기·자동 실험·사이트 제출·MCP 서버는 포함하지 않는다. 연구 비교 웹앱과 독립 논문 관계 HTML은 PC·노트북 사용을 대상으로 한다.
+`0.1.0-dev.1` 개발 프리뷰입니다. CLI와 파일 형식은 바뀔 수 있습니다. 지금은 논문을 찾고 모아 읽은 뒤 비교하거나 기존 카드를 내보낼 수 있습니다. 학습과 프로젝트 적용 스킬은 따로 설치합니다. 카드 편집기, 자동 실험, 사이트 제출, MCP 서버는 아직 지원 범위에 없습니다.
 
-자동 검사와 설치본 확인은 실제 사람의 사용·학습 효과와 구분한다. [지원 환경](docs/RUNTIME_SUPPORT.md) · [현재 범위와 후속 작업](TASKS.md)
+비교 화면과 논문 지도는 PC나 노트북을 기준으로 만들었습니다. 지원 환경 문서에서 직접 실행해 본 환경과 자동 검사 범위를 볼 수 있습니다. 실제 사용과 학습에 얼마나 도움이 되는지는 별도로 확인해야 합니다. [지원 환경](docs/RUNTIME_SUPPORT.md) · [현재 범위와 후속 작업](TASKS.md)
 
 ## 기여와 라이선스
 
-버그 재현, 더 쉬운 안내, 합성 예제와 다른 환경의 실행 결과를 환영한다. [기여 안내](CONTRIBUTING.md)와 [보안 안내](SECURITY.md)를 먼저 읽고, 개인 논문·연구 노트·모델 로그를 공개 첨부하지 않는다.
+막힌 곳이 있으면 사용 환경, 실행한 명령, 실제로 나온 결과를 [GitHub 이슈](https://github.com/OstenHun/danseo/issues)에 남겨 주세요. 더 쉬운 설명, 예제, 다른 환경에서 실행해 본 결과도 도움이 됩니다. [기여 안내](CONTRIBUTING.md)와 [보안 안내](SECURITY.md)를 먼저 읽고, 공개 예제는 개인 논문이나 연구 노트, 모델 로그가 들어 있지 않은 자료로 만들어 주세요.
 
-코드·문서·skill·합성 예제는 [MIT License](LICENSE)를 따른다. 외부 논문·데이터·사용자 자료의 권리는 원저작자에게 남는다. [외부 의존성 고지](THIRD_PARTY_NOTICES.md) · [브랜드 자료](assets/brand/README.md)
+코드, 문서, 스킬, 합성 예제에는 [MIT 라이선스](LICENSE)를 적용합니다. 외부 논문, 데이터, 사용자가 만든 자료의 권리는 각 원저작자에게 있습니다. [외부 의존성 고지](THIRD_PARTY_NOTICES.md) · [브랜드 자료](assets/brand/README.md)
