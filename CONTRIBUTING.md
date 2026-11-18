@@ -65,4 +65,4 @@ Use [Issues](https://github.com/OstenHun/danseo/issues) for proposals and bugs, 
 
 Submit only code and documentation you have the right to share. New contributions use the project's [MIT License](LICENSE). Preserve source attribution and applicable license notices for third-party code, and update [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md). If you use AI, describe what was reviewed or executed and what remains unchecked.
 
-Korean and English reports are welcome. Focus on problems, evidence, and reproduction rather than judgments about people. Follow [SECURITY](SECURITY.md) for private vulnerability reporting. The [English CLI guide](docs/CLI.en.md) explains setup and the end-to-end workflow.
+Write the titles and descriptions of public pull requests and issues in English so contributors can follow the discussion. Keep feedback respectful and focus on the problem, evidence, and steps to reproduce it. Follow [SECURITY](SECURITY.md) for private vulnerability reporting. The [English CLI guide](docs/CLI.en.md) explains setup and the end-to-end workflow.

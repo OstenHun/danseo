@@ -1,10 +1,12 @@
-## 변경과 이유
+<!-- Write this pull request in English. -->
 
-## 확인한 결과
+## What changed and why
 
-실제로 실행한 명령·결과를 적고 미실행 검사를 구분합니다.
+## Verification
 
-## 남은 확인
+List the commands you ran, their results, and any checks still pending.
 
-- [ ] 개인 자료·경로·비밀값이 포함되지 않았습니다.
-- [ ] 외부 코드·자료의 출처와 라이선스를 확인했습니다(해당하는 경우).
+## Remaining checks
+
+- [ ] I kept private materials, local paths, and secrets out of this pull request.
+- [ ] I checked the attribution and licenses of any third-party code or materials included here.

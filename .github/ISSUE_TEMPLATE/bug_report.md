@@ -1,16 +1,18 @@
 ---
-name: Bug report / 버그
-about: 합성 자료로 재현 가능한 오류
+name: Bug report
+about: Report a bug that can be reproduced with synthetic data
 title: ""
 ---
 
-## 문제와 기대 결과
+<!-- Write this issue in English. -->
 
-## 실행 환경
+## Problem and expected behavior
 
-- 버전 또는 commit:
-- OS / Node.js / npm:
+## Environment
 
-## 재현 방법과 실제 결과
+- Version or commit:
+- OS, Node.js, and npm versions:
 
-실행한 명령과 최소 합성 예제를 적어 주세요. 개인 경로, 연구 자료, 토큰, 내보낸 원본 묶음은 첨부하지 마세요. 보안 취약점은 SECURITY.md를 확인해 주세요.
+## Steps to reproduce and actual behavior
+
+Include the commands you ran and a minimal synthetic example. Keep personal paths, research materials, tokens, and exported evidence bundles private. Follow the [security policy](https://github.com/OstenHun/danseo/blob/main/SECURITY.md) to report vulnerabilities privately.

@@ -1,13 +1,15 @@
 ---
-name: Feature request / 제안
-about: 풀고 싶은 문제와 필요한 동작
+name: Feature request
+about: Describe a problem and the behavior that would solve it
 title: ""
 ---
 
-## 풀려는 문제
+<!-- Write this issue in English. -->
 
-## 현재 방법과 한계
+## Problem to solve
 
-## 필요한 동작과 확인 방법
+## Current approach and limitations
 
-개인 연구 내용 대신 공개 가능한 예시로 설명해 주세요.
+## Desired behavior and how to verify it
+
+Use an example you can share publicly.
