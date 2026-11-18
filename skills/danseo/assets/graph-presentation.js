@@ -134,8 +134,8 @@
   };
   const norwegianScale = {
     grades: new Map([
-      ['Level 1', 'Approved academic publication venue meeting the basic criteria'],
-      ['Level 2', 'Academic publication venue approved at the highest level']
+      ['Level 2', 'Academic publication venue approved at the highest level'],
+      ['Level 1', 'Approved academic publication venue meeting the basic criteria']
     ]),
     otherGrades: new Map([
       ['Level 0', 'Not approved as an academic publication venue']
