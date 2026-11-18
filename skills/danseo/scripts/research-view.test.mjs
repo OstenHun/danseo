@@ -162,7 +162,7 @@ test('JCR uses all four localized quartiles while other Q labels retain their sc
   assert.match(openPaper(data, jcr.id).textContent, /Rank unverified/);
 });
 
-test('Norwegian Register guide explains both approved levels and preserves observed sources', () => {
+test('Norwegian Register guide starts with the highest level and preserves observed sources', () => {
   const data = fixture('paper-relations', 2);
   const [first, second] = data.papers;
   const [venue] = data.sources;
@@ -180,8 +180,8 @@ test('Norwegian Register guide explains both approved levels and preserves obser
     const view = openResearchPaper(data, first.id);
     const guide = view.elements.get('venue-guide');
     const table = guide.children.find(child => child.tagName === 'TABLE');
-    const [level1, level2, other] = table.children[1].children;
-    assert.deepEqual(table.children[1].children.map(row => row.children[0].textContent), ['Level 1', 'Level 2', 'Level 0']);
+    const [level2, level1, other] = table.children[1].children;
+    assert.deepEqual(table.children[1].children.map(row => row.children[0].textContent), ['Level 2', 'Level 1', 'Level 0']);
     assert.equal(level1.children[0].children[0].dataset.grade, 'Level 1');
     assert.equal(level2.children[0].children[0].dataset.grade, 'Level 2');
     assert.equal(other.children[0].children[0].dataset.grade, 'status');
