@@ -59,8 +59,10 @@ export function validateCandidate(data) {
     if (Object.hasOwn(paper, 'venue_rank')) {
       const at = `paper.${paper.id}.venue_rank`;
       const ranking = paper.venue_rank;
-      object(ranking, ['venue', 'scheme', 'edition', 'rank', 'top_tier', 'venue_source_id', 'source_id'], at);
+      const category = ranking?.category !== undefined;
+      object(ranking, ['venue', 'scheme', 'edition', 'rank', 'top_tier', 'venue_source_id', 'source_id', ...(category ? ['category'] : [])], at);
       for (const key of ['venue', 'scheme', 'edition', 'rank']) text(ranking[key], `${at}.${key}`);
+      if (category) text(ranking.category, `${at}.category`);
       if (typeof ranking.top_tier !== 'boolean') fail(`${at}.top_tier: expected boolean`);
       for (const key of ['venue_source_id', 'source_id']) {
         if (!sources.has(ranking[key])) fail(`${at}.${key}: source must be registered`);

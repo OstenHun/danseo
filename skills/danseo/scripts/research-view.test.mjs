@@ -22,12 +22,13 @@ function openView(data, initialHash, { script, elementIds, navigation, prefix, t
   };
   const document = { activeElement: null, getElementById: id => elements.get(id) };
   class Element {
-    constructor(tag) { this.tagName = tag.toUpperCase(); this.children = []; this.attributes = new Map(); this.events = new Map(); this.disabled = false; }
+    constructor(tag) { this.tagName = tag.toUpperCase(); this.children = []; this.attributes = new Map(); this.events = new Map(); this.dataset = {}; this.disabled = false; }
     set id(value) { this._id = value; elements.set(value, this); }
     get id() { return this._id; }
     set textContent(value) { this.children = [String(value)]; }
     get textContent() { return this.children.map(child => typeof child === 'string' ? child : child.textContent).join(''); }
     append(...children) { this.children.push(...children); }
+    after(element) { this.nextElementSibling = element; }
     replaceChildren(...children) { this.children = []; this.append(...children); }
     setAttribute(name, value) { this.attributes.set(name, value); }
     removeAttribute(name) { this.attributes.delete(name); }
@@ -46,15 +47,17 @@ function openView(data, initialHash, { script, elementIds, navigation, prefix, t
   }
   elements.get('candidate').textContent = JSON.stringify(data);
   elements.get('skip').href = '#' + title;
-  runInNewContext(languageScript(data.language) + readFileSync(script, 'utf8'), {
-    document, location, window: { DanseoMap: mapApi, addEventListener(name, handler) { handlers.set(name, handler); } }
+  const presentation = readFileSync(new URL('../assets/graph-presentation.js', import.meta.url), 'utf8');
+  runInNewContext(languageScript(data.language) + presentation + readFileSync(script, 'utf8'), {
+    document, location, URL, window: { DanseoMap: mapApi, addEventListener(name, handler) { handlers.set(name, handler); } }
   });
   return { elements, location, get activeElement() { return document.activeElement; }, select(id) { elements.get(navigation).children.find(item => item.children[0].href === prefix + encodeURIComponent(id)).children[0].click(); } };
 }
 
 const elementIds = ['candidate','skip','items','count','position','item-title','metadata','content','previous','next','current-count','announcement','map-heading','map-notice','map-legend','map-status','scene-controls','map-links','provenance','research-map','map-node-navigation','node-kind','fit-map','zoom-in','zoom-out'];
 const fixture = (mode, version = 1) => JSON.parse(readFileSync(new URL('../assets/' + mode + (version === 2 ? '.v2' : '') + '.example.json', import.meta.url), 'utf8'));
-const openPaper = (data, id) => openView(data, '#paper=' + id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:data.mode==='project-application'?'#application=':'#paper=',title:'item-title'}).elements.get('content');
+const openResearchPaper = (data, id) => openView(data, '#paper=' + id, {script:new URL('../assets/research-view.js',import.meta.url),elementIds,navigation:'items',prefix:data.mode==='project-application'?'#application=':'#paper=',title:'item-title'});
+const openPaper = (data, id) => openResearchPaper(data, id).elements.get('content');
 
 test('citation nodes grow on a bounded scale and keep a gap in the topic grid', () => {
   const window = {};
@@ -76,18 +79,29 @@ test('optional metrics preserve a measured zero and attribute venue ranks to the
   data.language = 'ko';
   const [first, second] = data.papers;
   const sourceId = data.sources[0].id;
+  data.sources.push({ ...data.sources[0], id: 'rank-icore', url: 'https://portal.core.edu.au/conf-ranks/98/' },
+    { ...data.sources[0], id: 'rank-register', url: 'https://example.org/register' });
   first.citations = { count: 0, checked_on: '2026-11-18', source_id: sourceId };
-  first.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A*', top_tier: true, venue_source_id: sourceId, source_id: sourceId };
-  second.venue_rank = { venue: 'Example Journal', scheme: 'Channel Register', edition: '2026', rank: 'Level 2', top_tier: false, venue_source_id: sourceId, source_id: sourceId };
+  first.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A*', top_tier: true, venue_source_id: sourceId, source_id: 'rank-icore' };
+  second.venue_rank = { venue: 'Example Journal', scheme: 'Channel Register', edition: '2026', rank: 'Level 2', top_tier: false, venue_source_id: sourceId, source_id: 'rank-register' };
   validateCandidate(data);
-  const firstDetail = openPaper(data, first.id).textContent;
+  const firstView = openResearchPaper(data, first.id);
+  const firstDetail = firstView.elements.get('content').textContent;
   assert.match(firstDetail, /인용 0회 · 2026-11-18 조회/);
-  assert.match(firstDetail, /Example Conference · ICORE 2026 · A\* · 이 평가 기준의 최상위 등급/);
+  assert.match(firstDetail, /Example ConferenceICORE 2026A\*이 평가 기준의 최상위 등급/);
   assert.ok(firstDetail.includes(data.sources[0].title));
   const secondDetail = openPaper(data, second.id).textContent;
   assert.match(secondDetail, /인용수 미확인/);
-  assert.match(secondDetail, /Example Journal · Channel Register 2026 · Level 2/);
+  assert.match(secondDetail, /Example JournalChannel Register 2026Level 2/);
   assert.doesNotMatch(secondDetail, /최상위 등급/);
+  const guide = firstView.elements.get('venue-guide');
+  assert.deepEqual(guide.children.filter(child => child.tagName === 'H3').map(child => child.textContent), ['ICORE 2026', 'Channel Register 2026']);
+  const tables = guide.children.filter(child => child.tagName === 'TABLE');
+  const rowGrades = table => table.children[1].children.map(row => row.children[0].textContent);
+  assert.deepEqual(rowGrades(tables[0]), ['A*', 'A', 'B', 'C']);
+  assert.deepEqual(rowGrades(tables[1]), ['Level 2']);
+  assert.equal(tables[1].children[1].children[0].children[1].children[0].href, 'https://example.org/register');
+  assert.match(firstView.elements.get('items').textContent, /ICORE A\*/);
 
   for (const count of [-1, 1.5, '2', Number.MAX_SAFE_INTEGER + 1]) {
     const invalid = structuredClone(data);
@@ -104,6 +118,133 @@ test('optional metrics preserve a measured zero and attribute venue ranks to the
     invalid.papers[0].venue_rank[field] = 'unknown';
     assert.throws(() => validateCandidate(invalid), /source must be registered/);
   }
+});
+
+test('JCR uses all four localized quartiles while other Q labels retain their scheme', () => {
+  const data = fixture('paper-relations', 2);
+  const [jcr, other] = data.papers;
+  const venue = data.sources[0];
+  const jcrSource = { ...venue, id: 'rank-jcr', url: 'https://example.org/jcr' };
+  const otherSource = { ...venue, id: 'rank-sjr', url: 'https://example.org/sjr' };
+  data.sources.push(jcrSource, otherSource);
+  const journal = { venue: 'Example Journal', edition: '2025', rank: 'Q2', top_tier: false, venue_source_id: venue.id };
+  jcr.venue_rank = { ...journal, scheme: 'JCR', source_id: jcrSource.id, category: 'Engineering, Electrical & Electronic', top_tier: true };
+  other.venue_rank = { ...journal, scheme: 'SCImago SJR', source_id: otherSource.id };
+  validateCandidate(data);
+  for (const language of ['ko', 'en']) {
+    data.language = language;
+    const view = openResearchPaper(data, jcr.id);
+    const guide = view.elements.get('venue-guide');
+    const [quartiles, generic] = guide.children.filter(child => child.tagName === 'TABLE');
+    const quartileRows = quartiles.children[1].children;
+    assert.deepEqual(quartileRows.map(row => row.children[0].textContent), ['Q1', 'Q2', 'Q3', 'Q4']);
+    assert.deepEqual(quartileRows.map(row => row.children[0].children[0].dataset.grade), ['Q1', 'Q2', 'Q3', 'Q4']);
+    assert.equal(quartileRows[0].children[1].textContent, language === 'ko' ? '상위 25% 이내' : 'Top 25% of the category by JIF rank');
+    assert.equal(quartileRows[3].children[1].textContent, language === 'ko' ? '하위 25% 구간' : 'Below the top 75% by JIF rank');
+    assert.ok(guide.children.some(child => child.tagName === 'A' && child.href.startsWith('https://supportcenter.clarivate.com/')));
+    const genericRows = generic.children[1].children;
+    assert.equal(genericRows.length, 1);
+    assert.equal(genericRows[0].children[0].children[0].dataset.grade, undefined);
+    assert.equal(genericRows[0].children[1].children[0].href, otherSource.url);
+    const detail = view.elements.get('content').textContent;
+    assert.match(detail, /JCR 2025Q2/);
+    assert.ok(detail.includes('Engineering, Electrical & Electronic'));
+    assert.doesNotMatch(detail, /Top tier|최상위 등급/);
+  }
+  jcr.venue_rank.category = ' ';
+  assert.throws(() => validateCandidate(data), /venue_rank.category/);
+  delete jcr.venue_rank.category;
+  assert.match(openPaper(data, jcr.id).textContent, /JCR subject category unreported/);
+  jcr.venue_rank.rank = 'Q5';
+  assert.match(openPaper(data, jcr.id).textContent, /Rank unverified/);
+  jcr.venue_rank.rank = 'Q2';
+  jcrSource.url = null;
+  assert.match(openPaper(data, jcr.id).textContent, /Rank unverified/);
+});
+
+test('Norwegian Register guide explains both approved levels and preserves observed sources', () => {
+  const data = fixture('paper-relations', 2);
+  const [first, second] = data.papers;
+  const [venue] = data.sources;
+  const source = { ...venue, id: 'norwegian-rank', url: 'https://kanalregister.hkdir.no/tidsskrift?id=445791' };
+  const otherSource = { ...venue, id: 'norwegian-other-rank', url: 'https://kanalregister.hkdir.no/tidsskrift?id=2' };
+  data.sources.push(source, otherSource);
+  first.venue_rank = {
+    venue: 'Example Journal', scheme: 'Norwegian Register', edition: '2026', rank: 'Level 2',
+    top_tier: false, venue_source_id: venue.id, source_id: source.id
+  };
+  second.venue_rank = { ...first.venue_rank, rank: 'Level 0', top_tier: true, source_id: otherSource.id };
+  validateCandidate(data);
+  for (const language of ['en', 'ko']) {
+    data.language = language;
+    const view = openResearchPaper(data, first.id);
+    const guide = view.elements.get('venue-guide');
+    const table = guide.children.find(child => child.tagName === 'TABLE');
+    const [level1, level2, other] = table.children[1].children;
+    assert.deepEqual(table.children[1].children.map(row => row.children[0].textContent), ['Level 1', 'Level 2', 'Level 0']);
+    assert.equal(level1.children[0].children[0].dataset.grade, 'Level 1');
+    assert.equal(level2.children[0].children[0].dataset.grade, 'Level 2');
+    assert.equal(other.children[0].children[0].dataset.grade, 'status');
+    assert.equal(level1.children[1].textContent, language === 'ko'
+      ? '기본 요건을 충족해 승인된 학술 출판처' : 'Approved academic publication venue meeting the basic criteria');
+    assert.equal(level2.children[1].children[0].textContent, language === 'ko'
+      ? '최상위 등급으로 승인된 학술 출판처' : 'Academic publication venue approved at the highest level');
+    assert.equal(level2.children[1].children[1].href, source.url);
+    assert.equal(other.children[1].children[0].textContent, language === 'ko'
+      ? '학술 출판처로 승인되지 않음' : 'Not approved as an academic publication venue');
+    assert.equal(other.children[1].children[1].href, otherSource.url);
+    assert.match(view.elements.get('content').textContent, /Top tier|최상위 등급/);
+    assert.doesNotMatch(openPaper(data, second.id).textContent, /Top tier|최상위 등급/);
+    assert.equal(guide.children.find(child => child.tagName === 'A').href,
+      'https://kanalregister.hkdir.no/en/informasjonsartikler/levels-and-changes-in-levels');
+  }
+});
+
+test('unverified venues have no scheme in the guide or grade in the paper detail', () => {
+  const data = fixture('paper-relations', 2);
+  data.language = 'en';
+  const [paper] = data.papers;
+  const [venue] = data.sources;
+  const ranking = { ...venue, id: 'rank-icore', url: null };
+  data.sources.push(ranking);
+  paper.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A*', top_tier: true, venue_source_id: venue.id, source_id: ranking.id };
+  for (const url of [null, 'https://example.org/claimed-icore', 'https://portal.core.edu.au/conf-ranks/']) {
+    ranking.url = url;
+    validateCandidate(data);
+    const view = openResearchPaper(data, paper.id);
+    assert.match(view.elements.get('content').textContent, /Rank unverified/);
+    assert.match(view.elements.get('items').textContent, /Rank unverified/);
+    assert.doesNotMatch(view.elements.get('venue-guide').textContent, /ICORE 2026/);
+  }
+  ranking.url = 'https://portal.core.edu.au/conf-ranks/98/';
+  paper.venue_rank.rank = 'A';
+  assert.doesNotMatch(openPaper(data, paper.id).textContent, /Top tier/);
+  for (const designation of ['Australasian B', 'Australasian C', 'Unranked']) {
+    paper.venue_rank.rank = designation;
+    const view = openResearchPaper(data, paper.id);
+    assert.ok(view.elements.get('content').textContent.includes(designation));
+    const supplemental = view.elements.get('venue-guide').children.find(child => child.tagName === 'TABLE').children[1].children.at(-1);
+    assert.equal(supplemental.children[1].children[1].href, ranking.url);
+  }
+  paper.venue_rank.rank = 'A+';
+  assert.match(openPaper(data, paper.id).textContent, /Rank unverified/);
+  paper.venue_rank.rank = 'A';
+  venue.url = null;
+  assert.match(openPaper(data, paper.id).textContent, /Rank unverified/);
+});
+
+test('project-application paper details use the same venue source checks as paper maps', () => {
+  const data = fixture('project-application');
+  const [paper] = data.papers;
+  const [venue] = data.sources;
+  const rankSource = { ...venue, id: 'ranking-record', url: 'https://example.org/claimed-icore' };
+  data.sources.push(rankSource);
+  paper.venue_rank = { venue: 'Example Conference', scheme: 'ICORE', edition: '2026', rank: 'A*', top_tier: true,
+    venue_source_id: venue.id, source_id: rankSource.id };
+  assert.match(openPaper(data, paper.id).textContent, /Rank unverified/);
+  assert.doesNotMatch(openPaper(data, paper.id).textContent, /Top tier/);
+  rankSource.url = 'https://portal.core.edu.au/conf-ranks/98/';
+  assert.match(openPaper(data, paper.id).textContent, /Top tier/);
 });
 
 test('paper details show distinct sourced publication and edition dates without a publication-like draft badge', () => {

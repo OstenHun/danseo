@@ -105,28 +105,104 @@
     // Leave at least 12 pixels between the largest nodes in the topic grid.
     return { width: 156 + 48 * fraction, height: card.height + 12 * fraction };
   }
+  const icoreScale = {
+    grades: new Map([
+      ['A*', 'Flagship conference in its field'],
+      ['A', 'Excellent conference in its field'],
+      ['B', 'Good to very good conference'],
+      ['C', 'Ranked conference meeting basic peer-review standards']
+    ]),
+    otherGrades: new Map([
+      ['Australasian B', 'Regional B designation for an Australasian conference'],
+      ['Australasian C', 'Regional C designation for an Australasian conference'],
+      ['Unranked', 'The register lists this conference without an assigned rank']
+    ]),
+    description: 'ICORE ranks apply to full papers published in the main conference track.',
+    sourceUrl: 'https://www.core.edu.au/conference-portal',
+    sourceLabel: 'Open official ICORE rank definitions ↗'
+  };
+  const jcrScale = {
+    grades: new Map([
+      ['Q1', 'Top 25% of the category by JIF rank'],
+      ['Q2', 'Above 25% through 50% by JIF rank'],
+      ['Q3', 'Above 50% through 75% by JIF rank'],
+      ['Q4', 'Below the top 75% by JIF rank']
+    ]),
+    description: 'JCR divides a journal’s Journal Impact Factor (JIF) rank by the number of journals in its subject category. Quartiles can differ by category.',
+    sourceUrl: 'https://supportcenter.clarivate.com/s/article/Journal-Citation-Reports-Quartile-rankings-and-other-metrics?language=en_US',
+    sourceLabel: 'Open Clarivate’s quartile definitions ↗'
+  };
+  const norwegianScale = {
+    grades: new Map([
+      ['Level 1', 'Approved academic publication venue meeting the basic criteria'],
+      ['Level 2', 'Academic publication venue approved at the highest level']
+    ]),
+    otherGrades: new Map([
+      ['Level 0', 'Not approved as an academic publication venue']
+    ]),
+    linkObservedGrades: true,
+    sourceUrl: 'https://kanalregister.hkdir.no/en/informasjonsartikler/levels-and-changes-in-levels',
+    sourceLabel: 'Open official Norwegian Register level definitions ↗'
+  };
+  const isIcore = scheme => /^(?:CORE|ICORE)$/i.test(scheme);
+  const isJcr = scheme => /^JCR$/i.test(scheme);
+  function venueRankScale(scheme) {
+    if (isIcore(scheme)) return icoreScale;
+    if (isJcr(scheme)) return jcrScale;
+    if (/^Norwegian Register$/i.test(scheme)) return norwegianScale;
+  }
+  function linkedVenueRank(ranking, sources) {
+    if (!ranking) return undefined;
+    const venueUrl = sources.get(ranking.venue_source_id)?.url;
+    const rankingUrl = sources.get(ranking.source_id)?.url;
+    if (!venueUrl || !rankingUrl) return undefined;
+    const scale = venueRankScale(ranking.scheme);
+    if (scale === icoreScale) {
+      const source = new URL(rankingUrl);
+      if (venueUrl === rankingUrl || source.origin !== 'https://portal.core.edu.au' ||
+          !/^\/conf-ranks\/\d+\/?$/.test(source.pathname) ||
+          !(scale.grades.has(ranking.rank) || scale.otherGrades.has(ranking.rank))) return undefined;
+      return { ...ranking, top_tier: ranking.rank === 'A*' };
+    }
+    if (scale === jcrScale) {
+      if (!scale.grades.has(ranking.rank)) return undefined;
+      return { ...ranking, top_tier: false };
+    }
+    if (scale === norwegianScale) return { ...ranking, top_tier: ranking.rank === 'Level 2' };
+    return ranking;
+  }
+  function venueBadge(ranking, { includeScheme = true } = {}) {
+    const badge = element('span', 'graph-venue-rank');
+    if (!ranking) {
+      badge.dataset.grade = 'unverified';
+      badge.append(element('span', 'graph-venue-grade', t('Rank unverified')));
+      badge.title = t('Rank unverified');
+      return badge;
+    }
+    const { scheme, rank, top_tier: topTier } = ranking;
+    const scale = venueRankScale(scheme);
+    if (scale?.otherGrades?.has(rank)) badge.dataset.grade = 'status';
+    else if (scale?.grades.has(rank)) badge.dataset.grade = rank;
+    else if (topTier) badge.dataset.grade = 'top-tier';
+    if (includeScheme) badge.append(element('span', 'graph-venue-scheme', scheme + ' '));
+    badge.append(element('span', 'graph-venue-grade', rank));
+    badge.title = scheme + ' ' + ranking.edition + ' · ' + rank;
+    return badge;
+  }
   function paperCard(paper, { width, height }) {
     const node = element('article', 'graph-paper');
     node.dataset.paperId = paper.id;
     node.style.width = width + 'px';
     node.style.height = height + 'px';
     const top = element('div', 'graph-paper-top');
-    if (paper.venueRank) {
-      const { scheme, rank, top_tier: topTier } = paper.venueRank;
-      const rankBadge = element('span', 'graph-venue-rank');
-      rankBadge.classList.toggle('is-top-tier', topTier);
-      rankBadge.append(element('span', 'graph-venue-scheme', scheme), element('span', 'graph-venue-grade', rank));
-      top.append(rankBadge);
-    } else {
-      top.append(element('span', 'graph-paper-type', t('Paper')));
-    }
+    top.append(venueBadge(paper.venueRank));
     if (paper.reviewStatus === 'needs-recheck') {
-      const compactReview = paper.venueRank || width < card.width;
-      top.append(element('span', 'graph-paper-review', t(compactReview ? 'Recheck' : 'Evidence needs rechecking')));
+      top.append(element('span', 'graph-paper-review', t('Recheck')));
     }
     const title = element('p', 'graph-paper-title', shortTitle(paper));
     title.title = paper.title;
     const date = element('p', 'graph-paper-date', paper.dateLabel);
+    date.title = paper.dateLabel;
     node.append(top, title, date);
     node.classList.toggle('is-undated', paper.undated === true);
     return node;
@@ -148,5 +224,5 @@
       { selector: 'edge.selected', style: { width: 2.6, label: '' } }
     ];
   }
-  window.DanseoGraph = Object.freeze({ card, kindNames, category, nodeDimensions, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer });
+  window.DanseoGraph = Object.freeze({ card, kindNames, category, nodeDimensions, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer, venueRankScale, linkedVenueRank, venueBadge, isJcr });
 })();
