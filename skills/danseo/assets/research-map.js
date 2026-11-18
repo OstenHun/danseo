@@ -44,9 +44,9 @@
     }
     return elements;
   }
-  function mount(container, data, scene, onSelect, onFilter = () => {}, backgroundId, paperState) {
+  function mount(container, data, scene, onSelect, onFilter = () => {}, backgroundId, paperState, venueRanks) {
     if (typeof cytoscape !== 'function') return null;
-    if (data.mode === 'paper-relations' && scene !== 'background') return mountPapers(container, data, scene, onSelect, onFilter, paperState);
+    if (data.mode === 'paper-relations' && scene !== 'background') return mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks);
     const cy = cytoscape({ container, elements: build(data, scene, backgroundId), layout: { name: 'preset', fit: true, padding: 32 }, minZoom: .25, maxZoom: 2.2,
       style: [
         { selector: 'node', style: { shape: 'round-rectangle', width: 176, height: 74, 'background-color': '#ffffff', 'border-width': 1.5, 'border-color': '#9aa9c5', label: 'data(label)', color: '#202631', 'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif', 'font-size': 18, 'font-weight': 600, 'text-wrap': 'wrap', 'text-max-width': 152, 'text-valign': 'center', 'text-halign': 'center', padding: 8 } },
@@ -74,7 +74,7 @@
       cy.elements().filter(item => item.data('type') === type && (type === 'reference' ? id === item.data('recordId') + ':' + item.data('paperId') && item.data('paperId') === paperId : item.data('recordId') === id)).addClass('active');
     }, destroy: () => { observer?.disconnect(); container.removeEventListener('wheel', wheel); cy.destroy(); } };
   }
-  function mountPapers(container, data, scene, onSelect, onFilter, paperState) {
+  function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
     const presentation = window.DanseoGraph;
     const elements = build(data, scene);
     const hasCitationCounts = data.papers.some(paper => paper.citations !== undefined);
@@ -106,13 +106,14 @@
     const world = document.createElement('div'); world.className = 'graph-world'; layer.append(world); container.append(layer);
     const cards = new Map();
     for (const paper of data.papers) {
+      const venueRank = venueRanks?.get(paper.id);
       const card = presentation.paperCard({
         id: paper.id,
         title: paper.title,
         short_title: paper.short_title,
         reviewStatus: paper.review_status,
-        dateLabel: paper.publication?.date.slice(0, 4) ?? t('Publication year unknown'),
-        venueRank: paper.venue_rank
+        dateLabel: paper.publication?.date.slice(0, 4) ?? t('First publication year unverified'),
+        venueRank
       }, nodeSizes.get(paper.id));
       cards.set(paper.id, card); world.append(card);
     }

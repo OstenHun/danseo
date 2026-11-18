@@ -32,6 +32,24 @@ h1 { font-size: 1.875rem; }
 .scene-controls button[aria-pressed=true] { background: var(--wash); border-color: var(--green); color: var(--green); font-weight: 600; }
 .map-notice,.map-status,.map-legend { font-size: .75rem; color: var(--muted); margin: 12px 0; }
 .map-status { min-height: 22px; } .map-legend { line-height: 1.9; }
+.venue-guide {
+  margin: 10px 18px 14px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  font-size: .875rem;
+  word-break: keep-all; overflow-wrap: break-word;
+}
+.venue-guide summary { cursor: pointer; font-weight: 650; }
+.venue-guide h3 { margin: 12px 0 4px; font-size: 1rem; }
+.venue-guide p { margin-block: 8px; }
+.venue-guide table { border-collapse: collapse; width: 100%; max-width: 540px; margin-bottom: 8px; text-align: start; }
+.venue-guide :is(th, td) { padding: 5px 8px; border-bottom: 1px solid var(--line); text-align: start; }
+.venue-guide :is(th, td):first-child { width: 30%; padding-inline-start: 0; }
+.map-item.map-item-ranked { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 5px 10px; }
+.ranked-paper-title { flex: 1 1 110px; min-width: 0; }
+.venue-rank-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
 #research-map { position: relative; height: 310px; min-height: 310px; width: 100%; flex: none; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; overflow: hidden; }
 #research-map.context-map { height: 400px; min-height: 400px; }
 .map-records { margin-top: 20px; max-height: 230px; min-height: 90px; overflow: auto; overscroll-behavior: contain; }

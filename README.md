@@ -115,6 +115,8 @@ sources support each connection. Give me the path to the HTML file.
 
 Open the returned `.html` file in a desktop browser. Select a paper to see its reading locations, or select a connection to see what links the papers and where to check the evidence.
 
+When your agent can verify a venue and its rank, the graph shows a badge and a venue ranking guide. Paper details show the ranking edition and sources, plus the subject category for JCR when available. The guide explains ICORE conference ranks, JCR journal quartiles, and Norwegian Register levels on their own scales.
+
 If the agent can't access online sources, give it absolute paths to two or more local PDFs it can read. Ask for a graph using those files and have it report any connections it could not check. Review your agent's file permissions and provider settings before sharing private PDFs.
 
 If Danseo doesn't appear, restart your agent and check that the installed folder contains `SKILL.md`, `scripts/`, `references/`, and `assets/`. You can also give the agent the absolute path to the installed `SKILL.md` and ask it to use that skill.

@@ -6,6 +6,14 @@
   const projectMode = data.mode === 'project-application';
   const papers = new Map(data.papers.map(paper => [paper.id, paper]));
   const sources = new Map(data.sources.map(source => [source.id, source]));
+  const presentation = window.DanseoGraph;
+  const venueRanks = new Map();
+  for (const paper of data.papers) {
+    const ranking = presentation.linkedVenueRank(paper.venue_rank, sources);
+    if (ranking) venueRanks.set(paper.id, ranking);
+  }
+  const hasCitationCounts = data.papers.some(paper => paper.citations);
+  const hasVenueMetadata = data.papers.some(paper => paper.venue_rank);
   const concepts = new Map((data.concepts ?? []).map(item => [item.id, item]));
   const backgrounds = new Map((data.backgrounds ?? []).map(item => [item.id, item]));
   const items = projectMode ? data.applications : data.papers;
@@ -61,22 +69,94 @@
     appendSourceLinks(parent, paper.title, paper.claims.flatMap(claim => claim.evidence));
   }
   function appendPaperMetrics(parent, paper) {
-    const citations = paper.citations, ranking = paper.venue_rank;
-    if (!citations && !ranking && !data.papers.some(item => item.citations || item.venue_rank)) return;
-    const metrics = section(t('Citations and venue ranking'));
+    const citations = paper.citations, ranking = venueRanks.get(paper.id);
+    if (projectMode && !hasCitationCounts && !hasVenueMetadata) return;
+    const metrics = section(t(hasCitationCounts || projectMode ? 'Citations and venue ranking' : 'Venue ranking'));
     if (citations) {
       const count = new Intl.NumberFormat(data.language ?? 'en').format(citations.count);
       metrics.append(p(t('Citations · {count} · checked {date}', { count, date: citations.checked_on })));
       evidence(metrics, [citations.source_id], { bibliographic: true });
-    } else {
+    } else if (hasCitationCounts || projectMode) {
       metrics.append(p(t('Citation count unavailable')));
     }
     if (ranking) {
-      const label = `${ranking.venue} · ${ranking.scheme} ${ranking.edition} · ${ranking.rank}`;
-      metrics.append(p(label + (ranking.top_tier ? t(' · Top tier in this ranking') : '')));
+      const label = node('p', 'venue-rank-line');
+      label.append(node('span', '', ranking.scheme + ' ' + ranking.edition), presentation.venueBadge(ranking, { includeScheme: false }));
+      metrics.append(p(ranking.venue), label);
+      if (presentation.isJcr(ranking.scheme)) {
+        metrics.append(p(ranking.category
+          ? t('JCR subject category · {category}', { category: ranking.category })
+          : t('JCR subject category unreported')));
+      }
+      if (ranking.top_tier) metrics.append(p(t('Top tier in this ranking')));
       evidence(metrics, [...new Set([ranking.venue_source_id, ranking.source_id])], { bibliographic: true });
+    } else if (!projectMode || paper.venue_rank) {
+      metrics.append(presentation.venueBadge(), p(t('Publication and ranking sources are required for a venue rank.')));
     }
     parent.append(metrics);
+  }
+  function venueGuide() {
+    const groups = new Map();
+    for (const ranking of venueRanks.values()) {
+      const key = ranking.scheme.toLowerCase() + '\0' + ranking.edition;
+      if (!groups.has(key)) groups.set(key, new Map());
+      const grades = groups.get(key);
+      if (!grades.has(ranking.rank)) grades.set(ranking.rank, ranking);
+    }
+    const guide = node('details', 'venue-guide');
+    guide.id = 'venue-guide';
+    guide.append(node('summary', '', t('Venue ranking guide')),
+      p(t('Badges describe publication venues. Compare grades within the same ranking scheme. The ranking edition and the paper’s publication date are separate.')));
+    for (const ranks of groups.values()) {
+      const first = ranks.values().next().value;
+      const scale = presentation.venueRankScale(first.scheme);
+      guide.append(node('h3', '', first.scheme + ' ' + first.edition));
+      if (scale?.description) guide.append(p(t(scale.description)));
+      const table = node('table', ''), head = node('thead', ''), headings = node('tr', '');
+      for (const label of ['Rank', scale ? 'Meaning' : 'Source on this map']) {
+        const header = node('th', '', t(label));
+        header.setAttribute('scope', 'col');
+        headings.append(header);
+      }
+      head.append(headings); table.append(head);
+      const body = node('tbody', '');
+      function row(ranking, ...contents) {
+        const tr = node('tr', ''), grade = node('td', ''), description = node('td', '');
+        grade.append(presentation.venueBadge(ranking, { includeScheme: false }));
+        description.append(...contents); tr.append(grade, description); body.append(tr);
+      }
+      function rankingLink(ranking) {
+        const link = node('a', '', t('Open ranking source ↗'));
+        link.href = sources.get(ranking.source_id).url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        return link;
+      }
+      if (scale) {
+        for (const [rank, meaning] of scale.grades) {
+          const observed = scale.linkObservedGrades ? ranks.get(rank) : undefined;
+          const guideRanking = observed ?? { ...first, rank };
+          if (observed) row(guideRanking, node('div', '', t(meaning)), rankingLink(observed));
+          else row(guideRanking, t(meaning));
+        }
+      }
+      for (const ranking of ranks.values()) {
+        if (scale?.grades.has(ranking.rank)) continue;
+        const meaning = scale?.otherGrades?.get(ranking.rank);
+        if (meaning) row(ranking, node('div', '', t(meaning)), rankingLink(ranking));
+        else row(ranking, rankingLink(ranking));
+      }
+      table.append(body); guide.append(table);
+      if (scale) {
+        const link = node('a', '', t(scale.sourceLabel));
+        link.href = scale.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        guide.append(link);
+      }
+    }
+    if (venueRanks.size < data.papers.length) {
+      const note = p('');
+      note.append(presentation.venueBadge(), ' ', t('Publication and ranking sources are required for a venue rank.'));
+      guide.append(note);
+    }
+    return guide;
   }
   function appendSourceLinks(parent, paperTitle, evidenceIds) {
     const linked = new Map();
@@ -122,15 +202,22 @@
     }
   }
   const nav = new Map();
+  const gradeGuide = !projectMode && hasVenueMetadata ? venueGuide() : null;
+  if (gradeGuide) byId('map-legend').after(gradeGuide);
   function localLink(type, id, title, cls) { const a = node('a', cls, title); a.href = '#' + type + '=' + encodeURIComponent(id); return a; }
   function mountMap(nextScene) {
     activeBackground = undefined;
     map?.destroy(); scene = nextScene; nav.clear(); byId('items').replaceChildren(); byId('map-links').replaceChildren();
     byId('research-map').className = scene === 'context' ? 'context-map' : '';
     const listed = scene === 'context' ? data.project_context.items : projectMode ? [...data.papers, ...items] : items;
-    for (const [i, item] of listed.entries()) {
+    for (const item of listed) {
       const type = scene === 'context' ? 'topic' : data.papers.includes(item) ? 'paper' : 'application';
-      const li = node('li'), a = localLink(type, item.id, item.short_title ?? item.title, 'map-item'); li.append(a); byId('items').append(li); nav.set(type + ':' + item.id, a);
+      const li = node('li'), a = localLink(type, item.id, item.short_title ?? item.title, 'map-item');
+      if (!projectMode) {
+        a.className += ' map-item-ranked';
+        a.replaceChildren(node('span', 'ranked-paper-title', a.textContent), presentation.venueBadge(venueRanks.get(item.id)));
+      }
+      li.append(a); byId('items').append(li); nav.set(type + ':' + item.id, a);
     }
     byId('count').textContent = t('{count} items', { count: listed.length });
     byId('node-kind').textContent = scene === 'context' ? t('Concepts') : projectMode ? t('Projects · papers') : t('Paper');
@@ -138,12 +225,10 @@
     byId('map-heading').textContent = scene === 'context' ? data.project_context.title : projectMode ? t('Current question and paper evidence') : t('Connections between papers');
     byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
     byId('map-legend').textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
-    if (scene === 'papers') {
+    if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
+    if (scene === 'papers' && hasCitationCounts) {
       const legend = byId('map-legend');
       legend.append(node('br'), node('span', '', t('Node size = citation count · capped; unavailable counts use the base size.')));
-      if (data.papers.some(paper => paper.venue_rank)) {
-        legend.append(node('br'), node('span', '', t('Dark venue badge = top tier in the named ranking.')));
-      }
     }
     const links = scene === 'context' ? data.project_context.links : projectMode ? items.flatMap(app => data.papers.filter(paper => app.claim_refs.some(ref => ref.paper_id === paper.id)).map(paper => ({ app, paper }))) : data.relations;
     byId('map-links').append(node('h3', '', scene === 'context' ? t('Suggested order and connection rationale') : projectMode ? t('Corresponding evidence references') : t('Corresponding relations')));
@@ -162,7 +247,7 @@
     });
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); }, matches => {
       for (const relation of data.relations ?? []) { const link = nav.get('relation:' + relation.id); if (link) link.hidden = !matches(relation); }
-    }, undefined, paperMapState);
+    }, undefined, paperMapState, venueRanks);
     byId('map-status').textContent = map ? t('Drag nodes · pan background · wheel/buttons to zoom · fit all') : t('Unable to load the map. Use the corresponding records below to navigate.');
     for (const button of byId('scene-controls').children) button.setAttribute('aria-pressed', String(button.scene === scene));
   }
@@ -171,6 +256,7 @@
     if (scene === 'background' && activeBackground === background.id) return;
     if (scene === 'papers') paperMapState = map?.snapshot?.();
     map?.destroy(); scene = 'background'; activeBackground = background.id; nav.clear();
+    if (gradeGuide) gradeGuide.hidden = true;
     byId('items').replaceChildren(); byId('map-links').replaceChildren(); byId('research-map').className = '';
     const concept = concepts.get(background.concept_id);
     const addItem = (type, id, key, title) => {
