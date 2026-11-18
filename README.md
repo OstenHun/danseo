@@ -1,55 +1,33 @@
-<div align="center">
+# Danseo
 
-<h1>Danseo</h1>
-
-<picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 640px)" srcset="assets/brand/banner-compact-dark.svg">
-  <source media="(max-width: 640px)" srcset="assets/brand/banner-compact-light.svg">
-  <source media="(prefers-color-scheme: dark)" srcset="assets/brand/banner-dark.svg">
-  <img src="assets/brand/banner-light.svg" alt="Danseo — research evidence, project decisions." width="100%">
-</picture>
-
-**Bring research evidence into project decisions.**
+Summary: Use your AI agent to map how papers connect and where to read the evidence. Add the optional CLI to save and compare evidence across a research topic.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
 ![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-English · [한국어](README.ko.md) · [Install the skill](#install-the-skill) · [Quick start](#quick-start) · [Project structure](#project-structure) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
+[한국어](README.ko.md) · [Install the skill](#install-the-skill) · [CLI quick start](#quick-start) · [Documentation](docs/README.md)
 
-</div>
+## See a paper graph
 
-Summary: A development preview that connects paper discovery, source collection, analysis, and comparison in local files, using your existing AI agent, a CLI, and evidence-linked research views.
+![Danseo graph with two synthetic papers and a source detail panel for their citation](assets/readme/paper-graph-preview.png)
 
-## Overview
+Select a connection to see which paper cites the other, why the citation matters, and where to find the supporting passage. Danseo saves the graph as an HTML file you can open in a desktop browser. [View the full-size screenshot of the synthetic example](assets/readme/paper-graph-preview.png).
 
-A paper summary alone rarely gives you enough context to use a method in a project. You also need the evaluation conditions, exact source locations, and a record of why you chose to apply, test, or defer it.
-
-Danseo (단서, “clue” in Korean) keeps that context available for your next conversation. Paper records hold reusable research evidence; Application records hold project-specific decisions. Multiple projects can reference the same paper without sharing the same adoption decision.
-
-- **Keep discovery resumable.** Save search rounds, stable paper numbers, and the source and edition shown when you selected a paper.
-- **Read against the source.** Connect PDFs, paper claims, answers, and notes while preserving conditions, limitations, and unread areas.
-- **Explore the evidence.** Select papers or comparison criteria to inspect source locations and distinguish source relationships from AI proposals.
-- **Use your existing agent.** The agent searches, downloads authorized sources, reads papers, and prepares comparisons. Danseo connects and checks the resulting files; it does not call a model.
-
-After installing the skill, try “I want to read Attention Is All You Need.” The [paper-reading orientation](skills/danseo/references/paper-orientation.md) asks your agent to discover a bounded neighborhood of prior and follow-up research and create an interactive HTML in your request language. Select a paper to inspect its connections, or expand a separate concept background and return to the focal paper. Search availability and source access determine coverage; the map is not an exhaustive literature review.
-
-| Stage | What Danseo records |
-| --- | --- |
-| Discover and select | Search rounds, stable numbers, sources, editions, and reasons for selection |
-| Collect sources | Managed PDF copies or existing-file links, identity checks, and explicit consent for draft editions |
-| Analyze and resume | Shared Paper cards, topic-specific Markdown answers and notes, follow-up questions, and reading positions |
-| Compare research | Currently supported claims, evaluation conditions, limitations, source locations, and reasons for AI proposals |
-
-The CLI workflow and standalone skill views are separate entry points: use the skill for a paper-relationship HTML, or build the full CLI to manage a topic from discovery through a read-only comparison view.
+- [Install the Danseo skill](#install-the-skill) to make a graph in Codex, Claude Code, or Antigravity CLI.
+- [Build the CLI](#quick-start) to save a research topic and compare papers across sessions.
 
 <a id="skill-설치"></a>
 
 ## Install the skill
 
-**For standalone paper-relationship HTML, you need Node.js 22 or 24 and the complete `skills/danseo` folder.** No npm package installation, build, or server is required. Use an installed, signed-in agent such as Codex, Claude Code, or Antigravity CLI with access to your paper files and permission to run Node commands. A folder path pasted into an ordinary web chat is not sufficient.
+You need [Node.js](https://nodejs.org/en/download) **24.x or 22.x LTS** and a signed-in local AI agent that can read files and run shell commands. To start from a paper title, the agent also needs to be able to find papers online and open their sources. For papers you already have, give the agent access to the local PDFs.
+
+The graph skill runs directly from its copied folder, with no npm install, build, or server.
 
 ### 1. Download the source
+
+If you have Git, run these commands in a terminal:
 
 ```sh
 git clone https://github.com/OstenHun/danseo.git
@@ -57,124 +35,99 @@ cd danseo
 node --version
 ```
 
-Without Git, use **Code → Download ZIP**, extract it, and open a terminal in the folder containing `README.md` and `skills/`. Install the **entire `danseo` skill folder**: copying only `SKILL.md` omits the generators, references, and design assets.
+You can also use **Code → Download ZIP** on GitHub. Extract the ZIP, open a terminal in the folder containing `README.md` and `skills/`, and run `node --version`. You should see a version starting with `v24.` or `v22.`.
 
-### 2. Install for your agent
+### 2. Choose your agent and operating system
 
-These are personal installation locations used across projects. `~` means your home directory. The Argon instructions refer to using an Argon model through **Antigravity CLI (`agy`)**.
+From the downloaded source folder, run the block for your operating system and enter the choice shown for your agent. The commands copy the complete skill folder to your home directory so Danseo is available across projects.
 
-| Agent | Installation folder | Invoke in a new chat |
-| --- | --- | --- |
-| Codex | `~/.agents/skills/danseo` | `$danseo` or the skill picker |
-| Claude Code | `~/.claude/skills/danseo` | `/danseo` |
-| Argon · Antigravity CLI | `~/.gemini/config/skills/danseo` | `/danseo` |
-
-Host instructions: [Codex](https://developers.openai.com/codex/skills/) · [Claude Code](https://code.claude.com/docs/en/skills) · [Antigravity](https://antigravity.google/docs/skills/). Use `agy models` to check available Argon model names before selecting one.
-
-Expand the example for your operating system and choose **one destination**. The examples preserve existing installations. If you already use `~/.codex/skills/danseo` or a project-specific installation, check the path your agent actually loads before adding another copy.
+- For [Codex](https://developers.openai.com/codex/skills/), enter `codex`. In a new chat, choose Danseo in the skill picker or type `$danseo`.
+- For [Claude Code](https://code.claude.com/docs/en/skills), enter `claude`. In a new chat, type `/danseo`.
+- For [Antigravity CLI](https://antigravity.google/docs/skills/), enter `agy`. Start a new conversation in the interactive CLI, then type `/danseo`.
 
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
 
-Run from the repository root. The default is Codex; replace the destination line for Claude Code or Argon.
-
 ```powershell
-$danseoTarget = Join-Path $HOME '.agents/skills/danseo'
-# Claude Code: Join-Path $HOME '.claude/skills/danseo'
-# Argon (agy): Join-Path $HOME '.gemini/config/skills/danseo'
+& {
+    $danseoHost = Read-Host 'Choose codex, claude, or agy'
+    $danseoLocations = @{
+        codex  = '.agents/skills/danseo'
+        claude = '.claude/skills/danseo'
+        agy    = '.gemini/config/skills/danseo'
+    }
+    if (-not $danseoLocations.ContainsKey($danseoHost)) { throw 'Enter codex, claude, or agy.' }
 
-if (Test-Path -LiteralPath $danseoTarget) { throw "Check the existing installation: $danseoTarget" }
-New-Item -ItemType Directory -Force -Path (Split-Path $danseoTarget -Parent) | Out-Null
-Copy-Item -LiteralPath './skills/danseo' -Destination $danseoTarget -Recurse -ErrorAction Stop
-node --test "$danseoTarget/scripts/research-evidence.test.mjs"
+    $danseoTarget = Join-Path $HOME $danseoLocations[$danseoHost]
+    if (Test-Path -LiteralPath $danseoTarget) { throw "Danseo is already installed at $danseoTarget" }
+    New-Item -ItemType Directory -Force -Path (Split-Path $danseoTarget -Parent) -ErrorAction Stop | Out-Null
+    Copy-Item -LiteralPath './skills/danseo' -Destination $danseoTarget -Recurse -ErrorAction Stop
+    Write-Output "Installed Danseo at $danseoTarget"
+}
 ```
 
 </details>
 
 <details>
-<summary><strong>macOS / Linux · Bash or Zsh</strong></summary>
-
-Run from the repository root. The default is Codex; replace the destination line for Claude Code or Argon.
+<summary><strong>macOS or Linux · Bash or Zsh</strong></summary>
 
 ```sh
-danseo_target="$HOME/.agents/skills/danseo"
-# Claude Code: danseo_target="$HOME/.claude/skills/danseo"
-# Argon (agy): danseo_target="$HOME/.gemini/config/skills/danseo"
+{
+  printf 'Choose codex, claude, or agy: '
+  read -r danseohost
+  case "$danseohost" in
+    codex)  danseotarget="$HOME/.agents/skills/danseo" ;;
+    claude) danseotarget="$HOME/.claude/skills/danseo" ;;
+    agy)    danseotarget="$HOME/.gemini/config/skills/danseo" ;;
+    *)      danseotarget='' ;;
+  esac
 
-if [ -e "$danseo_target" ] || [ -L "$danseo_target" ]; then
-  printf 'Check the existing installation: %s\n' "$danseo_target"
-else
-  mkdir -p "$(dirname "$danseo_target")" &&
-    cp -R ./skills/danseo "$danseo_target" &&
-    node --test "$danseo_target/scripts/research-evidence.test.mjs"
-fi
+  if [ -z "$danseotarget" ]; then
+    printf '%s\n' 'Enter codex, claude, or agy.'
+  elif [ -e "$danseotarget" ] || [ -L "$danseotarget" ]; then
+    printf 'Danseo is already installed at %s\n' "$danseotarget"
+  else
+    mkdir -p "$(dirname "$danseotarget")" &&
+      cp -R ./skills/danseo "$danseotarget" &&
+      printf 'Installed Danseo at %s\n' "$danseotarget"
+  fi
+}
 ```
 
 </details>
 
-A test result of `fail 0` confirms the bundled validator regression checks. It does not confirm that your model discovered the skill or read a paper correctly.
-
-### 3. Check in a new chat
-
-Start a new chat, select Danseo using the invocation above, and try the [graph prompt below](#generate-a-paper-relationship-graph). If it is missing, restart the app or CLI and check that `SKILL.md`, `scripts/`, `references/`, and `assets/` are in the same installed folder. You can also ask the agent to read the installed `SKILL.md` by its absolute path. If it loads a different copy, specify the intended path.
-
-GitHub changes do not automatically update your installed copy. To update, download the latest source, back up the existing skill outside the host's skill search paths, then copy and check the complete folder again.
-
-### Companion skills and output language
-
-Instructions, agent metadata and default synthetic examples are in English. Explanations and generated content follow your requested language; English instructions do not force English answers.
-
-| Complete source folder | Use it for |
-| --- | --- |
-| [`skills/danseo`](skills/danseo/SKILL.md) | Paper discovery, records, evidence and research relationship views |
-| [`skills/danseo-reading`](skills/danseo-reading/SKILL.md) | Questions, source feedback and concept learning views |
-| [`skills/paper-to-project`](skills/paper-to-project/SKILL.md) | Comparing paper/project conditions and choosing an application action |
-
-Install a companion using the same procedure, replacing **both** the source and destination folder name with `danseo-reading` or `paper-to-project`. Invoke it by that name, or explicitly read its installed `SKILL.md`. Each folder contains its own required resources. The application skill is guidance only and needs no Node runtime; for the learning generator run `node --test <installed-danseo-reading>/scripts/learning-view.test.mjs`.
-
-For standalone research and learning HTML, set candidate `language` to `en` or `ko` to match the request. The renderers preserve supplied prose and quotations. Older candidates without this field retain their original defaults: English research UI and Korean learning UI. Other requested prose languages use English fixed controls; no live language switch or automatic translation service is included. Existing saved HTML must be regenerated to receive changes. CLI/native comparison controls remain English.
+If you already have Danseo installed, check which copy your agent loads. To update, move that copy to a backup location outside the agent's skill folders and run the copy instructions again. Antigravity CLI users who want to choose an Argon model can see the available models with `agy models`.
 
 <a id="논문-그래프-생성-요청"></a>
 
 ## Generate a paper-relationship graph
 
-Use the same request with any of the three agents. Replace the example paths with **actual absolute paths on your computer**. Select `$danseo` in Codex or `/danseo` in Claude Code or Antigravity first, or prefix your request with that invocation.
+### 3. Create and open your first graph
+
+Open a folder where your agent can save files. Start a new chat in that folder, invoke Danseo as shown above, then send this prompt:
 
 ```text
-Use the Danseo skill to create a standalone HTML relationship graph for these papers.
-Paper folder: C:/research/my-topic/papers
-Research question: How does each paper connect retrieved evidence to answers and evaluate it?
-Output folder: C:/research/my-topic/output
-Write the explanations in English.
+I want to read Attention Is All You Need. Use Danseo to find a few related
+papers from before and after it. Create an interactive HTML graph in English
+and save it as attention-paper-graph.html in this folder. Show where the
+sources support each connection. Give me the path to the HTML file.
 ```
 
-On macOS or Linux, use a real path such as `/Users/me/research/my-topic/papers` or `/home/me/research/my-topic/papers`. Your agent must be able to read the PDFs. Finding additional papers also requires search and download tools.
+Open the returned `.html` file in a desktop browser. Select a paper to see its reading locations, or select a connection to see what links the papers and where to check the evidence.
 
-The default workflow is **check sources and editions → write relationships and evidence → separate source records from AI proposals → check the overview and quantities → generate shared HTML → inspect the rendered view**. Source relationships retain page or section locations; suggested connections remain proposals. Keep the candidate JSON and evidence files alongside the HTML so later revisions can reuse the same generator. See [source verification](skills/danseo/references/relation-verification.md), [overview and quantity checks](skills/danseo/references/evidence-gate.md), and [performance verification](skills/danseo/references/performance-verification.md).
+If the agent can't access online sources, give it absolute paths to two or more local PDFs it can read. Ask for a graph using those files and have it report any connections it could not check. Review your agent's file permissions and provider settings before sharing private PDFs.
 
-Views use short paper names, topic grouping, and connections around the selected paper by default. You can filter evidence status and relationship types, or show all connections. Full titles and relationship data remain in the details; topic grouping is identified as AI editorial interpretation. Danseo targets local PC and laptop use. Verify the desktop view before delivery.
+If Danseo doesn't appear, restart your agent and check that the installed folder contains `SKILL.md`, `scripts/`, `references/`, and `assets/`. You can also give the agent the absolute path to the installed `SKILL.md` and ask it to use that skill.
 
-Select a paper or edge to inspect evidence, conditions, and source/AI labels. Correct the source or input after a failed check. If browser tools are unavailable, the agent must report that visual inspection was not performed. **Passing automated checks does not certify every relationship interpretation.**
-
-To review an existing graph:
-
-```text
-Recheck the existing candidate JSON and evidence files against the original PDFs.
-Output folder: C:/research/my-topic/output
-Correct any mixing of source relationships and AI proposals, or mismatched record,
-document, or pair counts. Preserve the previous output and create a new HTML file.
-Report what you actually inspected in the rendered view.
-```
+For more ways to start, see [paper-reading orientation](skills/danseo/references/paper-orientation.md) and the [Danseo skill guide](skills/danseo/README.md).
 
 <a id="빠른-시작"></a>
 
 ## Quick start
 
-### Build the full CLI
+### Build and try the CLI
 
-Use the full CLI to manage topic history, Paper cards, project decisions, analysis, and comparisons. The standalone graph skill above does not require this build.
-
-Requires **Node.js 22 or 24 LTS and npm**; Node 24 is recommended for development. Run from the downloaded source folder:
+The CLI saves paper selections, source files or links, answers and notes, and evidence for comparisons. It runs independently of skill installation. Use Node.js **24.x or 22.x LTS** with npm. From the [downloaded source folder](#1-download-the-source), run:
 
 ```sh
 npm ci
@@ -182,85 +135,51 @@ npm run build
 node ./dist/cli.js validate --workspace ./examples/minimal --json
 ```
 
-The synthetic example reports `ok: true`, 3 records, 2 projects, and an expected `draft` warning. Validation checks structure and references. See [runtime support](docs/RUNTIME_SUPPORT.md) and the [English CLI guide](docs/CLI.en.md).
+The first command fetches the locked dependencies. After the build, the example should report `ok: true`, three records, two projects, and one expected draft warning. These checks cover file structure and references. The example uses synthetic cards with Korean body text. The CLI messages are in English.
 
-### Start with your own topic
+For your own research, follow the [CLI and agent guide](docs/CLI.en.md#find-collect-analyze-and-compare) to create a topic folder, collect sources, and open a local comparison. For reusable Paper and Application cards, see [connect your own workspace](docs/CLI.en.md#connect-your-own-workspace).
 
-Give your agent the absolute Danseo folder and a private topic directory. Discovery also requires the agent's search tools.
+### Companion skills and output language
 
-```text
-Read skills/danseo/SKILL.md in this Danseo folder.
-Find papers for my research question in my private topic directory.
-Show the sources, editions, and reasons so I can choose.
-```
+- [`danseo-reading`](skills/danseo-reading/SKILL.md) helps you ask questions about a paper and explore its concepts. Its view generator needs Node.js.
+- [`paper-to-project`](skills/paper-to-project/SKILL.md) guides you through comparing a paper's conditions with your project. It needs no Node.js runtime.
 
-1. Select candidates, then ask the agent to collect their original sources.
-2. Ask a question about a selected paper; retain the answer and exact source locations.
-3. Ask the agent to compare papers using the checked evidence.
+To add a companion skill, use the copy instructions above with the companion's folder name in the source path and each destination path. Start a new chat and invoke it by that name.
 
-In a new chat, provide the same tool, skill, and topic directory. The [English end-to-end guide](docs/CLI.en.md#find-collect-analyze-and-compare) covers discovery → collection → analysis → comparison. See the detailed English [analysis](docs/PAPER_ANALYSIS.md) and [comparison](docs/RESEARCH_COMPARISON.md) references.
-
-<details>
-<summary><strong>Connect existing cards and projects</strong></summary>
-
-Paper records hold claims and sources; Application records hold project-specific decisions. Register explicit cards and projects using [the synthetic workspace](examples/minimal/workspace.json), then give your agent the [four connection values](docs/CLI.en.md#connect-your-own-workspace).
-
-`validate` checks structure and references; `list` and `show` read cards. `export` includes the selected question and full linked cards as Markdown or JSON, preserving content, comments, extension fields, and source locations. `--out` creates new files only.
-
-```sh
-node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
-```
-
-The fixture is a draft, so it requires `--include-drafts`. This option does not change review status. See the [card model](docs/CARD_MODEL.md).
-
-</details>
+Ask for the language you want in the prompt. Standalone graph and learning views have English and Korean controls. They preserve original paper titles and quotations. The CLI and its comparison viewer have English controls. See [output-language rules](skills/danseo/SKILL.md#output-language).
 
 ## Project structure
 
-Danseo is one TypeScript/Node.js package plus a portable agent skill. The CLI and read-only comparison app share the file-based core; the skill includes its own standalone HTML generators and assets.
+Danseo is a TypeScript/Node.js package with portable agent skills. A topic folder keeps the selected papers, collected sources, and notes for one research question. A separate `workspace.json` registers reusable Paper records and project-specific Application records. Several projects can cite the same evidence while making different decisions about it.
 
 ```text
-src/
-  cli.ts                 Commands, options, output, and exit codes
-  core/                  Cards, topics, source collection, analysis, reviews, and comparison
-  web/                   Read-only comparison server and browser UI
-  views/                 Shared map presentation and reading styles
+src/                     CLI, file-based core, comparison server and browser UI
 schemas/                 Card, workspace, and relationship schemas
-skills/danseo/           Agent instructions, references, standalone generators, and assets
+skills/                  Research graphs, paper learning, and project application
 examples/minimal/        Synthetic workspace for validation and export
-scripts/                 TypeScript build and documentation tools
-tests/                   TypeScript regression tests, helpers, and package checks
-docs/                    Usage guides, data formats and evidence-check contracts
+tests/                   CLI, source and package checks
+docs/                    Usage guides, data formats and development references
 ```
 
-A topic folder keeps selections, collected-source records, and topic-specific analysis. A separate `workspace.json` registers reusable cards, projects, claim-review inputs/results, and optional relationships. The same Paper can support separate answers in different topics. Author claims, AI interpretations, project observations, and adoption decisions remain distinct.
-
-Private papers and records belong outside shared product source. `work/`, `workspaces/`, and `private/` are local-only areas excluded from distribution. Exports include full card text and absolute local paths; inspect them before sharing.
+Keep private papers and records outside the source repository. Exports can include full card text and absolute local paths, so review them before sharing.
 
 ## Status and limitations
 
-Version `0.1.0-dev.1` is a development preview. The CLI and file formats may change.
+Danseo is a development preview. The CLI and file formats may change. Build the CLI from source. The read-only comparison viewer runs locally in a desktop browser. Stop its server with Ctrl+C. Your agent handles web search and source access under its own permissions.
 
-- **Included:** discovery records, source collection, topic-specific analysis and resumption, evidence-linked comparison, existing-card export, and standalone relationship HTML.
-- **Not included:** a card editor, automatic experiments or submissions, or an MCP server. The research comparison app targets desktop browsers; the optional learning skill is installed separately from the same source.
-- **Language:** standalone research HTML supports Korean or English controls and guidance through candidate `language: "ko"` or `"en"`; the agent sets it to match your request. Old inputs default to English. Agent-authored prose follows your requested language. Original titles, quotations, identifiers and saved records are preserved. CLI/native comparison controls, diagnostics, skill instructions and usage references remain English. There is no live language switch. [Output-language rules](skills/danseo/SKILL.md#output-language). Korean README editions and synthetic content remain available; internal work records stay local.
-
-Danseo itself needs no model key, database, or permanent server and makes no outbound requests. `topic compare` runs a read-only loopback server only while you use the view; stop it with Ctrl+C. Your agent's search, downloads, and model transmissions follow that agent's settings and permissions.
-
-Structural checks and source-support reviews do not establish experiment reproduction or reader understanding. See [runtime support](docs/RUNTIME_SUPPORT.md), the [roadmap](TASKS.md) and [distribution boundaries](docs/OPEN_SOURCE.md).
+Source checks cover the displayed evidence. Results depend on which sources the agent can read, and scientific reproduction is a separate step. See [runtime support](docs/RUNTIME_SUPPORT.md), [current scope](TASKS.md), and [distribution](docs/OPEN_SOURCE.md).
 
 ## Documentation
 
-| Goal | Start here | Language |
-| --- | --- | --- |
-| Install and request a standalone graph | [Skill installation](#install-the-skill) · [Graph prompt](#generate-a-paper-relationship-graph) | English |
-| Manage a topic from discovery to comparison | [CLI and agent guide](docs/CLI.en.md) | English |
-| Understand the bundled skill | [Skill overview](skills/danseo/README.md) | English |
-| Inspect analysis, reviews, and comparison formats | [Documentation index](docs/README.md) | English |
-| Use logos and banners | [Brand assets](assets/brand/README.md) | English |
+| Goal | Start here |
+| --- | --- |
+| Generate a paper graph | [First graph](#generate-a-paper-relationship-graph) · [Skill guide](skills/danseo/README.md) |
+| Find, collect, analyze, and compare papers | [CLI and agent guide](docs/CLI.en.md) |
+| Look up file formats and workflows | [Documentation index](docs/README.md) |
+| Use the logos and banners | [Brand assets](assets/brand/README.md) |
 
 ## Contributing and license
 
-Bug reproductions, clearer documentation, synthetic examples, and reports from other environments are welcome. Read [CONTRIBUTING](CONTRIBUTING.md) and [SECURITY](SECURITY.md). Do not attach private papers, research notes, or model logs to public reports.
+Bug reproductions, clearer documentation, synthetic examples, and reports from other environments are welcome. See [contributing](CONTRIBUTING.md) and [security](SECURITY.md). Keep private papers, research notes, and model logs out of public reports.
 
-Code, documentation, the skill, and synthetic examples use the [MIT License](LICENSE). Papers, datasets, and user-supplied material retain their own terms. See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies and [brand assets](assets/brand/README.md) for artwork.
+Code, documentation, skills, and synthetic examples use the [MIT License](LICENSE). Papers, datasets, and user-supplied material retain their own terms. See [third-party notices](THIRD_PARTY_NOTICES.md).
