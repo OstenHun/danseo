@@ -1,10 +1,29 @@
 # Contributing to Danseo
 
-Summary: Propose focused changes with synthetic reproductions. Use Node 24 for development, check Node 22/24 compatibility, and keep research evidence, private material, and product behavior distinct.
+Summary: Report a bug, propose an improvement, or make your first pull request. Use public or synthetic examples, keep changes focused, and share the checks you ran.
+
+## Report a bug or suggest a feature
+
+Search [existing issues](https://github.com/OstenHun/danseo/issues) for the same problem. If you find one, add any new steps or environment details there. Otherwise, [open an issue](https://github.com/OstenHun/danseo/issues/new/choose) and choose a template. Please open one issue per bug or feature request. Write the title and body in English.
+
+- **Bug report:** Name the workflow and what failed. An example title is `Standalone skill: no HTML file after generating a graph`. Include your environment, the steps or command, and what you expected and observed.
+- **Feature request:** Describe what you were trying to do, where the current workflow gets in the way, and what result would help. Discuss the scope in an issue before adding a dependency, file format, or external service.
+
+To identify the source version, run `git rev-parse --short HEAD` in the Danseo checkout, or give the branch and download date of your source ZIP if known. For a standalone skill bug, include your agent and how you installed the skill.
+
+Use a small synthetic example when possible. If the bug only happens with private material, share the steps and a redacted error message instead. Use the [security policy](SECURITY.md) for private vulnerability reporting.
+
+## Make your first contribution
+
+Browse the open [good first issues](https://github.com/OstenHun/danseo/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). If the list is empty, a small documentation fix, a synthetic example, or a report from another environment is welcome.
+
+1. Fork Danseo, clone your fork, and create a branch for one change.
+2. Make the change and run the relevant checks. For a documentation-only change, start with `npm ci` and `npm run check:docs`. For a behavior change, run the relevant tests and add a regression check where appropriate.
+3. Push the branch to your fork and open a pull request against `OstenHun/danseo:main`. Link the related issue if there is one. Explain why the change helps, which checks you ran, and which checks remain.
 
 ## Development setup
 
-The development default is Node 24, as specified in `.node-version`. Check runtime API changes on supported Node 22 and 24 versions. Node 26 checks provide an early compatibility signal. The [runtime policy](docs/RUNTIME_SUPPORT.md) (Korean) owns support changes and patch updates.
+The development default is Node 24, as specified in `.node-version`. Check runtime API changes on supported Node 22 and 24 versions. Node 26 checks provide an early compatibility signal. See the [runtime policy](docs/RUNTIME_SUPPORT.md) for supported versions and patch updates, and the [roadmap](TASKS.md) for project scope.
 
 ```sh
 npm ci
@@ -44,14 +63,6 @@ npm run check:docs
 `fixture-types.test.ts` and `frontend.test.ts` compare valid consumer calls with invalid arguments, commands, fields, and selections. VM checks connect external execution results to the `MapAPI` contract and verify API presence. The empty-DOM-container assertion in the no-Cytoscape fallback test applies only while that branch does not access the DOM.
 
 `ok()` checks CLI success before returning a command-specific response type. The explicit type boundary in `parseJson()` does not replace runtime JSON validation. Use `json()` and `run()` for intentionally damaged inputs and invalid requests. `required()` also checks fixture-item presence at runtime. Product card, claim, and review types come from `dist/` declarations; test-only contracts belong in `fixture-types.ts`.
-
-## Proposing changes
-
-For bugs, include your environment, command, expected and actual results, and a minimal synthetic reproduction. For features, describe the problem and the limits of the current approach. Discuss scope before introducing a dependency, file format, or external service.
-
-Keep each PR focused on one problem. Describe the change, checks actually run, their results, and remaining limits. Add a regression check for behavior changes where appropriate. Documentation-only edits do not need tests that merely repeat the wording.
-
-Use [Issues](https://github.com/OstenHun/danseo/issues) for proposals and bugs, and [Pull requests](https://github.com/OstenHun/danseo/pulls) for change review. The [task list](TASKS.md) (Korean) remains the canonical development tracker; do not manually duplicate the same status across trackers.
 
 ## Evidence and private material
 
