@@ -26,7 +26,21 @@ node ./dist/cli.js list --workspace ./examples/minimal --project demo --json
 node ./dist/cli.js export --workspace ./examples/minimal --project demo --application app-demo --include-drafts --format markdown
 ```
 
-Validation reports 3 records, 2 projects and a draft warning. `ok: true` checks structure and references. It does not verify scientific truth. Draft export requires `--include-drafts`; omitting it fails instead of silently skipping the paper. Review status remains unchanged.
+The `validate` command returns the following JSON.
+
+```json
+{
+  "ok": true,
+  "records": 3,
+  "projects": 2,
+  "warnings": [
+    "paper-synthetic: draft — source review is incomplete."
+  ],
+  "scope": "structure-and-references-only"
+}
+```
+
+`ok: true` confirms that the workspace structure and references are valid, and the warning means the paper’s source review is incomplete. Exporting this draft requires `--include-drafts` and leaves its review status unchanged.
 
 ## Connect your own workspace
 
