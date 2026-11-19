@@ -22,7 +22,7 @@ This preview connects [*Attention Is All You Need*](https://arxiv.org/abs/1706.0
 ![Node.js 22 or 24 LTS](https://img.shields.io/badge/node-22%20%7C%2024%20LTS-43853d.svg)
 ![Development preview](https://img.shields.io/badge/status-development_preview-orange.svg)
 
-[Korean README](README.ko.md) · [Documentation](docs/README.md)
+[Korean README](README.ko.md) · [Documentation](docs/README.md) · [Contribute](CONTRIBUTING.md) · [Open an issue](https://github.com/OstenHun/danseo/issues/new/choose)
 
 <a id="skill-설치"></a>
 
@@ -197,6 +197,6 @@ Source checks cover the displayed evidence. Results depend on which sources the 
 
 ## Contributing and license
 
-Bug reproductions, clearer documentation, synthetic examples, and reports from other environments are welcome. See [contributing](CONTRIBUTING.md) and [security](SECURITY.md). Keep private papers, research notes, and model logs out of public reports.
+Bug reproductions, clearer documentation, synthetic examples, and reports from other environments are welcome. Read the [first contribution guide](CONTRIBUTING.md#make-your-first-contribution) or browse [good first issues](https://github.com/OstenHun/danseo/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). Use the [security policy](SECURITY.md) to report vulnerabilities privately.
 
 Code, documentation, skills, and synthetic examples use the [MIT License](LICENSE). Papers, datasets, and user-supplied material retain their own terms. See [third-party notices](THIRD_PARTY_NOTICES.md).

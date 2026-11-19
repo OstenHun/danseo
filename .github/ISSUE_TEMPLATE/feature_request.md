@@ -4,12 +4,16 @@ about: Describe a problem and the behavior that would solve it
 title: ""
 ---
 
-<!-- Write this issue in English. -->
+<!-- Write the title and proposal in English. Name the workflow you want to improve. -->
 
-## Problem to solve
+## What are you trying to do?
 
-## Current approach and limitations
+Describe the task and where you get stuck.
 
-## Desired behavior and how to verify it
+## What have you tried?
 
-Use an example you can share publicly.
+If you have a workaround, explain what it does and where it falls short.
+
+## What would help?
+
+Describe the behavior you want and how you would tell it works. Use an example you can share publicly.
