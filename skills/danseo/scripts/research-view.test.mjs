@@ -380,6 +380,64 @@ test('relation reading separates AI references, absent evidence and source recor
     assert.equal(JSON.stringify(data), saved);
   }
 });
+for (const version of [1, 2]) for (const language of ['en', 'ko']) {
+  test('relation v' + version + ' (' + language + ') shows linked originals and local locations before claim disclosures', () => {
+    const data = fixture('paper-relations', version);
+    data.language = language;
+    const relation = data.relations[0];
+    relation.kind = 'reading-order';
+    relation.origin = 'ai';
+    relation.status = 'proposed';
+    relation.review = null;
+
+    const paper = data.papers.find(paper => paper.id === relation.source);
+    const [claim] = paper.claims;
+    const url = 'https://example.org/original.pdf?edition=2#page=7';
+    const otherPage = 'https://example.org/original.pdf?edition=2#page=12';
+    const otherPublisher = 'https://publisher.example/original.pdf#page=12';
+    data.sources.push(
+      { id: 'direct-a', title: 'Registered original', url, locator: 'Section 2', scope: 'Test' },
+      { id: 'direct-b', title: 'Registered original', url, locator: 'Table 1', scope: 'Test' },
+      { id: 'direct-page', title: 'Registered original', url: otherPage, locator: 'Appendix A', scope: 'Test' },
+      { id: 'direct-publisher', title: 'Registered original', url: otherPublisher, locator: 'Appendix A', scope: 'Test' },
+      { id: 'direct-local', title: 'Local PDF', url: null, locator: 'Appendix B', scope: 'Test' },
+      { id: 'direct-local-same', title: 'Registered original', url: null, locator: 'Appendix A', scope: 'Test' },
+      { id: 'unrelated', title: 'Unrelated paper', url: 'https://example.org/unrelated', locator: 'Section 7', scope: 'Test' }
+    );
+    claim.evidence = ['direct-a', 'direct-b', 'direct-page', 'direct-publisher', 'direct-local', 'direct-local-same'];
+    relation.evidence_refs = [{ paper_id: paper.id, claim_id: claim.id }];
+    for (const source of data.sources.slice(-7)) {
+      source.verification = 'not-checked';
+    }
+    validateCandidate(data);
+
+    const options = { script: new URL('../assets/research-view.js', import.meta.url), elementIds, navigation: 'items', prefix: '#paper=', title: 'item-title' };
+    const view = openView(data, '#relation=' + relation.id, options);
+    const sourceEvidence = view.elements.get('content').children[2];
+    const [heading, advisory, reading, firstClaim] = sourceEvidence.children;
+    assert.equal(heading.tagName, 'H3');
+    assert.match(advisory.textContent, language === 'ko' ? /이 주장을 바탕으로 추천한 연결/ : /reading suggestion/);
+    assert.equal(reading.tagName, 'DIV');
+    const links = reading.children.filter(item => item.tagName === 'A');
+    assert.deepEqual(links.map(link => link.href), [url, otherPage, otherPublisher]);
+    for (const link of links) {
+      assert.equal(link.target, '_blank');
+      assert.equal(link.rel, 'noopener noreferrer');
+    }
+    assert.match(links[0].attributes.get('aria-label'), /Registered original.*Section 2 \/ Table 1/);
+    assert.match(links[1].attributes.get('aria-label'), /^Registered original.*Appendix A/);
+    assert.ok(links[1].attributes.get('aria-label').includes(otherPage));
+    assert.ok(links[2].attributes.get('aria-label').includes(otherPublisher));
+    assert.match(links[1].attributes.get('aria-label'), language === 'ko' ? /새 탭$/ : /new tab$/);
+    assert.ok(reading.textContent.includes(otherPage));
+    assert.ok(reading.textContent.includes(otherPublisher));
+    assert.ok(!reading.textContent.includes(url));
+    assert.match(reading.textContent, /Section 2 \/ Table 1/);
+    assert.match(reading.textContent, /Local PDF.*Appendix B/);
+    assert.doesNotMatch(reading.textContent, /Unrelated paper|null/);
+    assert.match(firstClaim.textContent, new RegExp(claim.id));
+  });
+}
 for (const mode of ['paper-relations', 'project-application']) for (const version of [1, 2]) {
   test(`${mode} v${version}: paper opens exact registered URLs and retains all locations before collapsed evidence`, () => {
     const data = fixture(mode, version), paper = data.papers[0];

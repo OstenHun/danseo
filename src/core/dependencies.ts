@@ -3,17 +3,31 @@ import { createHash } from 'node:crypto';
 import { resolve, dirname } from 'node:path';
 import type { Card } from './index.js';
 
-// Object key order and the order of locator/ref sets do not change their meaning.
-export function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>`${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
-  return JSON.stringify(value) ?? 'null';
-}
+import { canonical, claimFingerprint } from './claim-state.js';
+
+export { canonical, claimFingerprint };
+
 export const fingerprint = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
-// Conditions, limits and extension fields are reviewed meaning too. Old narrow snapshots fail closed.
-export { claimFingerprint } from './claim-state.js';
-export type SourceState = { version: string | null; url: string | null; pdf_sha256: string | null; text_sha256: string | null; available: boolean };
-export const sourceFingerprint = (source: {version?:string|null;url?:string|null;pdf_sha256?:string|null;text_sha256?:string|null}) => fingerprint({version:source.version??null,url:source.url??null,pdf_sha256:source.pdf_sha256??null,text_sha256:source.text_sha256??null});
+export type SourceState = {
+  version: string | null;
+  url: string | null;
+  pdf_sha256: string | null;
+  text_sha256: string | null;
+  available: boolean;
+};
+
+export const sourceFingerprint = (source: {
+  version?: string | null;
+  url?: string | null;
+  pdf_sha256?: string | null;
+  text_sha256?: string | null;
+}) => fingerprint({
+  version: source.version ?? null,
+  url: source.url ?? null,
+  pdf_sha256: source.pdf_sha256 ?? null,
+  text_sha256: source.text_sha256 ?? null
+});
+
 async function hashFile(path: string) {
   const digest=createHash('sha256');
   for await (const chunk of createReadStream(path)) digest.update(chunk);
@@ -29,6 +43,29 @@ export async function readSourceState(card: Card): Promise<SourceState> {
   } catch { state.available=false; }
   return state;
 }
-export type RelationContent = {id:string;source:string;target:string;kind:string;origin:string;rationale:string;evidence_refs:{paper_id:string;claim_id:string}[]};
-export type RelationDependencies = {format:'relation-dependencies-1';relation_sha256:string;sources:{paper_id:string;sha256:string}[];claims:{paper_id:string;claim_id:string;sha256:string}[]};
-export const relationFingerprint = (r:RelationContent) => fingerprint({id:r.id,source:r.source,target:r.target,kind:r.kind,origin:r.origin,rationale:r.rationale,evidence_refs:r.evidence_refs.map(canonical).sort()});
+export type RelationContent = {
+  id: string;
+  source: string;
+  target: string;
+  kind: string;
+  origin: string;
+  rationale: string;
+  evidence_refs: { paper_id: string; claim_id: string }[];
+};
+export type RelationDependencies = {
+  format: 'relation-dependencies-1';
+  relation_sha256: string;
+  sources: { paper_id: string; sha256: string }[];
+  claims: { paper_id: string; claim_id: string; sha256: string }[];
+};
+
+export const relationFingerprint = (relation: RelationContent) => fingerprint({
+  id: relation.id,
+  source: relation.source,
+  target: relation.target,
+  kind: relation.kind,
+  origin: relation.origin,
+  rationale: relation.rationale,
+  // Evidence references form a set. Ordinary arrays keep their original order.
+  evidence_refs: relation.evidence_refs.map(canonical).sort()
+});

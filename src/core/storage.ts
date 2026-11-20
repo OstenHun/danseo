@@ -1,4 +1,5 @@
-import { open, lstat, realpath, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { open, lstat, realpath, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute, sep } from 'node:path';
 import { DanseoError } from './index.js';
 
@@ -26,4 +27,15 @@ export async function writableFile(workspace: string, file: string) {
     throw new DanseoError('EDIT_PATH', 'Only regular files inside the workspace can be written. Use your existing editor for external paths or linked files.');
   }
   return path;
+}
+
+// The caller holds the topic lock and validates the target before replacing it.
+export async function replaceTopicJson(root: string, path: string, record: unknown) {
+  const temporary = join(root, `.topic-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temporary, JSON.stringify(record, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true });
+  }
 }

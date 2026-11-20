@@ -216,6 +216,10 @@ export function validateCandidate(data) {
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export function renderCandidate(candidate, { complete = false, completionScope = null } = {}) {
   validateCandidate(candidate);
+  return renderValidatedCandidate(candidate, complete, completionScope);
+}
+
+function renderValidatedCandidate(candidate, complete = false, completionScope = null) {
   if (complete) text(completionScope, 'completion scope');
   const { style, script: assetsScript, json } = inlineAssets(candidate, [path.join(directory, '../assets/reader-base.css'), path.join(directory, '../assets/research-view.css'), path.join(directory, '../assets/graph-presentation.css')], [path.join(directory, '../assets/cytoscape.min.js'), path.join(directory, '../assets/graph-presentation.js'), path.join(directory, '../assets/research-map.js'), path.join(directory, '../assets/research-view.js')], 1);
   const script = languageScript(candidate.language) + assetsScript;
@@ -236,6 +240,6 @@ export function renderCandidate(candidate, { complete = false, completionScope =
 }
 export const run = args => runView(args, validateCandidate, data => {
   if (data.mode === 'paper-relations' && args[1] === '--out') fail('Paper relation output requires render-verified-research-view.mjs --evidence; --check here is structure-only');
-  return renderCandidate(data);
+  return renderValidatedCandidate(data);
 }, data => ({ representation: data.mode, papers: data.papers.length, applications: data.applications?.length ?? 0, relations: data.relations?.length ?? 0 }));
 cliEntry(import.meta.url, run);
