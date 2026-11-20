@@ -44,14 +44,17 @@
             label: '', origin: 'ai', state: 'proposed' } });
         });
       });
-      data.relations.forEach((relation, i) => {
-        const peerIndex = data.relations.slice(0, i).filter(other => other.source === relation.source && other.target === relation.target).length;
+      const edgesByDirection = new Map<string, number>();
+      for (const relation of data.relations) {
+        const direction = JSON.stringify([relation.source, relation.target]);
+        const peerIndex = edgesByDirection.get(direction) ?? 0;
+        edgesByDirection.set(direction, peerIndex + 1);
         elements.push({ group: 'edges', data: {
           id: 'relation:' + relation.id, source: 'paper:' + relation.source, target: 'paper:' + relation.target,
           type: 'relation', recordId: relation.id, label: (kind[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label,
           bend: 180 + 240 * peerIndex, label_offset_y: peerIndex % 2 ? 20 : -20,
           origin: relation.origin, state: relation.status } });
-      });
+      }
     } else if (scene === 'context') {
       if (!data.project_context) throw new Error('Project context is missing.');
       data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));

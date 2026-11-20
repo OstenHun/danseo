@@ -66,7 +66,7 @@
     }
   }
   function appendPaperSources(parent, paper) {
-    appendSourceLinks(parent, paper.title, paper.claims.flatMap(claim => claim.evidence));
+    appendSourceLinks(parent, paper.claims.flatMap(claim => claim.evidence), { paperTitle: paper.title });
   }
   function appendReadingReason(parent, paper) {
     if (!paper.reading_reason) return;
@@ -187,22 +187,47 @@
     }
     return guide;
   }
-  function appendSourceLinks(parent, paperTitle, evidenceIds) {
-    const linked = new Map();
+  function appendSourceLinks(parent, evidenceIds, { paperTitle = null } = {}) {
+    const relationEvidence = paperTitle === null;
+    const bySource = new Map();
     for (const id of evidenceIds) {
       const source = sources.get(id);
-      if (source.url !== null) {
-        if (!linked.has(source.url)) linked.set(source.url, { source, locators: new Set() });
-        linked.get(source.url).locators.add(source.locator);
+      if (source.url === null && !relationEvidence) continue;
+      const key = source.url ?? id;
+      if (!bySource.has(key)) bySource.set(key, { source, locators: new Set() });
+      bySource.get(key).locators.add(source.locator);
+    }
+    if (!bySource.size) return;
+
+    const locations = [...bySource.values()].map(({ source, locators }) => {
+      const location = t('Read at: {locations}', { locations: [...locators].join(' / ') });
+      return { source, location, name: source.title + ' · ' + location };
+    });
+    const linkNameCounts = new Map();
+    if (relationEvidence) {
+      for (const { source, name } of locations) {
+        if (source.url !== null) linkNameCounts.set(name, (linkNameCounts.get(name) ?? 0) + 1);
       }
     }
-    if (!linked.size) return;
-    const reading = section(t('Read the paper'), 'paper-source-links');
-    for (const { source, locators } of linked.values()) {
-      const link = node('a', 'map-item', t('Open original source ↗'));
-      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-      link.setAttribute('aria-label', t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title }));
-      reading.append(link, node('p', 'section-note', t('Read at: {locations}', { locations: [...locators].join(' / ') })));
+    const reading = relationEvidence
+      ? node('div', 'paper-source-links')
+      : section(t('Read the paper'), 'paper-source-links');
+    for (const { source, location, name } of locations) {
+      const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
+      if (source.url === null) {
+        reading.append(node('p', '', source.title));
+      } else {
+        const label = relationEvidence ? source.title + ' ↗' : t('Open original source ↗');
+        const link = node('a', 'map-item', label);
+        link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        const accessibleName = relationEvidence
+          ? name + (showAddress ? ' · ' + source.url : '') + t(' · open original source · new tab')
+          : t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title });
+        link.setAttribute('aria-label', accessibleName);
+        reading.append(link);
+      }
+      reading.append(node('p', 'section-note', location));
+      if (showAddress) reading.append(node('p', 'section-note', source.url));
     }
     parent.append(reading);
   }
@@ -324,7 +349,7 @@
     for (const reading of background.readings) {
       const block = section(t('Representative reading · ') + paperName(reading.paper_id));
       block.append(p(reading.rationale), localLink('background-paper', id + ':' + reading.paper_id, t('Read selected background · ') + paperName(reading.paper_id), 'map-item'));
-      appendSourceLinks(block, papers.get(reading.paper_id).title, reading.evidence);
+      appendSourceLinks(block, reading.evidence, { paperTitle: papers.get(reading.paper_id).title });
       for (const sourceId of reading.evidence) { const source = sources.get(sourceId); if (source.url === null) block.append(p(t('Read at: ') + source.locator)); }
       evidence(block, reading.evidence);
       block.append(p(t('Return and compare: ') + reading.return_question)); content.append(block);
@@ -454,9 +479,19 @@
     const direction = section(t('Relation direction')); direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target))); content.append(direction);
     const reason = section(t('Why these records are connected')); reason.append(p(relation.rationale)); content.append(reason);
     const refs = section(t('Source evidence'));
-    if (relation.origin === 'ai' && relation.evidence_refs.length) refs.append(node('p', 'section-note', t('These claims inform a reading suggestion, not a source-confirmed relationship.')));
-    if (relation.evidence_refs.length) claims(refs, relation.evidence_refs);
-    else refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This suggestion has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
+    if (relation.evidence_refs.length) {
+      if (relation.origin === 'ai') {
+        refs.append(node('p', 'section-note', t('These claims inform a reading suggestion, not a source-confirmed relationship.')));
+      }
+      const evidenceIds = relation.evidence_refs.flatMap(({ paper_id, claim_id }) => {
+        const paper = papers.get(paper_id);
+        return paper.claims.find(claim => claim.id === claim_id).evidence;
+      });
+      appendSourceLinks(refs, evidenceIds);
+      claims(refs, relation.evidence_refs);
+    } else {
+      refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This suggestion has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
+    }
     content.append(refs);
     const history = node('details', 'source'); history.append(node('summary', '', t('Relation authorship and source-check record')), p(relation.created_by)); if (relation.review) history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at)); content.append(history);
     selectedType = 'relation'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Selected relation matches the map'); highlight('relation', id); byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent }); if (focus) byId('item-title').focus(); return true;

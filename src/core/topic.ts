@@ -1,10 +1,9 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { Ajv } from 'ajv';
 import { DanseoError } from './index.js';
-import { exists, workspaceLock, writableFile } from './storage.js';
+import { exists, replaceTopicJson, workspaceLock, writableFile } from './storage.js';
 
 type Paper = {
   key: string; title: string; authors: string; year: number; source: string;
@@ -13,6 +12,7 @@ type Paper = {
 type Search = { query: string; papers: Paper[] };
 type Choice = { key: string; round: number; note?: string };
 type Topic = { version: 1; question: string; searches: Search[]; selected: Choice[] };
+type CatalogEntry = { number: number; round: number; paper: Paper };
 export type SelectedPaper = Paper & { number: number; round: number; note?: string };
 
 const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
@@ -65,7 +65,7 @@ async function readJson(file: string): Promise<unknown> {
 
 // A number is assigned on first appearance. The selection points to the edition shown when chosen.
 function overview(topic: Topic) {
-  const catalog = new Map<string, { number: number; round: number; paper: Paper }>();
+  const catalog = new Map<string, CatalogEntry>();
   const sourceKeys = new Map<string, string>();
   const searches = topic.searches.map((search, index) => {
     const seen = new Set<string>();
@@ -88,6 +88,42 @@ function overview(topic: Topic) {
   });
   if (new Set(selected.map(row => row.key)).size !== selected.length) invalid('Duplicate selection records.');
   return { catalog, result: { question: topic.question, searches, selected } };
+}
+
+function updateSelection(
+  topic: Topic,
+  catalog: ReadonlyMap<string, CatalogEntry>,
+  action: 'select' | 'unselect',
+  { ids, note, round: roundInput }: { ids?: string; note?: string; round?: string },
+) {
+  if (!ids || !/^\d+(,\d+)*$/.test(ids) || (note !== undefined && !note.trim())) invalid(topicHelp);
+
+  const round = roundInput === undefined ? undefined : Number(roundInput);
+  if (round !== undefined && (!Number.isSafeInteger(round) || round < 1 || round > topic.searches.length)) {
+    invalid('The search round is not registered.');
+  }
+
+  const byNumber = new Map([...catalog.values()].map(entry => [entry.number, entry]));
+  for (const number of new Set(ids.split(',').map(Number))) {
+    const entry = byNumber.get(number);
+    if (!entry) invalid(`Unregistered paper number: ${number}`);
+
+    const { key, edition, source } = entry.paper;
+    if (round !== undefined && !topic.searches[round - 1]!.papers.some(paper => paper.key === key)) {
+      invalid(`Paper number absent from the specified round: ${number}`);
+    }
+    if (action === 'unselect') {
+      topic.selected = topic.selected.filter(choice => choice.key !== key);
+      continue;
+    }
+    if (topic.selected.some(choice => choice.key === key)) continue;
+
+    if (round === undefined && topic.searches.some(search => search.papers.some(paper =>
+      paper.key === key && (paper.edition !== edition || paper.source !== source)))) {
+      invalid(`This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`);
+    }
+    topic.selected.push({ key, round: round ?? entry.round, note });
+  }
 }
 
 async function readTopic(root: string): Promise<Topic> {
@@ -163,31 +199,10 @@ async function executeTopic(args: string[]) {
       if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
     }
     if (action === 'select' || action === 'unselect') {
-      if (!values.ids || !/^\d+(,\d+)*$/.test(values.ids) || (values.note !== undefined && !values.note.trim())) invalid(topicHelp);
-      const round = values.round === undefined ? undefined : Number(values.round);
-      if (round !== undefined && (!Number.isSafeInteger(round) || round < 1 || round > topic.searches.length))
-        invalid('The search round is not registered.');
-      const byNumber = new Map([...current.catalog.values()].map(row => [row.number, row]));
-      for (const number of new Set(values.ids.split(',').map(Number))) {
-        const row = byNumber.get(number);
-        if (!row) invalid(`Unregistered paper number: ${number}`);
-        if (round !== undefined && !topic.searches[round - 1]!.papers.some(paper => paper.key === row.paper.key))
-          invalid(`Paper number absent from the specified round: ${number}`);
-        if (action === 'unselect') topic.selected = topic.selected.filter(choice => choice.key !== row.paper.key);
-        else if (!topic.selected.some(choice => choice.key === row.paper.key)) {
-          if (round === undefined && topic.searches.some(search => search.papers.some(paper =>
-            paper.key === row.paper.key && (paper.edition !== row.paper.edition || paper.source !== row.paper.source))))
-            invalid(`This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`);
-          topic.selected.push({ key: row.paper.key, round: round ?? row.round, note: values.note });
-        }
-      }
+      updateSelection(topic, current.catalog, action, values);
     }
     const { result } = overview(topic);
-    const temp = join(root, `.topic-${randomUUID()}.tmp`);
-    try {
-      await writeFile(temp, JSON.stringify(topic, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
-      await rename(temp, path);
-    } finally { await rm(temp, { force: true }); }
+    await replaceTopicJson(root, path, topic);
     console.log(JSON.stringify(result, null, 2));
   } finally { await unlock?.(); }
 }

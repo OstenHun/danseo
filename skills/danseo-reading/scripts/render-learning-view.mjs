@@ -54,6 +54,10 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 
 export function renderCandidate(candidate) {
   validateCandidate(candidate);
+  return renderValidatedCandidate(candidate);
+}
+
+function renderValidatedCandidate(candidate) {
   const { style, script: assetsScript, json } = inlineAssets(candidate, [path.join(directory, '../assets/learning-view.css')], path.join(directory, '../assets/learning-view.js'), 1);
   const language = candidate.language ?? 'ko'; // Preserve existing learning candidates.
   const script = languageScript(language) + assetsScript;
@@ -72,5 +76,5 @@ export function renderCandidate(candidate) {
 <p class="sr-only" id="announcement" aria-live="polite"></p><script type="application/json" id="candidate">${json}</script><script>${script}</script></body></html>`;
 }
 
-export const run = args => runView(args, validateCandidate, renderCandidate, data => ({ representation: data.view, concepts: data.concepts.length, relations: data.relations.length }));
+export const run = args => runView(args, validateCandidate, renderValidatedCandidate, data => ({ representation: data.view, concepts: data.concepts.length, relations: data.relations.length }));
 cliEntry(import.meta.url, run);

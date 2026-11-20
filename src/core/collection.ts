@@ -4,7 +4,7 @@ import { isAbsolute, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Ajv } from 'ajv';
 import { DanseoError } from './index.js';
-import { exists, workspaceLock, writableFile } from './storage.js';
+import { exists, replaceTopicJson, workspaceLock, writableFile } from './storage.js';
 import { selectedTopic, type SelectedPaper } from './topic.js';
 import { editionKey, pdfBytes, sha256, verifyPdf, type Edition } from './source-pdf.js';
 
@@ -65,13 +65,6 @@ async function readBook(root: string, path: string): Promise<Book> {
     }
   }
   return data;
-}
-async function saveBook(root: string, path: string, book: Book) {
-  const temp = join(root, `.topic-${randomUUID()}.tmp`);
-  try {
-    await writeFile(temp, JSON.stringify(book, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
-    await rename(temp, path);
-  } finally { await rm(temp, { force: true }); }
 }
 async function matchesHash(path: string, hash: string) {
   try { return await realpath(path) === path && sha256(await pdfBytes(path)) === hash; }
@@ -232,7 +225,7 @@ export async function runCollection([action = '', ...args]: string[]) {
           row.failure = { source: v.url ?? source, reason: (error as Error).message };
         }
       }
-      try { await saveBook(root, path, book); }
+      try { await replaceTopicJson(root, path, book); }
       catch (error) { if (created) await rm(created, { force: true }); throw error; }
     }
     console.log(JSON.stringify(await report(root, book, topic), null, 2));

@@ -211,22 +211,69 @@ export async function buildBundle(ws: Workspace, projectId: string, appId: strin
   };
 }
 
+function fenceBundleContent(content: string, language: 'markdown' | 'text') {
+  const fence = '`'.repeat(Math.max(3, ...[...content.matchAll(/`+/g)].map(run => run[0].length + 1)));
+  return `${fence}${language}\n${content}${content.endsWith('\n') ? '' : '\n'}${fence}\n`;
+}
+
+function renderBundleMarkdown(bundle: Awaited<ReturnType<typeof buildBundle>>) {
+  const records = bundle.records.map(record => [
+    `## ${record.id}`,
+    '',
+    `Source: ${JSON.stringify(record.source_path)}`,
+    `Relative links base: ${JSON.stringify(record.source_directory)}`,
+    `SHA-256: ${record.sha256}`,
+    '',
+    fenceBundleContent(record.content, 'markdown'),
+  ].join('\n'));
+  const sources = bundle.source_texts.map(source => {
+    const pages = source.pages.map(page => [
+      `### PDF page ${page.page} (1-based)`,
+      '',
+      `SHA-256: ${page.sha256}`,
+      '',
+      fenceBundleContent(page.text, 'text'),
+    ].join('\n'));
+    return [
+      `## Source text: ${source.paper_id}`,
+      '',
+      `URL: ${source.source_url}`,
+      `Version: ${source.version}`,
+      `PDF SHA-256 (extraction record): ${source.pdf_sha256}`,
+      `Text source: ${JSON.stringify(source.source_path)}`,
+      `Text SHA-256: ${source.sha256}`,
+      `Extractor: ${source.extractor}`,
+      source.notice,
+      '',
+      pages.join('\n'),
+    ].join('\n');
+  });
+  const question = bundle.question;
+  const warnings = bundle.warnings.join('; ') || 'none (source-check status is declared by the recorder)';
+  return [
+    '# Project evidence bundle',
+    '',
+    bundle.notice,
+    '',
+    `Project: ${bundle.project.id}`,
+    `Warnings: ${warnings}`,
+    '',
+    '## Current question (selected section)',
+    '',
+    `Source: ${JSON.stringify(question.source_path)}`,
+    `Section: ${JSON.stringify(question.section)}`,
+    `Lines: ${question.start_line}-${question.end_line}`,
+    `Source SHA-256: ${question.source_sha256}`,
+    `Excerpt SHA-256: ${question.sha256}`,
+    '',
+    fenceBundleContent(question.content, 'text'),
+    records.join('\n'),
+    sources.join('\n'),
+  ].join('\n');
+}
+
 export function renderBundle(bundle: Awaited<ReturnType<typeof buildBundle>>, format: string): string {
-  let result: string;
-  if (format === 'json') result = JSON.stringify(bundle, null, 2) + '\n';
-  else {
-    const blocks = bundle.records.map(record => {
-      const fence = '`'.repeat(Math.max(3, ...[...record.content.matchAll(/`+/g)].map(m => m[0].length + 1)));
-      return `## ${record.id}\n\nSource: ${JSON.stringify(record.source_path)}\nRelative links base: ${JSON.stringify(record.source_directory)}\nSHA-256: ${record.sha256}\n\n${fence}markdown\n${record.content}${record.content.endsWith('\n') ? '' : '\n'}${fence}\n`;
-    });
-    const quote = (content: string) => {
-      const fence = '`'.repeat(Math.max(3, ...[...content.matchAll(/`+/g)].map(m => m[0].length + 1)));
-      return `${fence}text\n${content}${content.endsWith('\n') ? '' : '\n'}${fence}\n`;
-    };
-    const q = bundle.question;
-    const sources = bundle.source_texts.map(s => `## Source text: ${s.paper_id}\n\nURL: ${s.source_url}\nVersion: ${s.version}\nPDF SHA-256 (extraction record): ${s.pdf_sha256}\nText source: ${JSON.stringify(s.source_path)}\nText SHA-256: ${s.sha256}\nExtractor: ${s.extractor}\n${s.notice}\n\n` + s.pages.map(p => `### PDF page ${p.page} (1-based)\n\nSHA-256: ${p.sha256}\n\n${quote(p.text)}`).join('\n')).join('\n');
-    result = `# Project evidence bundle\n\n${bundle.notice}\n\nProject: ${bundle.project.id}\nWarnings: ${bundle.warnings.join('; ') || 'none (source-check status is declared by the recorder)'}\n\n## Current question (selected section)\n\nSource: ${JSON.stringify(q.source_path)}\nSection: ${JSON.stringify(q.section)}\nLines: ${q.start_line}-${q.end_line}\nSource SHA-256: ${q.source_sha256}\nExcerpt SHA-256: ${q.sha256}\n\n${quote(q.content)}\n${blocks.join('\n')}\n${sources}`;
-  }
+  const result = format === 'json' ? JSON.stringify(bundle, null, 2) + '\n' : renderBundleMarkdown(bundle);
   if (Buffer.byteLength(result, 'utf8') > MAX_BUNDLE_BYTES) throw new DanseoError('BUNDLE_TOO_LARGE', 'The bundle exceeds 256 KiB. No content was truncated.');
   return result;
 }

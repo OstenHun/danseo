@@ -10,7 +10,7 @@ import { selectedTopic, type SelectedPaper } from './topic.js';
 import { exists, workspaceLock, writableFile } from './storage.js';
 import { sha256 } from './source-pdf.js';
 import { canonical } from './claim-state.js';
-import { loadClaimReviews } from './reviews.js';
+import { loadClaimReviews, type ClaimReview } from './reviews.js';
 
 type Source = Awaited<ReturnType<typeof sourceCollection>>['ready'][number];
 type Revision = { round: number; edition: string; pdf_sha256: string; workspace: string; paper_id: string; answered: boolean; comparison_claims: string[] };
@@ -147,48 +147,110 @@ ${input.remaining_questions}
 ${input.resume}\n`;
 }
 
+function comparisonHoldReason(warnings: string[], claimExists: boolean, reviews: ClaimReview[], card: Card) {
+  if (warnings.length) return 'Check review-record integrity again.';
+  if (!claimExists) return 'The claim was deleted.';
+
+  // Older reviews cannot replace a stale or negative latest verdict.
+  const newest = reviews[0];
+  if (!newest) return 'No source-check record';
+  const newestTime = Date.parse(newest.reviewed_at);
+  const conflictingReview = reviews.slice(1).some(review =>
+    Date.parse(review.reviewed_at) === newestTime && canonical(review) !== canonical(newest)
+  );
+  if (conflictingReview) return 'Multiple reviews have the same timestamp.';
+  if (newest.state !== 'current') return newest.stale_reason;
+  if (newest.verdict !== 'supported') return newest.verdict;
+  if (newest.required_changes.length) return 'Required review fixes remain.';
+  if (card.data.type === 'paper' && card.data.review.status === 'needs-recheck') return 'Paper needs rechecking';
+}
+
 export async function comparisonInput(root: string) {
   const collection = await sourceCollection(root);
-  const included = [], held = [];
-  const papers: { key: string; number: number; title: string; paper_id?: string; workspace?: string; card_sha256?: string;
-    document?: string; document_sha256?: string; source?: Source['file'] }[] = [];
+  const included = [];
+  const held = [];
+  const papers: {
+    key: string;
+    number: number;
+    title: string;
+    paper_id?: string;
+    workspace?: string;
+    card_sha256?: string;
+    document?: string;
+    document_sha256?: string;
+    source?: Source['file'];
+  }[] = [];
   for (const row of collection.rows) {
     const paper = row.paper;
     const entry: typeof papers[number] = { key: paper.key, number: paper.number, title: paper.title };
     papers.push(entry);
+    const documentPath = join(root, nameFor(paper.key));
     let doc: Document | undefined;
-    try { doc = await readDocument(root, paper.key); }
-    catch (error) { held.push({ key: paper.key, document: join(root, nameFor(paper.key)), reason: (error as Error).message }); continue; }
-    if (!doc) { held.push({ key: paper.key, reason: 'No analysis document' }); continue; }
+    try {
+      doc = await readDocument(root, paper.key);
+    } catch (error) {
+      held.push({ key: paper.key, document: documentPath, reason: (error as Error).message });
+      continue;
+    }
+    if (!doc) {
+      held.push({ key: paper.key, reason: 'No analysis document' });
+      continue;
+    }
     const revision = currentRevision(doc);
     const source = row.ready ? { paper, file: row.ready } : undefined;
-    if (!source || !sameSource(revision, source)) { held.push({ key: paper.key, reason: 'Recheck the source, edition and selection round' }); continue; }
+    if (!source || !sameSource(revision, source)) {
+      held.push({ key: paper.key, reason: 'Recheck the source, edition and selection round' });
+      continue;
+    }
     let bound: Awaited<ReturnType<typeof boundPaper>>;
-    try { bound = await boundPaper(revision, source); }
-    catch (error) { held.push({ key: paper.key, reason: (error as Error).message }); continue; }
+    try {
+      bound = await boundPaper(revision, source);
+    } catch (error) {
+      held.push({ key: paper.key, reason: (error as Error).message });
+      continue;
+    }
     const { card, workspace } = bound;
-    Object.assign(entry, { paper_id: revision.paper_id, workspace: revision.workspace, card_sha256: card.sha256,
-      document: join(root, nameFor(paper.key)), document_sha256: doc.sha256, source: source.file });
+    Object.assign(entry, {
+      paper_id: revision.paper_id,
+      workspace: revision.workspace,
+      card_sha256: card.sha256,
+      document: documentPath,
+      document_sha256: doc.sha256,
+      source: source.file
+    });
     const reviews = await loadClaimReviews(workspace, card, source.file.sha256);
     const claims = card.data.type === 'paper' ? card.data.claims ?? [] : [];
-    if (!revision.comparison_claims.length) held.push({ key: paper.key, reason: 'No candidate claims for comparison' });
+    if (!revision.comparison_claims.length) {
+      held.push({ key: paper.key, reason: 'No candidate claims for comparison' });
+    }
     for (const claimId of revision.comparison_claims) {
       const claim = claims.find(c => c.id === claimId);
-      // The newest recorded verdict wins, including stale or negative verdicts.
       const entries = reviews.claims[claimId] ?? [];
-      const review = entries[0];
-      const tied = review && entries.slice(1).some(entry => Date.parse(entry.reviewed_at) === Date.parse(review.reviewed_at) && canonical(entry) !== canonical(review));
-      const reason = reviews.warnings.length ? 'Check review-record integrity again.' : !claim ? 'The claim was deleted.' : tied ? 'Multiple reviews have the same timestamp.'
-        : !review ? 'No source-check record' : review.state !== 'current' ? review.stale_reason
-        : review.verdict !== 'supported' ? review.verdict : review.required_changes.length ? 'Required review fixes remain.'
-        : card.data.type === 'paper' && card.data.review.status === 'needs-recheck' ? 'Paper needs rechecking' : undefined;
-      if (reason) { held.push({ key: paper.key, paper_id: revision.paper_id, claim_id: claimId, reason, warnings: reviews.warnings }); continue; }
-      included.push({ key: paper.key, paper_id: revision.paper_id, claim_id: claimId, claim,
+      const reason = comparisonHoldReason(reviews.warnings, Boolean(claim), entries, card);
+      if (reason) {
+        held.push({ key: paper.key, paper_id: revision.paper_id, claim_id: claimId, reason, warnings: reviews.warnings });
+        continue;
+      }
+      included.push({
+        key: paper.key,
+        paper_id: revision.paper_id,
+        claim_id: claimId,
+        claim,
         source: { edition: source.file.edition, path: source.file.path, sha256: source.file.sha256 },
-        document: join(root, nameFor(paper.key)), document_sha256: doc.sha256, review });
+        document: documentPath,
+        document_sha256: doc.sha256,
+        review: entries[0]
+      });
     }
   }
-  return { version: 1, question: collection.question, papers, claims: included, held, scope: 'current-supported-claims-only; no-comparison-relations' };
+  return {
+    version: 1,
+    question: collection.question,
+    papers,
+    claims: included,
+    held,
+    scope: 'current-supported-claims-only; no-comparison-relations'
+  };
 }
 
 export async function runAnalysis([action = '', ...args]: string[]) {

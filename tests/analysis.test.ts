@@ -105,34 +105,64 @@ test('concurrent memo edits, bad references, and malformed documents preserve or
 });
 
 test('only current source-supported candidates pass; conditions, statement and locators invalidate review', t => {
-  const f = setup(t); f.save(f.open()); f.review();
-  let result = f.ok(f.topic, 'comparison-input');
-  assert.deepEqual(result.claims.map(x => x.claim_id), ['c1']);
-  assert.equal(required(result.held.find(x => x.claim_id === 'c2')).reason, 'No source-check record');
-  const c = required(f.a.data.claims[0]), original = structuredClone(c);
-  for (const change of [() => c.statement += ' changed', () => c.conditions += ' changed', () => required(c.locators[0]).start = required(c.locators[0]).end = 2]) {
-    change(); f.a.save();
-    result = f.ok(f.topic, 'comparison-input'); assert.equal(result.claims.length, 0);
-    assert.match(required(result.held.find(x => x.claim_id === 'c1')).reason, /differ/);
-    Object.assign(c, structuredClone(original)); f.a.save();
+  const fixture = setup(t);
+  fixture.save(fixture.open());
+  fixture.review();
+
+  const initial = fixture.ok(fixture.topic, 'comparison-input');
+  assert.deepEqual(initial.claims.map(claim => claim.claim_id), ['c1']);
+  assert.equal(required(initial.held.find(claim => claim.claim_id === 'c2')).reason, 'No source-check record');
+
+  const claim = required(fixture.a.data.claims[0]);
+  const reviewedClaim = structuredClone(claim);
+  const changes = [
+    { field: 'statement', apply: () => { claim.statement += ' changed'; } },
+    { field: 'conditions', apply: () => { claim.conditions += ' changed'; } },
+    {
+      field: 'locator',
+      apply: () => {
+        const locator = required(claim.locators[0]);
+        locator.start = 2;
+        locator.end = 2;
+      }
+    }
+  ];
+
+  for (const { field, apply } of changes) {
+    apply();
+    fixture.a.save();
+
+    const report = fixture.ok(fixture.topic, 'comparison-input');
+    assert.equal(report.claims.length, 0, field);
+    assert.match(required(report.held.find(claim => claim.claim_id === 'c1')).reason, /differ/, field);
+
+    Object.assign(claim, structuredClone(reviewedClaim));
+    fixture.a.save();
   }
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
-  appendFileSync(f.a.data.source.path, '\nchanged');
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 1);
+
+  appendFileSync(fixture.a.data.source.path, '\nchanged');
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 0);
 });
 
 test('latest negative, same-time conflict, pending required changes and damaged review do not revive older support', t => {
-  const f = setup(t); f.save(f.open()); f.review();
-  f.review(f.a, 'contradicted', '2026-11-10T13:00:00Z');
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
-  f.review(f.a, 'supported', '2026-11-10T22:00:00+09:00');
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
-  f.review(f.a, 'supported', '2026-11-10T14:00:00Z', ['Check units']);
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
-  const r = f.review(f.a, 'supported', '2026-11-10T15:00:00Z');
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 1);
-  appendFileSync(r.resultPath, 'broken');
-  assert.equal(f.ok(f.topic, 'comparison-input').claims.length, 0);
+  const fixture = setup(t);
+  fixture.save(fixture.open());
+  fixture.review();
+
+  fixture.review(fixture.a, 'contradicted', '2026-11-10T13:00:00Z');
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 0, 'latest verdict is negative');
+
+  fixture.review(fixture.a, 'supported', '2026-11-10T22:00:00+09:00');
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 0, 'the two reviews represent the same instant');
+
+  fixture.review(fixture.a, 'supported', '2026-11-10T14:00:00Z', ['Check units']);
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 0, 'required fixes remain');
+
+  const latest = fixture.review(fixture.a, 'supported', '2026-11-10T15:00:00Z');
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 1);
+  appendFileSync(latest.resultPath, 'broken');
+  assert.equal(fixture.ok(fixture.topic, 'comparison-input').claims.length, 0, 'the registered result is damaged');
 });
 
 test('review source hash, input hash, and exact reviewed claim set must agree', t => {

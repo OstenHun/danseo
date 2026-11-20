@@ -32,6 +32,8 @@ export const answer = (overrides: Partial<FixtureAnswer> = {}): FixtureAnswer =>
   interpretation: 'AI interpretation: this is limited to the reported test set.', remaining_questions: 'Other model sizes are unknown.',
   resume: 'PDF p.1, Table 1 footnote', claim_ids: ['c1', 'c2'], comparison_claims: ['c1', 'c2'], ...overrides });
 
+export const comparisonTopicQuestion = 'How did the two studies evaluate results?';
+
 export function setup(t: Pick<TestContext, 'after'>) {
   const root = mkdtempSync(join(tmpdir(), '단서 분석 test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -53,7 +55,7 @@ export function setup(t: Pick<TestContext, 'after'>) {
   }
   const papers: Omit<SelectedPaper, 'number' | 'round'>[] = ['A', 'B'].map(key => ({ key, title: 'Paper ' + key, authors: 'Alice Reader', year: 2024,
     source: 'https://example.com/' + key, edition: 'Journal 2024', reason: 'Compare methods', scope: 'abstract' }));
-  function topicAt(dir: string, question = 'How did the two studies evaluate results?') {
+  function topicAt(dir: string, question = comparisonTopicQuestion) {
     ok(dir, 'init', '--question', question);
     ok(dir, 'search', '--input', json(join(root, 'search.json'), { query: question, papers }));
     ok(dir, 'select', '--ids', '1,2', '--note', 'Reader-selected methods');

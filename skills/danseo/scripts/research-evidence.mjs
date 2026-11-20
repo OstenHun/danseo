@@ -66,10 +66,11 @@ function visibleCountFields(candidate) {
       for (const key of ['conditions', 'limitations']) claim[key].forEach((value, i) => fields.set(`${base}/${key}/${i}`, value));
     });
   });
-  for (const [pointer, field] of performanceFields(candidate)) {
+  const performanceByPath = performanceFields(candidate);
+  for (const [pointer, field] of performanceByPath) {
     if (/^\/(?:concepts|backgrounds)\//.test(pointer)) fields.set(pointer, field.value);
   }
-  return fields;
+  return { fields, performanceByPath };
 }
 
 function localFile(base, relative, expectedHash) {
@@ -260,7 +261,7 @@ export function verifyEvidence(candidate, evidence, directory) {
     }
     sources.set(source.id, byPage);
   }
-  const fields = visibleCountFields(candidate);
+  const { fields, performanceByPath } = visibleCountFields(candidate);
   const covered = new Set();
   // These paths only defer the whole-field count format. verifyPerformance below
   // must validate the exact generated report and its source before any success.
@@ -268,7 +269,7 @@ export function verifyEvidence(candidate, evidence, directory) {
   for (const binding of evidence.counts) {
     object(binding, ['path', 'source_id', 'page', 'quote', 'items'], 'count binding');
     if (!fields.has(binding.path) || covered.has(binding.path)) fail('Invalid or duplicate count field path');
-    const allowedSources = performanceFields(candidate).get(binding.path)?.sourceIds ?? [];
+    const allowedSources = performanceByPath.get(binding.path)?.sourceIds ?? [];
     if (!candidate.sources.some(s => s.id === binding.source_id) || !allowedSources.includes(binding.source_id)) fail(`${binding.path}: source must be linked to the displayed paper/claim or concept background`);
     text(binding.quote, 'quote'); list(binding.items, 'items');
     if (!binding.items.length) fail('Count items cannot be empty');
