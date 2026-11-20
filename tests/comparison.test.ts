@@ -50,13 +50,13 @@ async function comparisonFixture(t: TestContext) {
     criteria: [
       {
         id: 'evaluation',
-        title: '평가 대상과 척도',
+        title: 'Evaluation targets and metrics',
         rationale: 'AI: compare conditions without ranking different samples.',
         refs: [{ key: 'A', claim_id: 'c1' }, { key: 'B', claim_id: 'c1' }]
       },
       {
         id: 'missing',
-        title: '한쪽에서만 확인한 기준',
+        title: 'Criterion with evidence on one side',
         rationale: 'AI: B has no reviewed evidence for this criterion.',
         refs: [{ key: 'A', claim_id: 'c1' }]
       }
