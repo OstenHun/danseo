@@ -134,7 +134,7 @@ If the agent can't access online sources, give it absolute paths to two or more 
 
 If Danseo doesn't appear, restart your agent and check that the installed folder contains `SKILL.md`, `scripts/`, `references/`, and `assets/`. You can also give the agent the absolute path to the installed `SKILL.md` and ask it to use that skill.
 
-For more ways to start, see [paper-reading orientation](skills/danseo/references/paper-orientation.md) and the [Danseo skill guide](skills/danseo/README.md).
+To start with a concept, try “Use Danseo to explore attention.” Danseo selects representative papers and builds the first map with key concepts, primary background readings, and checked paper relations. See [research orientation](skills/danseo/references/paper-orientation.md) and the [Danseo skill guide](skills/danseo/README.md).
 
 <a id="빠른-시작"></a>
 

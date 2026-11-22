@@ -27,7 +27,7 @@ Check the current question, relation endpoints/meaning, actual record counts, ov
 - **Standalone HTML:** use the bundled generator. Initial layout is a scoped map, matching node/relation list and separate evidence panel. Project references are dashed and distinct from source causality. Preserve multiple relations between the same papers. Map/list select the same evidence without resetting positions/zoom. There is no date axis; do not substitute this view for requested chronology.
 - **Learning:** a separately installed learning workflow may own dialogue/practice; this repository bundles one research skill. Preserve existing concept units/connection meanings. v2 project context derives an existing concept map linked to an actual Application; it adds no Learning entity/core schema and does not require project records for learning-only requests.
 
-Desktop views combine topic maps and matching lists. Default edges follow the selected paper/relation; status/type filters and **All connections** expose full scope. Preserve full relation lists and details. Filtering out a selected relation returns to overview without stealing filter focus; an explicit evidence button moves to details.
+Desktop views combine topic maps and matching lists. Default paper relations follow the selected paper/relation; status/type filters and **All connections** control paper relations. Registered concept background paths are visible on the opening map. Filtering out a selected relation returns to overview without stealing filter focus; an explicit evidence button moves to details.
 
 For new multi-paper inputs, use recognizable `short_title`, preserving original full `title`. Review question/method-specific optional `topic` (at most 40 characters). Groups are editorial interpretation, not author classifications/inheritance. Without adequate grounds, omit topic; the fixed label is **Uncategorized**. Do not require a classifier or equal group sizes; old inputs remain readable.
 
@@ -56,6 +56,7 @@ v1 common fields are required; unknown fields fail unless explicitly supported:
 | `version`, `mode` | 1 or extended 2; `project-application` or `paper-relations` |
 | `title`, `description`, `view_reason` | Nonempty question/scope/layout-rationale text |
 | `start` | Actual starting Application/Paper ID |
+| `focal_paper_id` | Optional v2 paper-relations field for a map of a named paper. Use the same registered Paper ID as `start`. The marker stays visible as selection changes. Omit for topic maps without a named paper. Legacy inputs without it remain neutral. |
 | `papers` | At least one Paper, preserving original IDs |
 | `sources` | `{id,title,url,locator,scope,verification}`; credential-free HTTP(S) URL or null for local material; precise page/section/table/figure locator; actual reading scope/checker/unknowns; verification `not-checked` or `agent-checked`, never whole-paper certification |
 
@@ -93,7 +94,7 @@ Make original card conditions/limits available on representative-claim and proje
 
 ### Optional concept backgrounds
 
-For v2 `paper-relations` only, add `concepts` and `backgrounds` together when a reading question reveals a useful background concept. Both are optional arrays; existing v1/v2 inputs remain supported. A previous generator rejects these new fields, so new inputs require the updated complete skill folder. No core Paper/Application/Relation schema is changed. See the [synthetic example](../assets/paper-backgrounds.v2.example.json).
+For v2 `paper-relations` only, add `concepts` and `backgrounds` together for the concepts and representative readings identified during [orientation](paper-orientation.md#trace-foundations-and-follow-up-research). Both arrays are optional in the file format to support existing v1/v2 inputs and maps with no supported background readings. See the [synthetic example](../assets/paper-backgrounds.v2.example.json).
 
 | Record | Fields and meaning |
 | --- | --- |
@@ -103,7 +104,9 @@ For v2 `paper-relations` only, add `concepts` and `backgrounds` together when a 
 
 IDs are unique within each record kind. A paper/concept pair appears once, and its reading list has at least one distinct Paper. Selected evidence must be registered on a claim of that representative Paper; do not borrow another paper's URL or manufacture a locator. An empty evidence list preserves missing-location uncertainty. Keep the source's recorded edition, reading scope and verification limits. Representative selection is not a historical first-invention claim, an author citation, or evidence of exhaustive coverage.
 
-The current paper offers **Explore background** choices. Selecting one opens a focused map of the current Paper → Concept → representative Papers, with distinct concept/visual identity and explicit AI labels. Returning restores the relation map's filters, zoom, pan and node positions within the current page session. A background Paper keeps its original source shortcut and adds **Return to current paper** plus the comparison question. Hash links reopen the selected background context without completing or marking a reading; reloading does not persist the previous map camera or filters. Only the registered selection is expanded; there is no recursive reference crawl or full-paper requirement.
+The opening map projects the registered Paper → Concept → representative Paper paths as distinct concept nodes and dashed reading arrows. A shared concept appears once and can retain several starting-paper contexts. Select a concept or one of those arrows on the map or in its corresponding list to see the reasoning, exact source location, and comparison question. A representative reading reuses its Paper node, original-source shortcut, and claims.
+
+The current paper's **Explore background** link also opens a focused version of that path. Returning restores the main map's filters, zoom, pan and node positions within the page session. Hash links reopen either selected background context. Reloading resets the map camera and filters. Only registered paths are shown.
 
 Keep the three meanings separate:
 

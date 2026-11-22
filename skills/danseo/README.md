@@ -4,7 +4,7 @@ Summary: Use your existing agent to read evidence, manage research records throu
 
 ## What is included
 
-[SKILL.md](SKILL.md) selects a workflow from your request. Open-ended requests to read a named paper start with [a standalone research map](references/paper-orientation.md). For selection, PDF collection, analysis, comparison, or existing records, use the [connected workspace procedure](references/connected-workspace.md). The skill instructions and bundled guides are in English.
+[SKILL.md](SKILL.md) selects a workflow from your request. An open-ended Danseo request to explore a paper, concept, topic, or field starts with a [source-linked research map](references/paper-orientation.md). For selection, PDF collection, analysis, comparison, or existing records, use the [connected workspace procedure](references/connected-workspace.md). The skill instructions and bundled guides are in English.
 
 `agents/openai.yaml` provides display metadata, not an autonomous agent or model configuration.
 

@@ -4,7 +4,7 @@ Summary: Distribute the Danseo source, portable skill and synthetic examples. Ke
 
 ## What belongs in the repository
 
-Named-paper orientation reuses the installed host's search and primary-source access; no search backend or model API is bundled. See [orientation scope](../skills/danseo/references/paper-orientation.md) and [checked-state evidence](../skills/danseo/references/evidence-gate.md#original-source-checks). Downloaded research originals, extraction files and provider logs remain local. The original-source gate binds submitted bytes and excerpts; it does not certify publisher authenticity or an agent's interpretation.
+Standalone research orientation uses the installed host's search and primary-source access. See [orientation scope](../skills/danseo/references/paper-orientation.md) and [checked-state evidence](../skills/danseo/references/evidence-gate.md#original-source-checks). Downloaded research originals, extraction files and provider logs remain local. The original-source gate binds submitted bytes and excerpts; it does not certify publisher authenticity or an agent's interpretation.
 
 - Product source, schemas, build/test tools and public usage documentation.
 - Complete portable `skills/danseo`, `skills/danseo-reading` and `skills/paper-to-project` folders with their required references, generators and assets.
