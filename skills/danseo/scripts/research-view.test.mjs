@@ -508,6 +508,20 @@ const linksIn = element => element.children.filter(child => typeof child !== 'st
   ...(child.tagName === 'A' ? [child] : []), ...linksIn(child),
 ]);
 
+test('validated concept tiers match the opening map legend in Korean', () => {
+  const data = backgroundFixture();
+  data.language = 'ko';
+  for (const tier of ['method', 'claims', 'recipe']) {
+    data.concepts[0].tier = tier;
+    validateCandidate(data);
+    const legend = openBackground(data).elements.get('map-legend').textContent;
+    assert.equal(legend.includes('읽을 순서대로 번호를 붙인 개념'), tier !== 'recipe');
+    assert.doesNotMatch(legend, /Purple ellipses/);
+  }
+  data.concepts[0].tier = 'other';
+  assert.throws(() => validateCandidate(data), /concept.tier/);
+});
+
 test('focal metadata is explicit, v2 paper-only, and independent of accessible selection', () => {
   const data = backgroundFixture();
   for (const id of [null, 'not-registered', data.papers[1].id]) {
@@ -671,6 +685,41 @@ test('folded recipe shortcuts keep separate questions for a shared reading', () 
 test('English first-map summary uses singular nouns for one item', () => {
   const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
   assert.match(renderCandidate(data), /<p class="first-map-summary">[^<]*1 key concept · 1 paper to read</);
+});
+
+test('shared recipe readings name the starting paper and return to its question', () => {
+  const data = backgroundFixture();
+  data.concepts[0].tier = 'recipe';
+  const first = data.backgrounds[0];
+  const other = { ...first, id: 'B.Other', paper_id: data.papers[2].id,
+    readings: [{ ...first.readings[0], return_question: 'How does the other paper compare?' }] };
+  data.backgrounds.push(other);
+  validateCandidate(data);
+  const view = openBackground(data);
+  const choices = linksIn(view.elements.get('map-legend')).filter(link => link.href.startsWith('#background-reading='));
+  assert.equal(choices.length, 2);
+  for (const [index, route] of data.backgrounds.entries()) {
+    const start = data.papers.find(paper => paper.id === route.paper_id);
+    assert.ok(choices[index].textContent.includes(start.short_title ?? start.title));
+    choices[index].click();
+    assert.ok(view.elements.get('content').textContent.includes(route.readings[0].return_question));
+    assert.ok(linksIn(view.elements.get('content')).some(link => link.href === '#concept-need=' + route.id));
+  }
+});
+
+test('first-map source rows visibly distinguish editions that share a locator', () => {
+  const data = backgroundFixture(), paper = data.papers[0], source = data.sources[0];
+  const edition = { ...source, id: 'S.Other', title: 'Second edition', url: 'https://example.org/second' };
+  data.sources.push(edition);
+  paper.claims[0].evidence.push(edition.id);
+  validateCandidate(data);
+  const content = openBackground(data).elements.get('content');
+  const section = content.children.find(child => child.className?.includes('paper-source-links'));
+  for (const item of [source, edition]) {
+    const row = section.children.find(child => child.className === 'source-row' && linksIn(child).some(link => link.href === item.url));
+    assert.ok(row.textContent.includes(item.title));
+    assert.ok(row.textContent.includes(item.locator));
+  }
 });
 
 test('a reading opened through a concept names that concept, not the one it hangs under', () => {

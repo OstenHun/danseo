@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
+import { compileFunction, runInNewContext } from 'node:vm';
 import cytoscape from 'cytoscape';
 
 type Paper = {id?: string; title?: string; short_title?: string; topic?: string};
@@ -193,13 +193,15 @@ test('selecting the focal paper folds its outgoing citations but keeps follow-up
     cytoscape: (options: unknown) => (cy = cytoscape({...JSON.parse(JSON.stringify(options)), container: undefined, headless: true, styleEnabled: true}))};
   runInNewContext(asset('graph-presentation.js'), context);
   context.window.DanseoGraph = Object.assign({}, context.window.DanseoGraph, {paperCard: element, drawTopics() {}});
-  runInNewContext(asset('research-map.js'), context);
+  // Cytoscape's style parser expects native objects from its own JS realm.
+  compileFunction(asset('research-map.js'), Object.keys(context))(...Object.values(context));
   const data = {version: 2, mode: 'paper-relations', start: 'F', focal_paper_id: 'F',
     papers: ['F', 'prior', 'later'].map(id => ({id, title: id, short_title: id, topic: 'Test', claims: []})),
     relations: [{id: 'out', source: 'F', target: 'prior', kind: 'cites', origin: 'source', status: 'source-checked'},
       {id: 'in', source: 'later', target: 'F', kind: 'cites', origin: 'source', status: 'source-checked'}],
-    concepts: [{id: 'k', title: 'K', summary: 's'}],
-    backgrounds: [{id: 'bg', concept_id: 'k', paper_id: 'F', origin: 'ai', status: 'proposed', rationale: 'r', readings: [{paper_id: 'prior'}]}]};
+    concepts: [{id: 'k', title: 'K', summary: 's'}, {id: 'later-k', title: 'Later', summary: 's'}],
+    backgrounds: [{id: 'bg', concept_id: 'k', paper_id: 'F', origin: 'ai', status: 'proposed', rationale: 'r', readings: [{paper_id: 'prior'}]},
+      {id: 'follow', concept_id: 'later-k', paper_id: 'prior', origin: 'ai', status: 'proposed', rationale: 'r', readings: [{paper_id: 'later'}]}]};
   let map: {select(type: string, id: string): void; destroy(): void} | undefined;
   try {
     map = context.window.DanseoMap.mount(container, data, 'papers', () => {}, () => {});
@@ -210,6 +212,14 @@ test('selecting the focal paper folds its outgoing citations but keeps follow-up
     assert.match(status.textContent, /map connections: 1 · Focal paper relations shown only in the list: 1\./);
     map.select('paper', 'prior');
     assert.match(status.textContent, /map connections: 1$/);
+    // Decode the first Cytoscape bend in model coordinates: the lower paper
+    // must enter the column gutter horizontally before passing any other card.
+    const edge = cy!.getElementById('concept-need:follow');
+    const from = edge.source().position(), to = edge.target().position();
+    const dx = to.x - from.x, dy = to.y - from.y, length = Math.hypot(dx, dy);
+    const weight = parseFloat(edge.style('segment-weights')), distance = parseFloat(edge.style('segment-distances'));
+    assert.ok(Math.abs(dy * weight + dx / length * distance) < .01, 'first bend stays level with the source');
+    assert.ok(from.x + dx * weight - dy / length * distance < cy!.getElementById('concept:k').boundingBox().x1, 'first bend clears the column');
   } finally {if (map) map.destroy(); else cy?.destroy();}
 });
 

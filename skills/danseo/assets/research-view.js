@@ -218,7 +218,7 @@
     // First maps show two locations up front; the rest stay one click away.
     let more = null;
     const linkNameCounts = new Map();
-    if (relationEvidence) {
+    if (relationEvidence || compact) {
       for (const { source, name } of locations) {
         if (source.url !== null) linkNameCounts.set(name, (linkNameCounts.get(name) ?? 0) + 1);
       }
@@ -227,16 +227,18 @@
       ? node('div', 'paper-source-links')
       : section(t('Read the paper'), 'paper-source-links');
     for (const [index, { source, location, locators, name }] of locations.entries()) {
+      const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
       if (compact && !relationEvidence) {
         // First-map rows: where to read on the left, one short link on the right; the section title already says "read".
         const row = node('div', 'source-row');
-        row.append(node('p', '', locators));
+        row.append(node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')));
         if (source.url !== null) {
           const link = node('a', '', t('Open original source ↗'));
           link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-          link.setAttribute('aria-label', t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title }));
+          const label = t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title });
+          link.setAttribute('aria-label', label + (showAddress ? ' · ' + source.url : ''));
           row.append(link);
-        } else row.append(node('span', 'section-note', source.title));
+        }
         if (index >= 2 && !more) {
           more = node('details', 'source-more');
           more.append(node('summary', '', t('{count} more source locations', { count: locations.length - 2 })));
@@ -245,7 +247,6 @@
         (more ?? reading).append(row);
         continue;
       }
-      const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
       if (source.url === null) {
         reading.append(node('p', '', source.title));
       } else {
@@ -328,7 +329,7 @@
         ['source', t('Source-checked relation')],
         ['ai', t('AI-suggested reading path')],
         ...(data.relations.some(relation => presentation.category(relation) === 'stale') ? [['stale', t('Recheck')]] : []),
-        ['concept', t('Concept, numbered in reading order')]
+        ...(plan.order.length ? [['concept', t('Concept, numbered in reading order')]] : [])
       ].map(([kind, label]) => {
         const key = node('span', 'legend-key'); key.append(node('i', 'legend-sample legend-' + kind, kind === 'concept' ? '1' : ''), label);
         return key;
@@ -343,8 +344,11 @@
           li.append(localLink('concept', concept.id, concept.title, ''));
           if (contexts.every(background => !background.readings.length)) li.append(node('span', 'recipe-gap', ' · ' + t('No reading secured')));
           for (const background of contexts) {
+            const from = paperName(background.paper_id);
+            const sameName = contexts.some(other => other !== background && paperName(other.paper_id) === from);
+            const suffix = contexts.length > 1 ? t(' · from {paper}', { paper: sameName ? from + ' (' + background.paper_id + ')' : from }) : '';
             for (const reading of background.readings) {
-              li.append(' · ', localLink('background-reading', background.id + ':' + reading.paper_id, paperName(reading.paper_id), ''));
+              li.append(' · ', localLink('background-reading', background.id + ':' + reading.paper_id, paperName(reading.paper_id) + suffix, ''));
             }
           }
           list.append(li);

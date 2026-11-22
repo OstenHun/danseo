@@ -33,7 +33,7 @@
 .first-map .detail-area .research-section { margin-top: 22px; }
 .first-map .detail-area .research-section > h3 { font-size: .875rem; color: var(--muted); margin-bottom: 8px; }
 .source-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; margin-top: 8px; border: 1px solid var(--line, #dce1eb); border-radius: 8px; }
-.source-row p { margin: 0; font-size: .875rem; line-height: 1.55; word-break: keep-all; overflow-wrap: break-word; }
+.source-row p { min-width: 0; margin: 0; font-size: .875rem; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
 .source-row a { flex: none; font-size: .8125rem; white-space: nowrap; }
 .return-box { margin: 0; padding: 10px 12px; border-radius: 8px; background: #f2f4f8; font-size: .9375rem; line-height: 1.65; word-break: keep-all; overflow-wrap: break-word; }
 .relation-row { display: flex; align-items: baseline; gap: 10px; padding: 4px 0; color: inherit; text-decoration: none; font-size: .875rem; line-height: 1.55; word-break: keep-all; overflow-wrap: break-word; }
