@@ -508,6 +508,20 @@ const linksIn = element => element.children.filter(child => typeof child !== 'st
   ...(child.tagName === 'A' ? [child] : []), ...linksIn(child),
 ]);
 
+test('validated concept tiers match the opening map legend in Korean', () => {
+  const data = backgroundFixture();
+  data.language = 'ko';
+  for (const tier of ['method', 'claims', 'recipe']) {
+    data.concepts[0].tier = tier;
+    validateCandidate(data);
+    const legend = openBackground(data).elements.get('map-legend').textContent;
+    assert.equal(legend.includes('읽을 순서대로 번호를 붙인 개념'), tier !== 'recipe');
+    assert.doesNotMatch(legend, /Purple ellipses/);
+  }
+  data.concepts[0].tier = 'other';
+  assert.throws(() => validateCandidate(data), /concept.tier/);
+});
+
 test('focal metadata is explicit, v2 paper-only, and independent of accessible selection', () => {
   const data = backgroundFixture();
   for (const id of [null, 'not-registered', data.papers[1].id]) {
