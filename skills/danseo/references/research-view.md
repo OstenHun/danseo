@@ -98,7 +98,7 @@ For v2 `paper-relations` only, add `concepts` and `backgrounds` together for the
 
 | Record | Fields and meaning |
 | --- | --- |
-| Concept | `{id,title,summary}`; a distinct concept with an AI explanation, never a fabricated Paper |
+| Concept | `{id,title,summary,tier?}`. A distinct concept with an AI explanation. Use `method` (the default), `claims`, or `recipe` for training and evaluation. The opening map numbers method and claims concepts and folds recipe concepts. |
 | Background | `{id,paper_id,concept_id,origin,status,rationale,readings}`; current paper, concept, and why exploring it may help. `origin` must be `ai`, `status` must be `proposed` |
 | Representative reading | `{paper_id,rationale,evidence,return_question}`; a different registered Paper, why it was selected for this purpose, selected source IDs, and an AI question for comparison after returning to the current paper |
 

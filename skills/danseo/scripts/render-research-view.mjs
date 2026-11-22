@@ -186,8 +186,10 @@ export function validateCandidate(data) {
       const concepts = unique(data.concepts, 'concepts');
       unique(data.backgrounds, 'backgrounds');
       for (const concept of concepts.values()) {
-        object(concept, ['id', 'title', 'summary'], 'concept');
+        object(concept, ['id', 'title', 'summary', ...(Object.hasOwn(concept, 'tier') ? ['tier'] : [])], 'concept');
         text(concept.title, 'concept.title'); text(concept.summary, 'concept.summary');
+        // Optional reading priority; absent means a core-method concept, as in maps made before tiers existed.
+        if (Object.hasOwn(concept, 'tier')) oneOf(concept.tier, ['method', 'claims', 'recipe'], 'concept.tier');
       }
       const pairs = new Set();
       for (const background of data.backgrounds) {

@@ -298,7 +298,9 @@
     byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : linkedConcepts.size ? t('Select a paper, concept, or connection to read its evidence. Filters apply to paper relations.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
     const legend = byId('map-legend');
     legend.textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
-    if (linkedConcepts.size) legend.append(node('br'), node('span', '', t('Purple ellipses · concepts / long dashes · explore concept / short dashes from concepts · background reading')));
+    if (linkedConcepts.size && presentation.conceptPlan(data).order.length) {
+      legend.append(node('br'), node('span', '', t('Concept, numbered in reading order')));
+    }
     if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
     if (scene === 'papers' && hasCitationCounts) {
       legend.append(node('br'), node('span', '', t('Node size = citation count · capped; unavailable counts use the base size.')));

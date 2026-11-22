@@ -184,23 +184,20 @@
     // The column's left edge: indented readings and the focal outline are measured back to it.
     const columnEdge = node => node.position('x') - node.width() / 2 - (node.data('indent') ?? 0);
     const outline = node => node.data('focal') ? route.focalOutline : 0;
-    if (edge.data('type') === 'concept-need') {
-      const gutter = columnEdge(target) - outline(target) - route.needGutter;
-      const start = a.x + source.width() / 4;
-      return [[start, tree.bus], [gutter, tree.bus], [gutter, b.y]];
-    }
     if (edge.data('type') === 'background-reading' && !edge.data('free')) {
       return [[columnEdge(target) + tree.line, b.y]];
     }
-    // Citations and links to a reading placed under another concept share the gutter-and-lane route.
-    const from = columnEdge(source) - route.linkGutter - outline(source);
-    const to = columnEdge(target) - route.linkGutter - outline(target);
+    // A source can sit below another card. Leave its column sideways before changing rows.
+    const need = edge.data('type') === 'concept-need';
+    const gutter = need ? route.needGutter : route.linkGutter;
+    const from = columnEdge(source) - gutter - outline(source);
+    const to = columnEdge(target) - gutter - outline(target);
     // Same column: stay in one gutter, using the outer x so the line also clears a focal outline.
     if (Math.abs(columnEdge(source) - columnEdge(target)) < 1) {
       const x = Math.min(from, to);
       return [[x, a.y], [x, b.y]];
     }
-    const lane = tree.bus - route.linkLane;
+    const lane = need ? tree.bus : tree.bus - route.linkLane;
     return [[from, a.y], [from, lane], [to, lane], [to, b.y]];
   }
   function routeEdge(edge) {
@@ -213,9 +210,8 @@
       distances.push(((y - s.y) * dx - (x - s.x) * dy) / length);
     }
     const style = { 'curve-style': 'round-segments', 'segment-radius': 6, 'edge-distances': 'node-position', 'segment-weights': weights, 'segment-distances': distances };
-    // Tree lines leave the concept's lower edge at the gutter; reading paths leave the paper's top edge.
+    // Tree lines leave the concept's lower edge at the gutter.
     if (edge.data('type') === 'background-reading' && !edge.data('free')) style['source-endpoint'] = (points[0][0] - s.x) + 'px ' + edge.source().height() / 2 + 'px';
-    if (edge.data('type') === 'concept-need') style['source-endpoint'] = edge.source().width() / 4 + 'px ' + -edge.source().height() / 2 + 'px';
     edge.style(style);
   }
   function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
