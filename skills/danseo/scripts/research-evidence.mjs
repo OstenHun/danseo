@@ -175,11 +175,18 @@ function resolveInsideDirectory(directory, relativePath) {
   return resolved;
 }
 
-function localFile(directory, relativePath, expectedHash) {
+// Returns the real path of a regular file below the directory. Shared with the
+// reading assembler, which must hash a file before any expected hash exists.
+export function confinedFilePath(directory, relativePath) {
   const resolved = resolveInsideDirectory(directory, relativePath);
   const info = statSync(resolved);
   if (!info.isFile() || info.size > MAX_SOURCE_FILE_BYTES)
     fail('Expected source file under 32 MiB');
+  return resolved;
+}
+
+function localFile(directory, relativePath, expectedHash) {
+  const resolved = confinedFilePath(directory, relativePath);
   if (!SHA256_HEX.test(expectedHash)) fail('Expected SHA-256');
   const bytes = readFileSync(resolved);
   if (hash(bytes) !== expectedHash) fail(`Source hash mismatch: ${relativePath}`);

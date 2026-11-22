@@ -21,6 +21,7 @@ Summary: English guides cover installation, workflows, formats and evidence chec
 - [Research comparison](RESEARCH_COMPARISON.md): criteria, provenance filters and local read-only evidence viewer.
 - [Card model](CARD_MODEL.md) and [repository boundaries](STRUCTURE.md): records, ownership and storage.
 - [Standalone view contract](../skills/danseo/references/research-view.md): candidate formats and rendered checks.
+- [Reading results](../skills/danseo/references/reading-results.md): per-paper reading files assembled into the candidate and evidence files.
 - [Source verification](../skills/danseo/references/relation-verification.md), [overview/count gate](../skills/danseo/references/evidence-gate.md) and [performance verification](../skills/danseo/references/performance-verification.md): source/AI distinctions, counts, table conditions and exceptions.
 
 ## Language and permissions
