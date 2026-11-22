@@ -43,6 +43,7 @@ jobs:
       - name: Report actual runtime
         run: node --version
       - run: npm ci
+      - run: npm run check:format
       - run: npm run check:docs
       - name: Select check scope
         id: scope

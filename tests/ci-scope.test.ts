@@ -21,15 +21,35 @@ test('CI scope uses real PR diffs and falls back to full checks', () => {
   }
   function commit(): string {
     git('add', '-A');
-    git('-c', 'user.name=CI test', '-c', 'user.email=ci@example.invalid', 'commit', '-qm', 'fixture');
+    git(
+      '-c',
+      'user.name=CI test',
+      '-c',
+      'user.email=ci@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    );
     return git('rev-parse', 'HEAD');
   }
-  function classify(base: string, head: string, event = 'pull_request', cwd = folder, merge = head): string {
+  function classify(
+    base: string,
+    head: string,
+    event = 'pull_request',
+    cwd = folder,
+    merge = head,
+  ): string {
     writeFileSync(output, '');
     const result = execFileSync(process.execPath, [classifier], {
-      cwd, encoding: 'utf8', env: {
-        ...process.env, DANSEO_CI_EVENT: event, DANSEO_CI_BASE: base, DANSEO_CI_HEAD: head,
-        DANSEO_CI_MERGE: merge, GITHUB_OUTPUT: output,
+      cwd,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        DANSEO_CI_EVENT: event,
+        DANSEO_CI_BASE: base,
+        DANSEO_CI_HEAD: head,
+        DANSEO_CI_MERGE: merge,
+        GITHUB_OUTPUT: output,
       },
     });
     assert.equal(readFileSync(output, 'utf8'), result);
@@ -69,7 +89,11 @@ test('CI scope uses real PR diffs and falls back to full checks', () => {
     assert.equal(classify('', docsHead), 'scope=full', 'missing SHA');
     assert.equal(classify('--help', docsHead), 'scope=full', 'invalid SHA');
     assert.equal(classify('0'.repeat(40), docsHead), 'scope=full', 'missing commit');
-    assert.equal(classify(base, docsHead, 'pull_request', folder, ''), 'scope=full', 'missing merge SHA');
+    assert.equal(
+      classify(base, docsHead, 'pull_request', folder, ''),
+      'scope=full',
+      'missing merge SHA',
+    );
     const nonRepo = join(folder, 'no-repo');
     mkdirSync(nonRepo);
     // An invalid gitdir prevents discovery of the parent fixture repository.
@@ -83,18 +107,45 @@ test('CI scope uses real PR diffs and falls back to full checks', () => {
     mkdirSync(join(folder, 'skills/danseo/references'), { recursive: true });
     git('mv', 'docs/rules.md', 'skills/danseo/references/rules.md');
     const advancedBase = commit();
-    git('-c', 'user.name=CI test', '-c', 'user.email=ci@example.invalid', 'merge', '-qm', 'merge fixture', featureHead);
+    git(
+      '-c',
+      'user.name=CI test',
+      '-c',
+      'user.email=ci@example.invalid',
+      'merge',
+      '-qm',
+      'merge fixture',
+      featureHead,
+    );
     const merged = git('rev-parse', 'HEAD');
     assert.equal(git('diff', '--name-only', `${advancedBase}...${featureHead}`), 'docs/rules.md');
-    assert.equal(git('diff', '--name-only', advancedBase, merged), 'skills/danseo/references/rules.md');
-    assert.equal(classify(advancedBase, featureHead, 'pull_request', folder, merged), 'scope=full',
-      'base renamed an edited document into a runtime skill');
+    assert.equal(
+      git('diff', '--name-only', advancedBase, merged),
+      'skills/danseo/references/rules.md',
+    );
+    assert.equal(
+      classify(advancedBase, featureHead, 'pull_request', folder, merged),
+      'scope=full',
+      'base renamed an edited document into a runtime skill',
+    );
     git('switch', '-qc', 'base-code', base);
     write('src/base-only.ts');
     const codeBase = commit();
-    git('-c', 'user.name=CI test', '-c', 'user.email=ci@example.invalid', 'merge', '-qm', 'merge fixture', featureHead);
-    assert.equal(classify(codeBase, featureHead, 'pull_request', folder, git('rev-parse', 'HEAD')), 'scope=docs',
-      'unrelated code already on the base is not part of this PR');
+    git(
+      '-c',
+      'user.name=CI test',
+      '-c',
+      'user.email=ci@example.invalid',
+      'merge',
+      '-qm',
+      'merge fixture',
+      featureHead,
+    );
+    assert.equal(
+      classify(codeBase, featureHead, 'pull_request', folder, git('rev-parse', 'HEAD')),
+      'scope=docs',
+      'unrelated code already on the base is not part of this PR',
+    );
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -103,8 +154,11 @@ test('CI scope uses real PR diffs and falls back to full checks', () => {
 test('workflow runs one PR job with explicit manual compatibility choices', () => {
   const workflow = parse(readFileSync('.github/workflows/ci.yml', 'utf8'));
   assert.deepEqual(Object.keys(workflow.on).sort(), ['pull_request', 'workflow_dispatch']);
-  assert.deepEqual(workflow.on.workflow_dispatch.inputs.os.options,
-    ['ubuntu-latest', 'windows-latest', 'macos-latest']);
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.os.options, [
+    'ubuntu-latest',
+    'windows-latest',
+    'macos-latest',
+  ]);
   assert.deepEqual(workflow.on.workflow_dispatch.inputs.node.options, ['22', '24', '26']);
   assert.match(workflow.concurrency.group, /pull_request.number \|\| github.run_id/);
   assert.equal(workflow.concurrency['cancel-in-progress'], true);
@@ -116,8 +170,15 @@ test('workflow runs one PR job with explicit manual compatibility choices', () =
   const docs = job.steps.find((step: { run?: string }) => step.run === 'npm run check:docs');
   assert.ok(docs);
   assert.equal(docs.if, undefined);
-  for (const run of ['npm test', 'node dist/cli.js validate --workspace examples/minimal --json', 'npm run test:package']) {
-    assert.equal(job.steps.find((step: { run?: string }) => step.run === run)?.if,
-      "steps.scope.outputs.scope != 'docs'", run);
+  for (const run of [
+    'npm test',
+    'node dist/cli.js validate --workspace examples/minimal --json',
+    'npm run test:package',
+  ]) {
+    assert.equal(
+      job.steps.find((step: { run?: string }) => step.run === run)?.if,
+      "steps.scope.outputs.scope != 'docs'",
+      run,
+    );
   }
 });

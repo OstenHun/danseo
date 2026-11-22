@@ -1,0 +1,11 @@
+# Third-party and generated files
+skills/danseo/assets/cytoscape.min.js
+package-lock.json
+
+# Not formatted yet: prose, data and styles keep their current layout
+*.md
+*.json
+*.yml
+*.yaml
+*.css
+*.html

@@ -27,6 +27,7 @@ The development default is Node 24, as specified in `.node-version`. Check runti
 
 ```sh
 npm ci
+npm run check:format
 npm test
 npm run check:docs
 npm run test:package
@@ -38,6 +39,21 @@ node ./dist/cli.js validate --workspace ./examples/minimal --json
 The portable skill's generators and inline browser assets are JavaScript so a complete skill folder runs with Node without a TypeScript build or npm installation. The CLI and native comparison app keep their TypeScript build. When changing shared portable files, keep the Danseo and Reading copies identical and run `npm run test:research-evidence` as well as relevant product checks.
 
 The documentation check detects links to files absent from the Git upload set. The package check installs a tarball into a temporary consumer and runs the installed CLI. It prefers the npm cache but may contact the registry for missing dependency metadata or files.
+
+## Code style
+
+Prettier owns the layout of JavaScript and TypeScript. Run `npm run format` before you commit; CI runs `npm run check:format`. `.prettierrc.json` sets single quotes, a 100-column print width and existing line endings, and keeps every other Prettier default. Markdown, JSON, YAML, CSS and HTML are not formatted yet, so keep their current layout.
+
+A formatter breaks long lines; it does not make dense code clear. In new and changed code:
+
+- Write for the next reader. A lower line count is not a goal, so do not pack several steps into one expression.
+- Choose names that say what a value holds. Keep one-letter names for short callbacks and loop indexes.
+- Give each function one job. Split it when you need "and" to describe it.
+- Name a long regular expression or condition, and comment why the rule exists rather than what the code does.
+- Build long HTML or message templates from named parts.
+- Keep cleanup apart from behavior changes. Put a rename or restructuring in its own commit so a reviewer can confirm that nothing else changed.
+
+Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected.
 
 <a id="공통-테스트-fixture-수정"></a>
 
@@ -62,7 +78,7 @@ npm run check:docs
 
 `fixture-types.test.ts` and `frontend.test.ts` compare valid consumer calls with invalid arguments, commands, fields, and selections. VM checks connect external execution results to the `MapAPI` contract and verify API presence. The empty-DOM-container assertion in the no-Cytoscape fallback test applies only while that branch does not access the DOM.
 
-`ok()` checks CLI success before returning a command-specific response type. The explicit type boundary in `parseJson()` does not replace runtime JSON validation. Use `json()` and `run()` for intentionally damaged inputs and invalid requests. `required()` also checks fixture-item presence at runtime. Product card, claim, and review types come from `dist/` declarations; test-only contracts belong in `fixture-types.ts`.
+`ok()` checks CLI success before returning a command-specific response type. The explicit type boundary in `parseJson()` does not replace runtime JSON validation. Use `json()` and `run()` for intentionally damaged inputs and invalid requests. Start child processes through `runNode()` in `tests/helpers/run-node.ts`: it throws with the cause when a child fails to start or is killed, so a missing exit code cannot hide behind an empty `stderr` or satisfy a negative assertion. `required()` also checks fixture-item presence at runtime. Product card, claim, and review types come from `dist/` declarations; test-only contracts belong in `fixture-types.ts`.
 
 ## Evidence and private material
 

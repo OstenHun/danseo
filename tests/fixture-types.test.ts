@@ -12,9 +12,13 @@ test('shared fixture contracts reject invalid inputs, command names and response
   function diagnostics(source: string) {
     const host = ts.createCompilerHost(parsed.options);
     const original = host.getSourceFile;
-    host.getSourceFile = (file, language, ...rest) => file === probe
-      ? ts.createSourceFile(file, source, language) : original(file, language, ...rest);
-    return ts.getPreEmitDiagnostics(ts.createProgram([...parsed.fileNames, probe], parsed.options, host));
+    host.getSourceFile = (file, language, ...rest) =>
+      file === probe
+        ? ts.createSourceFile(file, source, language)
+        : original(file, language, ...rest);
+    return ts.getPreEmitDiagnostics(
+      ts.createProgram([...parsed.fileNames, probe], parsed.options, host),
+    );
   }
   const positive = `import { setup, answer, claim } from './analysis-fixture.js';
     import { pdf } from './source-pdf.js';
@@ -29,14 +33,20 @@ test('shared fixture contracts reject invalid inputs, command names and response
     fixture.ok(fixture.topic, 'comparison-input').claims;
     fixture.card('A', { edition: 'v1', path: 'synthetic.pdf' }, [claim('c1')]);
     fixture.json('invalid-input.json', { deliberately: 'malformed input is permitted' });`;
-  assert.deepEqual(diagnostics(positive).map(d => ts.flattenDiagnosticMessageText(d.messageText, '\n')), []);
-  const invalid = diagnostics(positive + `
+  assert.deepEqual(
+    diagnostics(positive).map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n')),
+    [],
+  );
+  const invalid = diagnostics(
+    positive +
+      `
     pdf(42, 'Author', 'v1');
     fixture.collect(fixture.topic, 'Z');
     fixture.review(fixture.a, 'approved');
     fixture.ok(fixture.topic, 'soruces');
     fixture.ok(fixture.topic, 'sources').readys;
     fixture.save({ document_sha256: 42 });
-  `);
-  assert.deepEqual(invalid.map(d => d.code).sort(), [2345, 2345, 2345, 2345, 2551, 2322].sort());
+  `,
+  );
+  assert.deepEqual(invalid.map((d) => d.code).sort(), [2345, 2345, 2345, 2345, 2551, 2322].sort());
 });

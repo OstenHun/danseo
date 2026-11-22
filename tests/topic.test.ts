@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,39 +7,59 @@ import test, { type TestContext } from 'node:test';
 import type { SelectedPaper } from '../dist/core/topic.js';
 import type { TopicOutputs } from './helpers/fixture-types.js';
 import { parseJson, required } from './helpers/analysis-fixture.js';
+import { runNode } from './helpers/run-node.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 function topicFixture(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'danseo-topic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(action: string, ...args: string[]) {
-    return spawnSync(process.execPath, [cli, 'topic', action, '--dir', dir, ...args], { encoding: 'utf8' });
+    return runNode([cli, 'topic', action, '--dir', dir, ...args]);
   }
-  function ok<Action extends keyof TopicOutputs>(action: Action, ...args: string[]): TopicOutputs[Action] {
+  function ok<Action extends keyof TopicOutputs>(
+    action: Action,
+    ...args: string[]
+  ): TopicOutputs[Action] {
     const result = run(action, ...args);
     assert.equal(result.status, 0, result.stderr);
     return parseJson<TopicOutputs[Action]>(result.stdout);
   }
   const input = join(dir, 'batch.json');
-  const saveBatch = (papers: unknown) => writeFileSync(input, JSON.stringify({ query: 'test query', papers }));
+  const saveBatch = (papers: unknown) =>
+    writeFileSync(input, JSON.stringify({ query: 'test query', papers }));
   ok('init', '--question', 'research question');
   return { dir, input, saveBatch, ok, run };
 }
 function paper(key: string): Omit<SelectedPaper, 'number' | 'round'> {
-  return { key, title: key, authors: 'Author', year: 2025, source: 'https://example.org/' + key,
-    edition: 'v1', reason: 'reason for ' + key, scope: 'abstract' };
+  return {
+    key,
+    title: key,
+    authors: 'Author',
+    year: 2025,
+    source: 'https://example.org/' + key,
+    edition: 'v1',
+    reason: 'reason for ' + key,
+    scope: 'abstract',
+  };
 }
 
-test('fresh CLI invocations preserve selected edition, reason, stable numbers and both search rounds', t => {
+test('fresh CLI invocations preserve selected edition, reason, stable numbers and both search rounds', (t) => {
   const { input, saveBatch, ok, run } = topicFixture(t);
-  const a = paper('a'), b = paper('b'), c = paper('c');
+  const a = paper('a'),
+    b = paper('b'),
+    c = paper('c');
   saveBatch([a, b, c]);
   ok('search', '--input', input);
-  const firstChoice = required(ok('select', '--round', '1', '--ids', '3', '--note', 'my reason').selected[0]);
+  const firstChoice = required(
+    ok('select', '--round', '1', '--ids', '3', '--note', 'my reason').selected[0],
+  );
   const revised = { ...c, edition: 'v2', source: c.source + '/v2', reason: 'another reason' };
   saveBatch([revised, paper('d'), b]);
   const second = ok('search', '--input', input);
-  assert.deepEqual(required(second.searches[1]).papers.map(p => p.number), [3, 4, 2]);
+  assert.deepEqual(
+    required(second.searches[1]).papers.map((p) => p.number),
+    [3, 4, 2],
+  );
   assert.equal(ok('search', '--input', input).searches.length, 2);
   ok('select', '--round', '2', '--ids', '3,4');
   const reopened = ok('show');
@@ -55,7 +74,7 @@ test('fresh CLI invocations preserve selected edition, reason, stable numbers an
   assert.equal(ok('select', '--round', '1', '--ids', '3').selected.at(0)?.source, c.source);
 });
 
-test('an invalid batch, multi-select, or competing writer leaves the topic intact', t => {
+test('an invalid batch, multi-select, or competing writer leaves the topic intact', (t) => {
   const { dir, input, saveBatch, ok, run } = topicFixture(t);
   saveBatch([paper('a')]);
   ok('search', '--input', input);
@@ -69,8 +88,12 @@ test('an invalid batch, multi-select, or competing writer leaves the topic intac
   const broken = run('search', '--input', input);
   assert.match(broken.stderr, /TOPIC:.*UTF-8 JSON/);
   assert.deepEqual(readFileSync(join(dir, 'topic.json')), before);
-  for (const invalid of [[paper('a'), paper('a')], [{ ...paper('b'), source: 'invalid URL' }],
-    [{ ...paper('b'), source: paper('a').source }], ['a','b','c','d','e','f'].map(paper)]) {
+  for (const invalid of [
+    [paper('a'), paper('a')],
+    [{ ...paper('b'), source: 'invalid URL' }],
+    [{ ...paper('b'), source: paper('a').source }],
+    ['a', 'b', 'c', 'd', 'e', 'f'].map(paper),
+  ]) {
     saveBatch(invalid);
     assertFailure('search', '--input', input);
   }
@@ -78,7 +101,7 @@ test('an invalid batch, multi-select, or competing writer leaves the topic intac
   assertFailure('select', '--ids', '1');
 });
 
-test('malformed UTF-8 in input or saved metadata is rejected without replacing the topic', t => {
+test('malformed UTF-8 in input or saved metadata is rejected without replacing the topic', (t) => {
   const { dir, input, saveBatch, ok, run } = topicFixture(t);
   saveBatch([paper('a')]);
   ok('search', '--input', input);
@@ -103,7 +126,7 @@ test('malformed UTF-8 in input or saved metadata is rejected without replacing t
   assert.deepEqual(readFileSync(file), damaged);
 });
 
-test('filesystem access failures use exit 3 and release the writer lock after a read error', t => {
+test('filesystem access failures use exit 3 and release the writer lock after a read error', (t) => {
   const { dir, input, run, ok, saveBatch } = topicFixture(t);
   const missingDir = run('show', '--dir', join(dir, 'missing'));
   assert.equal(missingDir.status, 3, missingDir.stderr);

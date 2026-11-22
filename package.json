@@ -43,6 +43,8 @@
     "build": "npm run build:tools && tsc && tsc -p tsconfig.browser.json && node build-tools/build-browser.js && node build-tools/copy-comparison.js",
     "test": "npm run build:tests && node --test build/*.test.js && npm run test:research-evidence",
     "check:docs": "npm run build:tools && node build-tools/check-docs.js",
+    "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
+    "check:format": "prettier --check \"**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
     "test:package": "npm run build:tests && node build/package-smoke.js",
     "danseo": "node dist/cli.js",
     "build:tests": "npm run build && node build-tools/clean-test-build.js && tsc -p tsconfig.tests.json",
@@ -58,6 +60,7 @@
   },
   "devDependencies": {
     "@types/node": "22.20.5",
+    "prettier": "3.10.1",
     "typescript": "5.9.3"
   }
 }
