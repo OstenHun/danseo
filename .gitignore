@@ -3,6 +3,7 @@
 /workspaces/
 /private/
 /outputs/
+.archify/
 node_modules/
 .venv/
 __pycache__/
