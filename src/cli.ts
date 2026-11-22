@@ -1,14 +1,22 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
-import { loadWorkspace, listCards, getCard, buildBundle, renderBundle, writeNewFile, DanseoError } from './core/index.js';
+import {
+  loadWorkspace,
+  listCards,
+  getCard,
+  buildBundle,
+  renderBundle,
+  writeNewFile,
+  DanseoError,
+} from './core/index.js';
 import { runTopic } from './core/topic.js';
 
 const workspaceOptionsByCommand = {
   validate: [],
   list: ['project'],
   show: ['paper', 'application'],
-  export: ['project', 'application', 'include-drafts', 'out']
+  export: ['project', 'application', 'include-drafts', 'out'],
 };
 type WorkspaceCommand = keyof typeof workspaceOptionsByCommand;
 const commonWorkspaceOptions = ['workspace', 'format', 'json'];
@@ -39,12 +47,25 @@ function prettyJson(value: unknown) {
 
 async function main() {
   if (process.argv[2] === 'topic') return runTopic(process.argv.slice(3));
-  const { values: options, positionals } = parseArgs({ strict: true, allowPositionals: true, options: {
-    workspace: { type: 'string' }, project: { type: 'string' }, paper: { type: 'string' }, application: { type: 'string' },
-    format: { type: 'string' }, out: { type: 'string' }, json: { type: 'boolean' },
-    'include-drafts': { type: 'boolean' }, help: { type: 'boolean', short: 'h' }
-  } });
-  if (options.help) { process.stdout.write(help); return; }
+  const { values: options, positionals } = parseArgs({
+    strict: true,
+    allowPositionals: true,
+    options: {
+      workspace: { type: 'string' },
+      project: { type: 'string' },
+      paper: { type: 'string' },
+      application: { type: 'string' },
+      format: { type: 'string' },
+      out: { type: 'string' },
+      json: { type: 'boolean' },
+      'include-drafts': { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  if (options.help) {
+    process.stdout.write(help);
+    return;
+  }
   const command = positionals[0];
   if (positionals.length !== 1 || !isWorkspaceCommand(command)) {
     throw new DanseoError('USAGE', help);
@@ -54,41 +75,86 @@ async function main() {
     if (commonWorkspaceOptions.includes(key) || commandOptions.includes(key)) continue;
     throw new DanseoError('OPTION', `${command}: unsupported option --${key}`);
   }
-  const format = options.json ? 'json' : options.format ?? 'markdown';
-  if (!['json','markdown'].includes(format) || (options.json && options.format && options.format !== 'json')) throw new DanseoError('FORMAT', 'Specify json or markdown.');
-  if (!options.workspace?.trim()) throw new DanseoError('WORKSPACE_REQUIRED', 'Provide a --workspace path.');
-  if (command === 'show' && Number(Boolean(options.paper)) + Number(Boolean(options.application)) !== 1) throw new DanseoError('SHOW_ID', 'Specify exactly one of --paper or --application.');
-  if (command === 'export' && (!options.project || !options.application)) throw new DanseoError('EXPORT_IDS', 'Both --project and --application are required.');
+  const format = options.json ? 'json' : (options.format ?? 'markdown');
+  if (
+    !['json', 'markdown'].includes(format) ||
+    (options.json && options.format && options.format !== 'json')
+  )
+    throw new DanseoError('FORMAT', 'Specify json or markdown.');
+  if (!options.workspace?.trim())
+    throw new DanseoError('WORKSPACE_REQUIRED', 'Provide a --workspace path.');
+  if (
+    command === 'show' &&
+    Number(Boolean(options.paper)) + Number(Boolean(options.application)) !== 1
+  )
+    throw new DanseoError('SHOW_ID', 'Specify exactly one of --paper or --application.');
+  if (command === 'export' && (!options.project || !options.application))
+    throw new DanseoError('EXPORT_IDS', 'Both --project and --application are required.');
   const ws = await loadWorkspace(options.workspace);
   let output: string;
   if (command === 'validate') {
-    const report = { ok: true, records: ws.cards.length, projects: ws.projects.length, warnings: ws.warnings, scope: 'structure-and-references-only' };
-    output = format === 'json' ? prettyJson(report) : `Validation passed: ${report.records} records / ${report.projects} projects
+    const report = {
+      ok: true,
+      records: ws.cards.length,
+      projects: ws.projects.length,
+      warnings: ws.warnings,
+      scope: 'structure-and-references-only',
+    };
+    output =
+      format === 'json'
+        ? prettyJson(report)
+        : `Validation passed: ${report.records} records / ${report.projects} projects
 ${ws.warnings.join('\n')}\n`;
   } else if (command === 'list') {
     const rows = listCards(ws, options.project);
-    output = format === 'json' ? prettyJson(rows) : rows.map(r => `${r.id}\t${r.type}\t${r.status}\t${r.title}`).join('\n') + '\n';
+    output =
+      format === 'json'
+        ? prettyJson(rows)
+        : rows.map((r) => `${r.id}\t${r.type}\t${r.status}\t${r.title}`).join('\n') + '\n';
   } else if (command === 'show') {
-    const card = getCard(ws, (options.paper ?? options.application)!, options.paper ? 'paper' : 'application');
+    const card = getCard(
+      ws,
+      (options.paper ?? options.application)!,
+      options.paper ? 'paper' : 'application',
+    );
     const sourceDirectory = resolve(card.path, '..');
-    output = format === 'json' ? prettyJson({ ...card, source_directory: sourceDirectory }) : card.raw;
-    if (format !== 'json') process.stderr.write(`Relative links resolve from: ${sourceDirectory}\n`);
+    output =
+      format === 'json' ? prettyJson({ ...card, source_directory: sourceDirectory }) : card.raw;
+    if (format !== 'json')
+      process.stderr.write(`Relative links resolve from: ${sourceDirectory}\n`);
   } else {
-    const bundle = await buildBundle(ws, options.project!, options.application!, options['include-drafts'] ?? false);
+    const bundle = await buildBundle(
+      ws,
+      options.project!,
+      options.application!,
+      options['include-drafts'] ?? false,
+    );
     output = renderBundle(bundle, format);
-    if (bundle.warnings.length) process.stderr.write(format === 'json' ? JSON.stringify({ warnings: bundle.warnings }) + '\n' : `Includes unreviewed material: ${bundle.warnings.join('; ')}\n`);
+    if (bundle.warnings.length)
+      process.stderr.write(
+        format === 'json'
+          ? JSON.stringify({ warnings: bundle.warnings }) + '\n'
+          : `Includes unreviewed material: ${bundle.warnings.join('; ')}\n`,
+      );
   }
   if (options.out) {
     const outputPath = resolve(options.out);
     await writeNewFile(outputPath, output);
-    process.stderr.write(format === 'json' ? JSON.stringify({ written: outputPath }) + '\n' : `Saved: ${outputPath}\n`);
+    process.stderr.write(
+      format === 'json' ? JSON.stringify({ written: outputPath }) + '\n' : `Saved: ${outputPath}\n`,
+    );
   } else process.stdout.write(output);
 }
 
-main().catch(error => {
-  const structured = process.argv.includes('--json') || process.argv.includes('--format=json') || process.argv.some((x,i,a) => x === '--format' && a[i+1] === 'json');
+main().catch((error) => {
+  const structured =
+    process.argv.includes('--json') ||
+    process.argv.includes('--format=json') ||
+    process.argv.some((x, i, a) => x === '--format' && a[i + 1] === 'json');
   const known = error instanceof DanseoError;
   const detail = { code: known ? error.code : 'CLI_ERROR', message: (error as Error).message };
-  process.stderr.write(structured ? JSON.stringify({ error: detail }) + '\n' : `${detail.code}: ${detail.message}\n`);
+  process.stderr.write(
+    structured ? JSON.stringify({ error: detail }) + '\n' : `${detail.code}: ${detail.message}\n`,
+  );
   process.exitCode = known ? error.exitCode : 2;
 });

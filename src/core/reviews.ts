@@ -7,32 +7,122 @@ import { claimFingerprint, canonical } from './claim-state.js';
 
 type Evidence = { pdf_page: number; section: string; note: string };
 type Verdict = 'supported' | 'partially_supported' | 'contradicted' | 'insufficient_evidence';
-export type FrozenPaper = { paper_id: string; card_sha256: string; source: { version?: string; url?: string | null; pdf_sha256: string; text_sha256?: string | null }; claims: { id: string; statement: string; locators: unknown[] }[] };
+export type FrozenPaper = {
+  paper_id: string;
+  card_sha256: string;
+  source: {
+    version?: string;
+    url?: string | null;
+    pdf_sha256: string;
+    text_sha256?: string | null;
+  };
+  claims: { id: string; statement: string; locators: unknown[] }[];
+};
 export type ReviewInput = { run_id: string; papers: FrozenPaper[] };
-type Result = { input_sha256: string; reviewer: string; review_type: string; reviewed_at: string; claims: { paper_id: string; claim_id: string; verdict: Verdict; reason: string; evidence: Evidence[]; required_changes: string[] }[]; source_checks: { paper_id: string; pdf_sha256: string }[] };
-export type ClaimReview = Result['claims'][number] & { state: 'current' | 'stale'; stale_reason?: string; run_id: string; reviewer: string; reviewed_at: string; review_type: string; input_sha256: string; result_sha256: string; source: { version?: string; url?: string | null } };
+type Result = {
+  input_sha256: string;
+  reviewer: string;
+  review_type: string;
+  reviewed_at: string;
+  claims: {
+    paper_id: string;
+    claim_id: string;
+    verdict: Verdict;
+    reason: string;
+    evidence: Evidence[];
+    required_changes: string[];
+  }[];
+  source_checks: { paper_id: string; pdf_sha256: string }[];
+};
+export type ClaimReview = Result['claims'][number] & {
+  state: 'current' | 'stale';
+  stale_reason?: string;
+  run_id: string;
+  reviewer: string;
+  reviewed_at: string;
+  review_type: string;
+  input_sha256: string;
+  result_sha256: string;
+  source: { version?: string; url?: string | null };
+};
 
 const string = { type: 'string', minLength: 1, maxLength: 8192, pattern: '\\S' };
 const digest = { type: 'string', pattern: '^[a-f0-9]{64}$' };
 const list = (items: object) => ({ type: 'array', maxItems: 1000, items });
-const object = (properties: object, required: string[]) => ({ type: 'object', properties, required });
+const object = (properties: object, required: string[]) => ({
+  type: 'object',
+  properties,
+  required,
+});
 const ajv = new Ajv({ strict: true });
-const inputValid = ajv.compile(object({
-  run_id: string,
-  papers: list(object({ paper_id: string, card_sha256: digest,
-    source: object({ version: string, url: { anyOf: [string, { type: 'null' }] }, pdf_sha256: digest, text_sha256: { anyOf: [digest, { type: 'null' }] } }, ['pdf_sha256']),
-    claims: list(object({ id: string, statement: string, locators: list({ type: 'object' }) }, ['id','statement','locators']))
-  }, ['paper_id','card_sha256','source','claims']))
-}, ['run_id','papers']));
-const resultValid = ajv.compile(object({
-  input_sha256: digest, reviewer: string, reviewed_at: string,
-  review_type: { enum: ['independent-source-review','same-reviewer-delta'] },
-  claims: list(object({ paper_id: string, claim_id: string, verdict: { enum: ['supported','partially_supported','contradicted','insufficient_evidence'] }, reason: string,
-    evidence: list(object({ pdf_page: { type: 'integer', minimum: 1 }, section: string, note: string }, ['pdf_page','section','note'])),
-    required_changes: list(string)
-  }, ['paper_id','claim_id','verdict','reason','evidence','required_changes'])),
-  source_checks: list(object({ paper_id: string, pdf_sha256: digest }, ['paper_id','pdf_sha256']))
-}, ['input_sha256','reviewer','review_type','reviewed_at','claims','source_checks']));
+const inputValid = ajv.compile(
+  object(
+    {
+      run_id: string,
+      papers: list(
+        object(
+          {
+            paper_id: string,
+            card_sha256: digest,
+            source: object(
+              {
+                version: string,
+                url: { anyOf: [string, { type: 'null' }] },
+                pdf_sha256: digest,
+                text_sha256: { anyOf: [digest, { type: 'null' }] },
+              },
+              ['pdf_sha256'],
+            ),
+            claims: list(
+              object({ id: string, statement: string, locators: list({ type: 'object' }) }, [
+                'id',
+                'statement',
+                'locators',
+              ]),
+            ),
+          },
+          ['paper_id', 'card_sha256', 'source', 'claims'],
+        ),
+      ),
+    },
+    ['run_id', 'papers'],
+  ),
+);
+const resultValid = ajv.compile(
+  object(
+    {
+      input_sha256: digest,
+      reviewer: string,
+      reviewed_at: string,
+      review_type: { enum: ['independent-source-review', 'same-reviewer-delta'] },
+      claims: list(
+        object(
+          {
+            paper_id: string,
+            claim_id: string,
+            verdict: {
+              enum: ['supported', 'partially_supported', 'contradicted', 'insufficient_evidence'],
+            },
+            reason: string,
+            evidence: list(
+              object({ pdf_page: { type: 'integer', minimum: 1 }, section: string, note: string }, [
+                'pdf_page',
+                'section',
+                'note',
+              ]),
+            ),
+            required_changes: list(string),
+          },
+          ['paper_id', 'claim_id', 'verdict', 'reason', 'evidence', 'required_changes'],
+        ),
+      ),
+      source_checks: list(
+        object({ paper_id: string, pdf_sha256: digest }, ['paper_id', 'pdf_sha256']),
+      ),
+    },
+    ['input_sha256', 'reviewer', 'review_type', 'reviewed_at', 'claims', 'source_checks'],
+  ),
+);
 
 const sha = (bytes: Buffer | string) => createHash('sha256').update(bytes).digest('hex');
 
@@ -41,7 +131,8 @@ function requireValue(value: unknown, message: string): asserts value {
 }
 
 export function validReviewTime(value: string) {
-  const parts = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+  const parts =
+    /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!parts || !Number.isFinite(Date.parse(value))) return false;
 
   const year = Number(parts[1]);
@@ -55,49 +146,71 @@ export function validReviewTime(value: string) {
 async function readRegistered(root: string, entry: string) {
   const file = resolve(root, entry);
   const rel = relative(root, file);
-  requireValue(!isAbsolute(entry) && rel !== '..' && !rel.startsWith(`..${sep}`), 'Register review files with relative paths inside the workspace.');
+  requireValue(
+    !isAbsolute(entry) && rel !== '..' && !rel.startsWith(`..${sep}`),
+    'Register review files with relative paths inside the workspace.',
+  );
   const actual = relative(await realpath(root), await realpath(file));
-  requireValue(!isAbsolute(actual) && actual !== '..' && !actual.startsWith(`..${sep}`), 'The review file points outside the workspace.');
+  requireValue(
+    !isAbsolute(actual) && actual !== '..' && !actual.startsWith(`..${sep}`),
+    'The review file points outside the workspace.',
+  );
   const info = await stat(file);
-  requireValue(info.isFile() && info.size <= 2 * 1024 * 1024, 'Check the review JSON file size and format.');
+  requireValue(
+    info.isFile() && info.size <= 2 * 1024 * 1024,
+    'Check the review JSON file size and format.',
+  );
   return readFile(file);
 }
 
 function verifyReviewedClaims(frozen: ReviewInput, review: Result) {
-  const expectedClaims = frozen.papers.flatMap(paper =>
-    paper.claims.map(claim => JSON.stringify([paper.paper_id, claim.id]))
+  const expectedClaims = frozen.papers.flatMap((paper) =>
+    paper.claims.map((claim) => JSON.stringify([paper.paper_id, claim.id])),
   );
-  const receivedClaims = review.claims.map(claim => JSON.stringify([claim.paper_id, claim.claim_id]));
+  const receivedClaims = review.claims.map((claim) =>
+    JSON.stringify([claim.paper_id, claim.claim_id]),
+  );
   const expectedIds = new Set(expectedClaims);
   const receivedIds = new Set(receivedClaims);
   requireValue(
     expectedIds.size === expectedClaims.length &&
-    receivedIds.size === receivedClaims.length &&
-    expectedIds.size === receivedIds.size &&
-    receivedClaims.every(id => expectedIds.has(id)),
-    'Review claim IDs are missing, duplicated or unexpected.'
+      receivedIds.size === receivedClaims.length &&
+      expectedIds.size === receivedIds.size &&
+      receivedClaims.every((id) => expectedIds.has(id)),
+    'Review claim IDs are missing, duplicated or unexpected.',
   );
 
-  const paperIds = new Set(frozen.papers.map(paper => paper.paper_id));
-  requireValue(paperIds.size === frozen.papers.length, 'Paper IDs are duplicated in the review input.');
+  const paperIds = new Set(frozen.papers.map((paper) => paper.paper_id));
+  requireValue(
+    paperIds.size === frozen.papers.length,
+    'Paper IDs are duplicated in the review input.',
+  );
   for (const paper of frozen.papers) {
-    const checks = review.source_checks.filter(check => check.paper_id === paper.paper_id);
+    const checks = review.source_checks.filter((check) => check.paper_id === paper.paper_id);
     requireValue(
       checks.length === 1 && checks[0]?.pdf_sha256 === paper.source.pdf_sha256,
-      'The reviewer source hash differs from the frozen input.'
+      'The reviewer source hash differs from the frozen input.',
     );
   }
   requireValue(
-    review.claims.every(claim => claim.verdict === 'insufficient_evidence' || claim.evidence.length),
-    'The verdict has no source-evidence location.'
+    review.claims.every(
+      (claim) => claim.verdict === 'insufficient_evidence' || claim.evidence.length,
+    ),
+    'The verdict has no source-evidence location.',
   );
 }
 
-async function readReviewRegistration(root: string, registration: NonNullable<Workspace['claim_reviews']>[number]) {
+async function readReviewRegistration(
+  root: string,
+  registration: NonNullable<Workspace['claim_reviews']>[number],
+) {
   const inputBytes = await readRegistered(root, registration.input);
   const resultBytes = await readRegistered(root, registration.result);
   const resultHash = sha(resultBytes);
-  requireValue(resultHash === registration.result_sha256, 'The review-result file differs from its registered hash.');
+  requireValue(
+    resultHash === registration.result_sha256,
+    'The review-result file differs from its registered hash.',
+  );
 
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const input: unknown = JSON.parse(decoder.decode(inputBytes));
@@ -105,10 +218,13 @@ async function readReviewRegistration(root: string, registration: NonNullable<Wo
   requireValue(inputValid(input) && resultValid(result), 'Unsupported claim-review JSON format.');
   const frozen = input as ReviewInput;
   const review = result as Result;
-  requireValue(sha(inputBytes) === review.input_sha256, 'The frozen input hash differs from the review result.');
+  requireValue(
+    sha(inputBytes) === review.input_sha256,
+    'The frozen input hash differs from the review result.',
+  );
   requireValue(
     validReviewTime(review.reviewed_at),
-    'Use a real calendar date with Z or a UTC offset for the review time, with at most three fractional digits (milliseconds).'
+    'Use a real calendar date with Z or a UTC offset for the review time, with at most three fractional digits (milliseconds).',
   );
   verifyReviewedClaims(frozen, review);
 
@@ -123,7 +239,9 @@ export async function readVerifiedReviews(ws: Workspace) {
     try {
       records.push(await readReviewRegistration(ws.path, registration));
     } catch (error) {
-      warnings.push(`Review record ${index + 1} could not be connected. ${(error as Error).message}`);
+      warnings.push(
+        `Review record ${index + 1} could not be connected. ${(error as Error).message}`,
+      );
     }
   }
   return { records, warnings };
@@ -135,13 +253,14 @@ async function sourceStaleReason(
   cardPath: string,
   current: PaperSource,
   frozen: FrozenPaper['source'],
-  selectedPdfSha256: string
+  selectedPdfSha256: string,
 ) {
   const currentEdition = { version: current.version ?? null, url: current.url ?? null };
   const reviewedEdition = { version: frozen.version ?? null, url: frozen.url ?? null };
-  let reason = canonical(currentEdition) !== canonical(reviewedEdition)
-    ? 'The source edition or URL changed after review.'
-    : '';
+  let reason =
+    canonical(currentEdition) !== canonical(reviewedEdition)
+      ? 'The source edition or URL changed after review.'
+      : '';
   if (frozen.pdf_sha256 !== selectedPdfSha256) {
     reason ||= 'The reviewed PDF differs from the source hash selected in this topic.';
   }
@@ -153,7 +272,8 @@ async function sourceStaleReason(
       reason ||= 'Both the linked source-text hash and review-input hash are required.';
     } else if (current.text_path) {
       const sourceText = await readFile(resolve(dirname(cardPath), current.text_path));
-      if (sha(sourceText) !== frozen.text_sha256) reason ||= 'The linked source text changed after review.';
+      if (sha(sourceText) !== frozen.text_sha256)
+        reason ||= 'The linked source text changed after review.';
     }
   } catch {
     reason ||= 'Unable to verify the current original-file hash.';
@@ -163,29 +283,39 @@ async function sourceStaleReason(
 
 /** Optional, explicit review records. Reading them never changes Paper or relation status. */
 export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha256: string) {
-  const output: { claims: Record<string, ClaimReview[]>; warnings: string[]; registered: number } = {
-    claims: Object.create(null),
-    warnings: [],
-    registered: ws.claim_reviews?.length ?? 0
-  };
+  const output: { claims: Record<string, ClaimReview[]>; warnings: string[]; registered: number } =
+    {
+      claims: Object.create(null),
+      warnings: [],
+      registered: ws.claim_reviews?.length ?? 0,
+    };
   if (card.data.type !== 'paper') return output;
 
   const paper = card.data;
   const verified = await readVerifiedReviews(ws);
   output.warnings.push(...verified.warnings);
   for (const { input, result: review, result_sha256 } of verified.records) {
-    const snapshot = input.papers.find(paperSnapshot => paperSnapshot.paper_id === paper.id);
+    const snapshot = input.papers.find((paperSnapshot) => paperSnapshot.paper_id === paper.id);
     if (!snapshot) continue;
 
-    const staleReason = await sourceStaleReason(card.path, paper.source, snapshot.source, selectedPdfSha256);
+    const staleReason = await sourceStaleReason(
+      card.path,
+      paper.source,
+      snapshot.source,
+      selectedPdfSha256,
+    );
     for (const judgment of review.claims) {
       if (judgment.paper_id !== paper.id) continue;
-      const current = paper.claims?.find(claim => claim.id === judgment.claim_id);
+      const current = paper.claims?.find((claim) => claim.id === judgment.claim_id);
       if (!current) continue;
       // The validated claim IDs guarantee that this review has a matching frozen claim.
-      const frozen = snapshot.claims.find(claim => claim.id === judgment.claim_id)!;
+      const frozen = snapshot.claims.find((claim) => claim.id === judgment.claim_id)!;
       const changed = claimFingerprint(current) !== claimFingerprint(frozen);
-      const reason = staleReason || (changed ? 'The claim statement or source locations differ from the reviewed version.' : '');
+      const reason =
+        staleReason ||
+        (changed
+          ? 'The claim statement or source locations differ from the reviewed version.'
+          : '');
 
       (output.claims[judgment.claim_id] ??= []).push({
         ...judgment,
@@ -197,7 +327,7 @@ export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha
         review_type: review.review_type,
         input_sha256: review.input_sha256,
         result_sha256,
-        source: { url: snapshot.source.url, version: snapshot.source.version }
+        source: { url: snapshot.source.url, version: snapshot.source.version },
       });
     }
   }

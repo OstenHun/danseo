@@ -43,8 +43,15 @@ export type FixtureDocument = {
   document: string;
   document_sha256: string;
   markdown: string;
-  binding: { round: number; edition: string; pdf_sha256: string; workspace: string; paper_id: string;
-    answered: boolean; comparison_claims: string[] };
+  binding: {
+    round: number;
+    edition: string;
+    pdf_sha256: string;
+    workspace: string;
+    paper_id: string;
+    answered: boolean;
+    comparison_claims: string[];
+  };
   scope: string;
 };
 export type FixtureReviewResult = {
@@ -52,7 +59,10 @@ export type FixtureReviewResult = {
   reviewer: string;
   review_type: 'independent-source-review';
   reviewed_at: string;
-  claims: Pick<ClaimReview, 'paper_id' | 'claim_id' | 'verdict' | 'reason' | 'evidence' | 'required_changes'>[];
+  claims: Pick<
+    ClaimReview,
+    'paper_id' | 'claim_id' | 'verdict' | 'reason' | 'evidence' | 'required_changes'
+  >[];
   source_checks: { paper_id: string; pdf_sha256: string }[];
 };
 
@@ -79,4 +89,7 @@ export type TopicOutputs = {
   compare: Comparison;
 };
 
-export type FixtureSourceBook = { version: 1; rows: { key: string; round: number; files: Collection['rows'][number]['files'] }[] };
+export type FixtureSourceBook = {
+  version: 1;
+  rows: { key: string; round: number; files: Collection['rows'][number]['files'] }[];
+};
