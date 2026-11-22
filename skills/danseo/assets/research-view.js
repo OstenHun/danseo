@@ -27,6 +27,15 @@
   const prefix = projectMode ? '#application=' : '#paper=';
   const topics = new Map((data.project_context?.items ?? []).map(item => [item.id, item]));
   const paperName = id => papers.get(id).short_title ?? papers.get(id).title;
+  const aliasCounts = new Map();
+  for (const paper of data.papers) {
+    const alias = paperName(paper.id);
+    aliasCounts.set(alias, (aliasCounts.get(alias) ?? 0) + 1);
+  }
+  function backgroundPaperName(id) {
+    const alias = paperName(id);
+    return aliasCounts.get(alias) > 1 ? papers.get(id).title + ' (' + id + ')' : alias;
+  }
   let scene = projectMode && data.map_view === 'context' ? 'context' : projectMode ? 'applications' : 'papers';
   let map, activeBackground, paperMapState, selectedType = projectMode ? 'application' : 'paper';
   // `details` receives edition dates and date provenance; the first-publication date stays in `parent`.
@@ -236,7 +245,7 @@
           const link = node('a', '', t('Open original source ↗'));
           link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
           const label = t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title });
-          link.setAttribute('aria-label', label + (showAddress ? ' · ' + source.url : ''));
+          link.setAttribute('aria-label', label + ' · ' + location + (showAddress ? ' · ' + source.url : ''));
           row.append(link);
         }
         if (index >= 2 && !more) {
@@ -344,11 +353,9 @@
           li.append(localLink('concept', concept.id, concept.title, ''));
           if (contexts.every(background => !background.readings.length)) li.append(node('span', 'recipe-gap', ' · ' + t('No reading secured')));
           for (const background of contexts) {
-            const from = paperName(background.paper_id);
-            const sameName = contexts.some(other => other !== background && paperName(other.paper_id) === from);
-            const suffix = contexts.length > 1 ? t(' · from {paper}', { paper: sameName ? from + ' (' + background.paper_id + ')' : from }) : '';
+            const suffix = contexts.length > 1 ? t(' · from {paper}', { paper: backgroundPaperName(background.paper_id) }) : '';
             for (const reading of background.readings) {
-              li.append(' · ', localLink('background-reading', background.id + ':' + reading.paper_id, paperName(reading.paper_id) + suffix, ''));
+              li.append(' · ', localLink('background-reading', background.id + ':' + reading.paper_id, backgroundPaperName(reading.paper_id) + suffix, ''));
             }
           }
           list.append(li);
@@ -384,10 +391,10 @@
       };
       for (const background of backgrounds.values()) {
         const title = concepts.get(background.concept_id).title;
-        const from = paperName(background.paper_id);
+        const from = backgroundPaperName(background.paper_id);
         addConnection('concept-need', background.id, t('Explore concept · ') + from + ' → ' + title);
         for (const reading of background.readings) {
-          const route = t('Background reading · ') + title + ' → ' + paperName(reading.paper_id);
+          const route = t('Background reading · ') + title + ' → ' + backgroundPaperName(reading.paper_id);
           addConnection('background-reading', background.id + ':' + reading.paper_id, linkedConcepts.get(background.concept_id).length > 1 ? route + t(' · from {paper}', { paper: from }) : route);
         }
       }

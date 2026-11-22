@@ -719,6 +719,24 @@ test('first-map source rows visibly distinguish editions that share a locator', 
     const row = section.children.find(child => child.className === 'source-row' && linksIn(child).some(link => link.href === item.url));
     assert.ok(row.textContent.includes(item.title));
     assert.ok(row.textContent.includes(item.locator));
+    assert.ok(linksIn(row)[0].attributes.get('aria-label').includes(item.locator));
+  }
+});
+
+test('duplicate paper aliases stay distinct in the recipe and connection lists', () => {
+  const data = backgroundFixture(), [first] = data.backgrounds, [reading] = first.readings;
+  const another = { ...data.papers[1], id: 'P.Another' };
+  data.papers.push(another);
+  for (const paper of data.papers) paper.short_title = 'Shared alias';
+  data.concepts[0].tier = 'recipe';
+  first.readings.push({ ...reading, paper_id: another.id });
+  data.backgrounds.push({ ...first, id: 'B.Other', paper_id: data.papers[2].id });
+  validateCandidate(data);
+  const view = openBackground(data);
+  for (const list of ['map-links', 'map-legend']) {
+    const links = linksIn(view.elements.get(list)).filter(link => link.href.startsWith('#background-reading='));
+    assert.equal(links.length, 4);
+    assert.equal(new Set(links.map(link => link.textContent)).size, 4);
   }
 });
 
