@@ -366,8 +366,9 @@
       cy.resize(); cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
       if (initial && concepts.length && cy.width() < view.narrowWidth && cy.zoom() < view.narrowZoom) {
         // A phone opens on the start paper at a readable size.
-        const start = cy.getElementById('paper:' + data.start).position(), zoom = view.narrowZoom;
-        cy.viewport({ zoom, pan: { x: cy.width() * .3 - start.x * zoom, y: cy.height() / 4 - start.y * zoom } });
+        const node = cy.getElementById('paper:' + data.start), start = node.position(), zoom = view.narrowZoom;
+        const centerY = Math.max(cy.height() / 4, (node.height() / 2 - tree.headingTop + tree.gap) * zoom);
+        cy.viewport({ zoom, pan: { x: cy.width() * .3 - start.x * zoom, y: centerY - start.y * zoom } });
       } else if (initial && concepts.length && cy.zoom() < view.firstMapMinZoom) {
         // A large first map opens readable at its top-left (focal paper and first concepts); "Fit all" still shows everything.
         const box = cy.nodes().boundingBox(), zoom = view.firstMapMinZoom;
