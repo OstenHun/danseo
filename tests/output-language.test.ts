@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { runNode } from './helpers/run-node.js';
 
 test('English viewer guidance preserves supplied Korean and English research prose and original quotations', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'danseo-language-'));
@@ -28,9 +28,7 @@ test('English viewer guidance preserves supplied Korean and English research pro
     const input = join(root, name + '.json');
     const output = join(root, name + '.html');
     writeFileSync(input, JSON.stringify(candidate));
-    const result = spawnSync(process.execPath, [renderer, input, '--out', output], {
-      encoding: 'utf8',
-    });
+    const result = runNode([renderer, input, '--out', output]);
     assert.equal(result.status, 0, result.stderr);
     const html = readFileSync(output, 'utf8');
     assert.match(html, /<html lang="en">/);

@@ -2,7 +2,6 @@ import type { FixtureSourceBook, TopicOutputs } from './helpers/fixture-types.js
 import type { ReviewInput } from '../dist/core/reviews.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import {
   readFileSync,
   readdirSync,
@@ -15,6 +14,7 @@ import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { pdf } from './helpers/source-pdf.js';
+import { runNode } from './helpers/run-node.js';
 import {
   setup,
   claim,
@@ -512,11 +512,15 @@ fs.readFile = async function(file, ...args) {
 syncBuiltinESMExports();
 `,
   );
-  const proc = spawnSync(
-    process.execPath,
-    ['--import', pathToFileURL(hook).href, cli, 'topic', 'comparison-input', '--dir', f.topic],
-    { encoding: 'utf8' },
-  );
+  const proc = runNode([
+    '--import',
+    pathToFileURL(hook).href,
+    cli,
+    'topic',
+    'comparison-input',
+    '--dir',
+    f.topic,
+  ]);
   assert.equal(proc.status, 0, proc.stderr);
   const report = parseJson<TopicOutputs['comparison-input']>(proc.stdout);
   assert.deepEqual(
@@ -534,11 +538,15 @@ syncBuiltinESMExports();
 function compareWithPreload(f: AnalysisFixture, source: string) {
   const path = join(f.root, 'source-state-hook.mjs');
   writeFileSync(path, source);
-  const proc = spawnSync(
-    process.execPath,
-    ['--import', pathToFileURL(path).href, cli, 'topic', 'comparison-input', '--dir', f.topic],
-    { encoding: 'utf8' },
-  );
+  const proc = runNode([
+    '--import',
+    pathToFileURL(path).href,
+    cli,
+    'topic',
+    'comparison-input',
+    '--dir',
+    f.topic,
+  ]);
   assert.equal(proc.status, 0, proc.stderr);
   return parseJson<TopicOutputs['comparison-input']>(proc.stdout);
 }

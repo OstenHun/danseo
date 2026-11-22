@@ -14,13 +14,13 @@ import type {
 } from './fixture-types.js';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from 'yaml';
 import { pdf } from './source-pdf.js';
+import { runNode } from './run-node.js';
 
 // Dynamic JSON is a fixture-owned boundary, not a runtime schema validator.
 export function parseJson<T>(text: string): T {
@@ -80,9 +80,7 @@ export function setup(t: Pick<TestContext, 'after'>) {
   const saveConfig = () => json(configPath, config);
   saveConfig();
   function run(dir: string, action: string, ...args: string[]) {
-    return spawnSync(process.execPath, [cli, 'topic', action, '--dir', dir, ...args], {
-      encoding: 'utf8',
-    });
+    return runNode([cli, 'topic', action, '--dir', dir, ...args]);
   }
   function ok<Action extends keyof TopicOutputs>(
     dir: string,

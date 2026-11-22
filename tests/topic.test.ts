@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,15 +7,14 @@ import test, { type TestContext } from 'node:test';
 import type { SelectedPaper } from '../dist/core/topic.js';
 import type { TopicOutputs } from './helpers/fixture-types.js';
 import { parseJson, required } from './helpers/analysis-fixture.js';
+import { runNode } from './helpers/run-node.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 function topicFixture(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), 'danseo-topic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(action: string, ...args: string[]) {
-    return spawnSync(process.execPath, [cli, 'topic', action, '--dir', dir, ...args], {
-      encoding: 'utf8',
-    });
+    return runNode([cli, 'topic', action, '--dir', dir, ...args]);
   }
   function ok<Action extends keyof TopicOutputs>(
     action: Action,

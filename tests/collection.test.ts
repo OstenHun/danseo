@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync, readdirSync, statSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,6 +10,7 @@ import type { TopicOutputs, FixtureSourceBook } from './helpers/fixture-types.js
 import { parseJson, required } from './helpers/analysis-fixture.js';
 
 import { pdf } from './helpers/source-pdf.js';
+import { runNode } from './helpers/run-node.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 
@@ -18,7 +18,7 @@ function fixture(t: TestContext) {
   const dir = mkdtempSync(join(tmpdir(), '단서 원문 collection-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(...args: string[]) {
-    return spawnSync(process.execPath, [cli, 'topic', ...args, '--dir', dir], { encoding: 'utf8' });
+    return runNode([cli, 'topic', ...args, '--dir', dir]);
   }
   function ok<Action extends keyof TopicOutputs>(
     action: Action,

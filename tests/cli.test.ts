@@ -15,13 +15,13 @@ import assert from 'node:assert/strict';
 import { mkdtemp, cp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
-import { spawnSync } from 'node:child_process';
 import { selectQuestion } from '../dist/core/index.js';
+import { runNode } from './helpers/run-node.js';
 
 const cli = resolve('dist/cli.js');
 const fixture = resolve('examples/minimal');
 function run(ws: string, args: string[]) {
-  return spawnSync(process.execPath, [cli, ...args, '--workspace', ws], { encoding: 'utf8' });
+  return runNode([cli, ...args, '--workspace', ws]);
 }
 async function setup(t: TestContext) {
   const root = await mkdtemp(join(tmpdir(), 'danseo-'));
