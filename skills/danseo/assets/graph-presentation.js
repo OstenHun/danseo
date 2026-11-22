@@ -204,6 +204,10 @@
     const date = element('p', 'graph-paper-date', paper.dateLabel);
     date.title = paper.dateLabel;
     node.append(top, title, date);
+    if (paper.focal) {
+      node.classList.toggle('is-focal', true);
+      node.append(element('span', 'graph-focal-label', t('Focal paper')));
+    }
     node.classList.toggle('is-undated', paper.undated === true);
     return node;
   }

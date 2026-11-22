@@ -508,6 +508,75 @@ const linksIn = element => element.children.filter(child => typeof child !== 'st
   ...(child.tagName === 'A' ? [child] : []), ...linksIn(child),
 ]);
 
+test('focal metadata is explicit, v2 paper-only, and independent of accessible selection', () => {
+  const data = backgroundFixture();
+  for (const id of [null, 'not-registered', data.papers[1].id]) {
+    assert.throws(() => validateCandidate({ ...data, focal_paper_id: id }), /focal_paper_id/);
+  }
+  for (const legacy of [fixture('paper-relations'), fixture('project-application', 2)]) {
+    assert.throws(() => validateCandidate({ ...legacy, focal_paper_id: legacy.papers[0].id }));
+  }
+  const neutral = openBackground(data, '');
+  assert.ok(!neutral.elements.get('items').textContent.includes('Focal paper'));
+  for (const [language, label] of [['en', 'Focal paper'], ['ko', '중심 논문']]) {
+    const named = { ...data, language, focal_paper_id: data.start };
+    validateCandidate(named);
+    const view = openBackground(named, ''), nodeLinks = linksIn(view.elements.get('items'));
+    const focal = nodeLinks.find(link => link.href === '#paper=' + data.start);
+    const other = nodeLinks.find(link => link.href === '#paper=' + data.papers[1].id);
+    assert.ok(focal.textContent.includes(label));
+    assert.equal(focal.attributes.get('aria-current'), 'true');
+    other.click();
+    assert.ok(focal.textContent.includes(label));
+    assert.ok(!other.textContent.includes(label));
+    assert.equal(other.attributes.get('aria-current'), 'true');
+    assert.ok(!focal.attributes.has('aria-current'));
+    assert.equal(view.activeElement.id, 'item-title');
+    view.location.hash = '#background=' + named.backgrounds[0].id;
+    assert.ok(view.elements.get('items').textContent.includes(label));
+  }
+});
+
+test('keyboard and canvas background links stay on the first map and keep shared concept contexts', () => {
+  const data = backgroundFixture(), [first] = data.backgrounds;
+  const other = { ...first, id: 'B.Other', paper_id: data.papers[2].id, rationale: 'A separate context for the same concept.',
+    readings: [{ ...first.readings[0], return_question: 'Compare with a different starting paper.' }] };
+  data.backgrounds.push(other);
+  validateCandidate(data);
+  let mountCount = 0, dispatch;
+  const mapApi = { mount(_container, _data, _scene, select) {
+    mountCount++; dispatch = select;
+    return { select() {} };
+  } };
+  const view = openBackground(data, '', mapApi);
+  const concept = data.concepts[0];
+  const items = linksIn(view.elements.get('items'));
+  const conceptLink = items.find(link => link.href === '#concept=' + concept.id);
+  const connections = linksIn(view.elements.get('map-links')), content = view.elements.get('content');
+  assert.equal(items.filter(link => link.href.startsWith('#concept=')).length, 1);
+  assert.equal(connections.filter(link => link.href.startsWith('#relation=')).length, data.relations.length);
+  assert.equal(connections.filter(link => link.href.startsWith('#background-reading=')).length, 2);
+  conceptLink.click();
+  assert.equal(view.elements.get('item-title').textContent, concept.title);
+  assert.ok(content.textContent.includes(first.rationale) && content.textContent.includes(other.rationale));
+  assert.equal(conceptLink.attributes.get('aria-current'), 'true');
+  const hop = connections.find(link => link.href === '#concept-need=' + other.id);
+  hop.click();
+  assert.ok(!content.textContent.includes(first.rationale));
+  assert.ok(content.textContent.includes(other.rationale));
+  const id = other.id + ':' + other.readings[0].paper_id;
+  dispatch({ type: 'background-reading', recordId: id });
+  assert.equal(view.elements.get('item-title').textContent, data.papers[1].title);
+  assert.ok(content.textContent.includes(other.readings[0].return_question));
+  assert.ok(linksIn(content).some(link => link.href === 'https://example.org/background'));
+  assert.equal(connections.find(link => link.href === '#background-reading=' + encodeURIComponent(id)).attributes.get('aria-current'), 'true');
+  assert.equal(mountCount, 1);
+  assert.equal(view.elements.get('map-heading').textContent, 'Connections between papers');
+  const deepLink = openBackground(data, '#background-reading=' + encodeURIComponent(id));
+  assert.equal(deepLink.elements.get('item-title').textContent, data.papers[1].title);
+  assert.ok(deepLink.elements.get('content').textContent.includes(other.readings[0].return_question));
+});
+
 test('relation list and details use the same source, suggestion and stale labels in both languages', () => {
   for (const language of ['en', 'ko']) for (const [origin, status, stale, english, korean] of [
     ['ai', 'proposed', false, 'Suggested connection', '추천 연결'],
@@ -672,12 +741,26 @@ test('background projection keeps concept and paper namespaces distinct and leav
   assert.equal(nodes.filter(item => item.data.type === 'concept').length, 1);
   assert.ok(elements.filter(item => item.group === 'edges').every(item => item.data.origin === 'ai' && item.data.state === 'proposed'));
   assert.equal(JSON.stringify(data.relations), original);
-  const undatedPapers = scope.window.DanseoMap.build(data, 'papers').filter(item => item.group === 'nodes');
-  assert.ok(undatedPapers.every(item => item.data.type === 'paper' && item.data.label.includes('Publication year unknown')));
+  const main = scope.window.DanseoMap.build(data, 'papers');
+  const mainPapers = main.filter(item => item.group === 'nodes' && item.data.type === 'paper');
+  assert.equal(mainPapers.length, data.papers.length);
+  assert.ok(mainPapers.every(item => item.data.label.includes('Publication year unknown')));
+  assert.equal(main.filter(item => item.group === 'nodes' && item.data.type === 'concept').length, 1);
+  const [firstHop, secondHop] = main.filter(item => item.group === 'edges' && item.data.origin === 'ai' && item.data.backgroundId);
+  assert.equal(firstHop.data.source, 'paper:' + data.papers[0].id);
+  assert.equal(firstHop.data.target, 'concept:' + data.concepts[0].id);
+  assert.equal(firstHop.data.target, secondHop.data.source);
+  assert.equal(secondHop.data.target, 'paper:' + data.papers[1].id);
+  assert.equal(main.filter(item => item.data.type === 'relation').length, data.relations.length);
   data.papers[0].publication = {date:'2017-06-12',edition_date:'2023-08-02',source_id:data.sources[0].id};
   const dated = scope.window.DanseoMap.build(data, 'background', data.backgrounds[0].id);
   assert.match(dated.find(item => item.data.recordId === data.papers[0].id).data.label, /2017/);
   assert.ok(dated.every(item => !/AI|draft|Paper review/.test(item.data.label)));
+  assert.ok(dated.every(item => !item.data.focal));
+  data.focal_paper_id = data.start;
+  const focused = scope.window.DanseoMap.build(data, 'background', data.backgrounds[0].id);
+  assert.equal(focused.filter(item => item.data.focal).length, 1);
+  assert.match(focused.find(item => item.data.focal).data.label, /^Focal paper/);
 });
 
 test('all new concept/background prose is screened without changing the old canonical overview', () => {

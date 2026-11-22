@@ -16,6 +16,11 @@
   const hasVenueMetadata = data.papers.some(paper => paper.venue_rank);
   const concepts = new Map((data.concepts ?? []).map(item => [item.id, item]));
   const backgrounds = new Map((data.backgrounds ?? []).map(item => [item.id, item]));
+  const linkedConcepts = new Map();
+  for (const background of backgrounds.values()) {
+    if (!linkedConcepts.has(background.concept_id)) linkedConcepts.set(background.concept_id, []);
+    linkedConcepts.get(background.concept_id).push(background);
+  }
   const items = projectMode ? data.applications : data.papers;
   const prefix = projectMode ? '#application=' : '#paper=';
   const topics = new Map((data.project_context?.items ?? []).map(item => [item.id, item]));
@@ -187,19 +192,23 @@
     }
     return guide;
   }
-  function appendSourceLinks(parent, evidenceIds, { paperTitle = null } = {}) {
-    const relationEvidence = paperTitle === null;
+  function groupSourceLocations(evidenceIds, includeLocal) {
     const bySource = new Map();
     for (const id of evidenceIds) {
       const source = sources.get(id);
-      if (source.url === null && !relationEvidence) continue;
+      if (source.url === null && !includeLocal) continue;
       const key = source.url ?? id;
       if (!bySource.has(key)) bySource.set(key, { source, locators: new Set() });
       bySource.get(key).locators.add(source.locator);
     }
-    if (!bySource.size) return;
+    return [...bySource.values()];
+  }
 
-    const locations = [...bySource.values()].map(({ source, locators }) => {
+  function appendSourceLinks(parent, evidenceIds, { paperTitle = null } = {}) {
+    const relationEvidence = paperTitle === null;
+    const groupedSources = groupSourceLocations(evidenceIds, relationEvidence);
+    if (!groupedSources.length) return;
+    const locations = groupedSources.map(({ source, locators }) => {
       const location = t('Read at: {locations}', { locations: [...locators].join(' / ') });
       return { source, location, name: source.title + ' · ' + location };
     });
@@ -231,9 +240,13 @@
     }
     parent.append(reading);
   }
+  function referencedClaim({ paper_id, claim_id }) {
+    const paper = papers.get(paper_id);
+    return { paper, claim: paper.claims.find(claim => claim.id === claim_id) };
+  }
   function claims(parent, refs) {
     for (const ref of refs) {
-      const paper = papers.get(ref.paper_id), claim = paper.claims.find(c => c.id === ref.claim_id);
+      const { paper, claim } = referencedClaim(ref);
       const block = node('div', 'claim');
       if (paper.review_status === 'needs-recheck') block.append(badge(t('Evidence needs rechecking'), true));
       block.append(node('p', 'claim-id', paper.id + ' / ' + claim.id), node('h4', '', paper.title), p(t('Edition: ') + (paper.edition ?? t('Not recorded'))), p(claim.statement));
@@ -257,7 +270,7 @@
   }
   const nav = new Map();
   const gradeGuide = !projectMode && hasVenueMetadata ? venueGuide() : null;
-  if (gradeGuide) byId('map-legend').after(gradeGuide);
+  if (gradeGuide) byId(linkedConcepts.size ? 'map-status' : 'map-legend').after(gradeGuide);
   function localLink(type, id, title, cls) { const a = node('a', cls, title); a.href = '#' + type + '=' + encodeURIComponent(id); return a; }
   function mountMap(nextScene) {
     activeBackground = undefined;
@@ -270,18 +283,24 @@
       if (!projectMode) {
         a.className += ' map-item-ranked';
         a.replaceChildren(node('span', 'ranked-paper-title', a.textContent), presentation.venueBadge(venueRanks.get(item.id)));
+        if (data.focal_paper_id === item.id) a.append(node('span', 'map-focal-label', t('Focal paper')));
       }
       li.append(a); byId('items').append(li); nav.set(type + ':' + item.id, a);
     }
-    byId('count').textContent = t('{count} items', { count: listed.length });
-    byId('node-kind').textContent = scene === 'context' ? t('Concepts') : projectMode ? t('Projects · papers') : t('Paper');
-    byId('map-node-navigation').setAttribute('aria-label', scene === 'context' ? t('Concept list') : projectMode ? t('Projects and papers') : t('Paper list'));
+    for (const id of linkedConcepts.keys()) {
+      const li = node('li'), link = localLink('concept', id, t('Concept · ') + concepts.get(id).title, 'map-item map-concept-item');
+      li.append(link); byId('items').append(li); nav.set('concept:' + id, link);
+    }
+    byId('count').textContent = t('{count} items', { count: listed.length + linkedConcepts.size });
+    byId('node-kind').textContent = scene === 'context' ? t('Concepts') : projectMode ? t('Projects · papers') : linkedConcepts.size ? t('Papers and concepts') : t('Paper');
+    byId('map-node-navigation').setAttribute('aria-label', scene === 'context' ? t('Concept list') : projectMode ? t('Projects and papers') : linkedConcepts.size ? t('Papers and concepts') : t('Paper list'));
     byId('map-heading').textContent = scene === 'context' ? data.project_context.title : projectMode ? t('Current question and paper evidence') : t('Connections between papers');
-    byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
-    byId('map-legend').textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
+    byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : linkedConcepts.size ? t('Select a paper, concept, or connection to read its evidence. Filters apply to paper relations.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
+    const legend = byId('map-legend');
+    legend.textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
+    if (linkedConcepts.size) legend.append(node('br'), node('span', '', t('Purple ellipses · concepts / long dashes · explore concept / short dashes from concepts · background reading')));
     if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
     if (scene === 'papers' && hasCitationCounts) {
-      const legend = byId('map-legend');
       legend.append(node('br'), node('span', '', t('Node size = citation count · capped; unavailable counts use the base size.')));
     }
     const links = scene === 'context' ? data.project_context.links : projectMode ? items.flatMap(app => data.papers.filter(paper => app.claim_refs.some(ref => ref.paper_id === paper.id)).map(paper => ({ app, paper }))) : data.relations;
@@ -299,6 +318,23 @@
       }
       const a = localLink(type, id, undefined, 'map-link'), body = node('span', '', title); body.append(node('span', 'link-subtitle', sub)); a.append(node('span', 'index', String(index + 1).padStart(2, '0')), body); byId('map-links').append(a); nav.set(type + ':' + id, a);
     });
+    if (linkedConcepts.size) {
+      const list = byId('map-links');
+      list.append(node('h3', '', t('Suggested concept and background connections')));
+      const addConnection = (type, id, title) => {
+        const link = localLink(type, id, title, 'map-item map-background-link');
+        list.append(link); nav.set(type + ':' + id, link);
+      };
+      for (const background of backgrounds.values()) {
+        const title = concepts.get(background.concept_id).title;
+        const from = paperName(background.paper_id);
+        addConnection('concept-need', background.id, t('Explore concept · ') + from + ' → ' + title);
+        for (const reading of background.readings) {
+          const route = t('Background reading · ') + title + ' → ' + paperName(reading.paper_id);
+          addConnection('background-reading', background.id + ':' + reading.paper_id, linkedConcepts.get(background.concept_id).length > 1 ? route + t(' · from {paper}', { paper: from }) : route);
+        }
+      }
+    }
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => { const id = item.type === 'reference' ? item.recordId + ':' + item.paperId : item.recordId; location.hash = '#' + item.type + '=' + encodeURIComponent(id); }, matches => {
       for (const relation of data.relations ?? []) { const link = nav.get('relation:' + relation.id); if (link) link.hidden = !matches(relation); }
     }, undefined, paperMapState, venueRanks);
@@ -315,6 +351,7 @@
     const concept = concepts.get(background.concept_id);
     const addItem = (type, id, key, title) => {
       const li = node('li'), link = localLink(type, id, title, 'map-item'); li.append(link); byId('items').append(li); nav.set(key, link);
+      if (data.focal_paper_id && key === 'paper:' + data.focal_paper_id) link.append(node('span', 'map-focal-label', ' · ' + t('Focal paper')));
     };
     addItem('paper', background.paper_id, 'paper:' + background.paper_id, t('Current paper · ') + paperName(background.paper_id));
     addItem('background', background.id, 'concept:' + concept.id, t('Concept · ') + concept.title);
@@ -339,31 +376,50 @@
     for (const item of linked) sectionNode.append(localLink('background', item.id, t('Explore background · ') + concepts.get(item.concept_id).title, 'map-item'));
     parent.append(sectionNode);
   }
-  function showBackground(id, focus) {
-    const background = backgrounds.get(id); if (!background) return false;
-    const concept = concepts.get(background.concept_id); mountBackground(background);
-    const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
-    byId('position').textContent = t('CONCEPT BACKGROUND · ') + id; byId('item-title').textContent = concept.title;
-    content.append(p(concept.summary));
-    const reason = section(t('Why explore this concept from ') + paperName(background.paper_id)); reason.append(p(background.rationale)); content.append(reason);
+  function appendBackgroundReadings(content, background, readingRoute) {
+    const reason = section(t('Why explore this concept from ') + paperName(background.paper_id));
+    reason.append(p(background.rationale)); content.append(reason);
     for (const reading of background.readings) {
       const block = section(t('Representative reading · ') + paperName(reading.paper_id));
-      block.append(p(reading.rationale), localLink('background-paper', id + ':' + reading.paper_id, t('Read selected background · ') + paperName(reading.paper_id), 'map-item'));
+      block.append(p(reading.rationale), localLink(readingRoute, background.id + ':' + reading.paper_id, t('Read selected background · ') + paperName(reading.paper_id), 'map-item'));
       appendSourceLinks(block, reading.evidence, { paperTitle: papers.get(reading.paper_id).title });
       for (const sourceId of reading.evidence) { const source = sources.get(sourceId); if (source.url === null) block.append(p(t('Read at: ') + source.locator)); }
       evidence(block, reading.evidence);
       block.append(p(t('Return and compare: ') + reading.return_question)); content.append(block);
     }
-    content.append(localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'));
-    selectedType = 'background'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Explore only what you need');
-    highlight('concept', concept.id); byId('announcement').textContent = t('{title} background selected', { title: concept.title });
+  }
+  function showConcept(id, focus, type) {
+    const background = type === 'concept' ? undefined : backgrounds.get(id);
+    const concept = concepts.get(background?.concept_id ?? id);
+    const linked = type === 'concept' ? linkedConcepts.get(id) : background ? [background] : undefined;
+    if (!linked) return false;
+    if (type === 'background') mountBackground(background);
+    else if (scene === 'background') mountMap('papers');
+    const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
+    byId('position').textContent = t('CONCEPT BACKGROUND · ') + id; byId('item-title').textContent = concept.title;
+    content.append(p(concept.summary));
+    if (type !== 'background') content.append(node('p', 'origin-note', backgroundNotice));
+    for (const context of linked) {
+      appendBackgroundReadings(content, context, type === 'background' ? 'background-paper' : 'background-reading');
+      if (type !== 'background') content.append(localLink('background', context.id, t('Open focused background · ') + paperName(context.paper_id), 'map-item'));
+      content.append(localLink('paper', context.paper_id, t('Return to current paper · ') + paperName(context.paper_id), 'map-item'));
+    }
+    selectedType = type; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Explore only what you need');
+    highlight(type === 'background' ? 'concept' : type, type === 'background' ? concept.id : id);
+    byId('announcement').textContent = t('{title} background selected', { title: concept.title });
     if (focus) byId('item-title').focus(); return true;
   }
-  function showBackgroundPaper(compositeId, focus) {
+  function showBackgroundPaper(compositeId, focus, type) {
     const [backgroundId, paperId, extra] = compositeId.split(':'), background = backgrounds.get(backgroundId);
     const reading = background?.readings.find(item => item.paper_id === paperId);
     if (extra || !reading) return false;
-    mountBackground(background); select(paperId, focus, undefined, { background, reading });
+    if (type === 'background-paper') mountBackground(background);
+    else if (scene === 'background') mountMap('papers');
+    select(paperId, focus, undefined, { background, reading });
+    if (type === 'background-reading') {
+      selectedType = type; selected = compositeId;
+      highlight(type, compositeId);
+    }
     byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Optional background reading');
     return true;
   }
@@ -405,7 +461,15 @@
       appendPaperMetrics(content, item);
       if (backgroundReading) {
         const { background, reading } = backgroundReading, returning = section(t('Return and compare'));
-        returning.append(p(reading.return_question), localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'), localLink('background', background.id, t('Return to concept background · ') + concepts.get(background.concept_id).title, 'map-item'));
+        const inMainMap = scene === 'papers';
+        if (inMainMap) {
+          const locations = section(t('Background reading'));
+          locations.append(p(reading.rationale));
+          appendSourceLinks(locations, reading.evidence, { paperTitle: item.title });
+          evidence(locations, reading.evidence);
+          content.append(locations);
+        }
+        returning.append(p(reading.return_question), localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'), localLink(inMainMap ? 'concept-need' : 'background', background.id, t('Return to concept background · ') + concepts.get(background.concept_id).title, 'map-item'));
         content.append(returning);
       } else appendConceptChoices(content, item);
       const incident = data.relations.filter(r => r.source === item.id || r.target === item.id);
@@ -467,34 +531,58 @@
     highlight(relation ? 'context-link' : 'topic', relation ? String(relationIndex) : topic.id);
     byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent }); if (focus) byId('item-title').focus(); return true;
   }
-  function showRelation(id, focus) {
-    const relation = data.relations?.find(relation => relation.id === id); if (!relation) return false;
-    if (scene === 'background') mountMap('papers');
-    select(relation.source, false);
-    const meta = byId('metadata'), content = byId('content'); meta.replaceChildren(); content.replaceChildren();
-    const number = String(data.relations.findIndex(item => item.id === id) + 1).padStart(2, '0');
-    byId('position').textContent = t('RELATION {number} · ', { number }) + relation.id; byId('item-title').textContent = kindLabels[relation.kind];
-    meta.append(badge(relationLabel(relation), relation.needs_recheck));
-    if (relation.needs_recheck) meta.append(badge(t('Needs rechecking · a previous check is not treated as currently valid.'), true));
-    const direction = section(t('Relation direction')); direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target))); content.append(direction);
-    const reason = section(t('Why these records are connected')); reason.append(p(relation.rationale)); content.append(reason);
+  function appendRelationEvidence(parent, relation) {
     const refs = section(t('Source evidence'));
-    if (relation.evidence_refs.length) {
+    if (!relation.evidence_refs.length) {
+      refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This suggestion has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
+    } else {
       if (relation.origin === 'ai') {
         refs.append(node('p', 'section-note', t('These claims inform a reading suggestion, not a source-confirmed relationship.')));
       }
-      const evidenceIds = relation.evidence_refs.flatMap(({ paper_id, claim_id }) => {
-        const paper = papers.get(paper_id);
-        return paper.claims.find(claim => claim.id === claim_id).evidence;
-      });
+      const evidenceIds = relation.evidence_refs.flatMap(ref => referencedClaim(ref).claim.evidence);
       appendSourceLinks(refs, evidenceIds);
       claims(refs, relation.evidence_refs);
-    } else {
-      refs.append(node('p', 'empty-note', t(relation.origin === 'ai' ? 'This suggestion has no linked source evidence. Do not use it as a source-confirmed relationship.' : 'No source evidence is linked. Do not use this as a source-confirmed relationship.')));
     }
-    content.append(refs);
-    const history = node('details', 'source'); history.append(node('summary', '', t('Relation authorship and source-check record')), p(relation.created_by)); if (relation.review) history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at)); content.append(history);
-    selectedType = 'relation'; selected = id; byId('previous').disabled = true; byId('next').disabled = true; byId('current-count').textContent = t('Selected relation matches the map'); highlight('relation', id); byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent }); if (focus) byId('item-title').focus(); return true;
+    parent.append(refs);
+  }
+  function showRelation(id, focus) {
+    const index = data.relations?.findIndex(relation => relation.id === id) ?? -1;
+    if (index < 0) return false;
+    const relation = data.relations[index];
+    if (scene === 'background') mountMap('papers');
+    select(relation.source, false);
+
+    const meta = byId('metadata');
+    const content = byId('content');
+    meta.replaceChildren();
+    content.replaceChildren();
+    const number = String(index + 1).padStart(2, '0');
+    byId('position').textContent = t('RELATION {number} · ', { number }) + relation.id;
+    byId('item-title').textContent = kindLabels[relation.kind];
+    meta.append(badge(relationLabel(relation), relation.needs_recheck));
+    if (relation.needs_recheck) meta.append(badge(t('Needs rechecking · a previous check is not treated as currently valid.'), true));
+
+    const direction = section(t('Relation direction'));
+    direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target)));
+    const reason = section(t('Why these records are connected'));
+    reason.append(p(relation.rationale));
+    content.append(direction, reason);
+    appendRelationEvidence(content, relation);
+
+    const history = node('details', 'source');
+    history.append(node('summary', '', t('Relation authorship and source-check record')), p(relation.created_by));
+    if (relation.review) history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at));
+    content.append(history);
+
+    selectedType = 'relation';
+    selected = id;
+    byId('previous').disabled = true;
+    byId('next').disabled = true;
+    byId('current-count').textContent = t('Selected relation matches the map');
+    highlight('relation', id);
+    byId('announcement').textContent = t('{title} selected', { title: byId('item-title').textContent });
+    if (focus) byId('item-title').focus();
+    return true;
   }
   function showOverview(focus) {
     if (scene === 'background') mountMap('papers');
@@ -511,8 +599,8 @@
   function followHash(focus = false) {
     const match = /^#([a-z-]+)=(.*)$/.exec(location.hash); let id; try { id = match ? decodeURIComponent(match[2]) : ''; } catch { id = ''; }
     const type = match?.[1];
-    if (type === 'background' && showBackground(id, focus)) return;
-    if (type === 'background-paper' && showBackgroundPaper(id, focus)) return;
+    if (['concept', 'concept-need', 'background'].includes(type) && showConcept(id, focus, type)) return;
+    if (['background-reading', 'background-paper'].includes(type) && showBackgroundPaper(id, focus, type)) return;
     if (type === 'topic' && showTopic(id, focus)) return;
     if (type === 'context-link' && /^\d+$/.test(id) && data.project_context?.links[Number(id)] && showTopic('', focus, Number(id))) return;
     if (type === 'relation' && showRelation(id, focus)) return;

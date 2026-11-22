@@ -14,6 +14,20 @@
 .paper-relations .goal { padding: 0; border: 0; background: none; font-size: .8125rem; color: var(--muted); }
 .paper-relations .goal span { display: inline; margin-right: 12px; }
 .paper-relations .description { margin-bottom: 10px; }
+.first-map-overview { max-width: 75ch; color: var(--muted); font-size: .8125rem; }
+.first-map-overview > summary { cursor: pointer; }
+.first-map-overview > p { margin-top: 8px; }
+@media (max-width: 520px) {
+  .first-map main { padding: 16px 12px; }
+  .first-map h1 { font-size: 1.375rem; margin-bottom: 8px; }
+  .first-map .page-heading { padding-bottom: 12px; }
+  .first-map .page-heading .eyebrow, .first-map .description { margin-bottom: 6px; }
+  .first-map .page-heading .description { font-size: .8125rem; }
+  .first-map .map-toolbar { padding: 8px 12px; min-height: 56px; gap: 6px; }
+  .first-map .map-legend, .first-map .map-notice { margin: 6px 12px; }
+  .first-map .map-controls { gap: 5px; }
+  .first-map .map-controls button { padding-inline: 8px; }
+}
 @media (max-width: 1100px) { .paper-relations .research-workspace { grid-template-columns: minmax(0,1fr) 310px; gap: 16px; } }
 @media (max-width: 800px) { .paper-relations .research-workspace { grid-template-columns: minmax(0,1fr); } }
 main { max-width: 1520px; padding: 32px; }
@@ -57,6 +71,9 @@ h1 { font-size: 1.875rem; }
 .map-records { margin-top: 20px; max-height: 230px; min-height: 90px; overflow: auto; overscroll-behavior: contain; }
 .map-items { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px; }
 .map-items li { min-width: 0; }
+.map-focal-label { color: #27416b; font-weight: 700; font-size: .75rem; white-space: nowrap; }
+.map-item.map-concept-item { border-color: #b5a3cc; color: #473365; }
+.map-background-link { margin-bottom: 6px; }
 .map-item { display: block; padding: 9px 12px; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); font-size: .8125rem; text-decoration: none; }
 .map-item[aria-current=true] { background: var(--wash); border-color: var(--green); }
 #map-links>h3 { font-size: .875rem; margin: 16px 0; }

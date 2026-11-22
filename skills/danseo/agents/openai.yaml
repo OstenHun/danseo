@@ -1,4 +1,4 @@
 interface:
   display_name: "Danseo"
   short_description: "Map related research and trace claims to their sources"
-  default_prompt: "Use $danseo to help me start reading a paper. Ask which paper if I haven't named one. Find related prior and follow-up research and link the evidence in an interactive map."
+  default_prompt: "Use $danseo to explore the paper, concept, topic, or field I name. Choose representative starting papers when I name no paper, then build the first interactive map with its main concepts, primary background readings, and checked paper relations. Ask for the subject if I haven't provided one."
