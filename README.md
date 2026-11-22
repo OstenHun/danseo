@@ -13,7 +13,7 @@ Danseo uses your AI agent to map how papers connect and where to read the eviden
 
 ![Nine-paper Transformer map with the focal paper's reading guidance, dates, and source locations](assets/readme/paper-graph-preview.png)
 
-This preview connects [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) to earlier work on sequence modeling and to later papers including BERT, T5, and Vision Transformer. Solid green lines show source-checked connections. Dashed lines show suggestions or connections that need a source check. [View the full-size screenshot](assets/readme/paper-graph-preview.png).
+This paper-relations example connects [*Attention Is All You Need*](https://arxiv.org/abs/1706.03762) to earlier work on sequence modeling and to later papers including BERT, T5, and Vision Transformer. Solid green lines show source-checked connections. Dashed lines show suggestions or connections that need a source check. [View the full-size screenshot](assets/readme/paper-graph-preview.png).
 
 - [Install the Danseo skill](#install-the-skill) to make a graph in Codex, Claude Code, or Antigravity CLI.
 - [Build the CLI](#quick-start) to save a research topic and compare papers across sessions.

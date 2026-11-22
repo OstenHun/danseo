@@ -7,6 +7,8 @@
   const papers = new Map(data.papers.map(paper => [paper.id, paper]));
   const sources = new Map(data.sources.map(source => [source.id, source]));
   const presentation = window.DanseoGraph;
+  // The same plan the map draws from, so "Concept N" here always matches pill N and the card's tree line.
+  const plan = presentation.conceptPlan(data);
   const venueRanks = new Map();
   for (const paper of data.papers) {
     const ranking = presentation.linkedVenueRank(paper.venue_rank, sources);
@@ -25,18 +27,28 @@
   const prefix = projectMode ? '#application=' : '#paper=';
   const topics = new Map((data.project_context?.items ?? []).map(item => [item.id, item]));
   const paperName = id => papers.get(id).short_title ?? papers.get(id).title;
+  const aliasCounts = new Map();
+  for (const paper of data.papers) {
+    const alias = paperName(paper.id);
+    aliasCounts.set(alias, (aliasCounts.get(alias) ?? 0) + 1);
+  }
+  function backgroundPaperName(id) {
+    const alias = paperName(id);
+    return aliasCounts.get(alias) > 1 ? papers.get(id).title + ' (' + id + ')' : alias;
+  }
   let scene = projectMode && data.map_view === 'context' ? 'context' : projectMode ? 'applications' : 'papers';
   let map, activeBackground, paperMapState, selectedType = projectMode ? 'application' : 'paper';
-  function appendPublication(parent, paper) {
+  // `details` receives edition dates and date provenance; the first-publication date stays in `parent`.
+  function appendPublication(parent, paper, details = parent) {
     if (paper.review_status === 'needs-recheck') parent.append(badge(t('Evidence needs rechecking'), true));
     if (!paper.publication) return;
     parent.append(badge(t('First published · {date}', { date: paper.publication.date })));
-    if (paper.publication.edition_date !== null) parent.append(badge(t('Edition date · {date}', { date: paper.publication.edition_date })));
+    if (paper.publication.edition_date !== null) details.append(badge(t('Edition date · {date}', { date: paper.publication.edition_date })));
     const source = sources.get(paper.publication.source_id);
     if (source?.url) {
       const link = node('a', 'badge', t('Publication date source ↗'));
-      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; parent.append(link);
-    } else if (source) parent.append(node('p', 'section-note', t('Publication date evidence · {source} · {location} · {scope}', { source: source.title, location: source.locator, scope: source.scope })));
+      link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; details.append(link);
+    } else if (source) details.append(node('p', 'section-note', t('Publication date evidence · {source} · {location} · {scope}', { source: source.title, location: source.locator, scope: source.scope })));
   }
   const kindLabels = { cites: t('Cites'), extends: t('Extends'), compares: t('Compares'), 'related-to': t('Related connection'), 'reading-order': t('Suggested reading order') };
   function relationLabel(relation) {
@@ -70,8 +82,8 @@
       parent.append(detail);
     }
   }
-  function appendPaperSources(parent, paper) {
-    appendSourceLinks(parent, paper.claims.flatMap(claim => claim.evidence), { paperTitle: paper.title });
+  function appendPaperSources(parent, paper, compact = false) {
+    appendSourceLinks(parent, paper.claims.flatMap(claim => claim.evidence), { paperTitle: paper.title, compact });
   }
   function appendReadingReason(parent, paper) {
     if (!paper.reading_reason) return;
@@ -204,16 +216,18 @@
     return [...bySource.values()];
   }
 
-  function appendSourceLinks(parent, evidenceIds, { paperTitle = null } = {}) {
+  function appendSourceLinks(parent, evidenceIds, { paperTitle = null, compact = false } = {}) {
     const relationEvidence = paperTitle === null;
     const groupedSources = groupSourceLocations(evidenceIds, relationEvidence);
     if (!groupedSources.length) return;
     const locations = groupedSources.map(({ source, locators }) => {
       const location = t('Read at: {locations}', { locations: [...locators].join(' / ') });
-      return { source, location, name: source.title + ' · ' + location };
+      return { source, location, locators: [...locators].join(' / '), name: source.title + ' · ' + location };
     });
+    // First maps show two locations up front; the rest stay one click away.
+    let more = null;
     const linkNameCounts = new Map();
-    if (relationEvidence) {
+    if (relationEvidence || compact) {
       for (const { source, name } of locations) {
         if (source.url !== null) linkNameCounts.set(name, (linkNameCounts.get(name) ?? 0) + 1);
       }
@@ -221,8 +235,27 @@
     const reading = relationEvidence
       ? node('div', 'paper-source-links')
       : section(t('Read the paper'), 'paper-source-links');
-    for (const { source, location, name } of locations) {
+    for (const [index, { source, location, locators, name }] of locations.entries()) {
       const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
+      if (compact && !relationEvidence) {
+        // First-map rows: where to read on the left, one short link on the right; the section title already says "read".
+        const row = node('div', 'source-row');
+        row.append(node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')));
+        if (source.url !== null) {
+          const link = node('a', '', t('Open original source ↗'));
+          link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+          const label = t('{paper} · {source} · open original source · new tab', { paper: paperTitle, source: source.title });
+          link.setAttribute('aria-label', label + ' · ' + location + (showAddress ? ' · ' + source.url : ''));
+          row.append(link);
+        }
+        if (index >= 2 && !more) {
+          more = node('details', 'source-more');
+          more.append(node('summary', '', t('{count} more source locations', { count: locations.length - 2 })));
+          reading.append(more);
+        }
+        (more ?? reading).append(row);
+        continue;
+      }
       if (source.url === null) {
         reading.append(node('p', '', source.title));
       } else {
@@ -298,9 +331,38 @@
     byId('map-notice').textContent = scene === 'context' ? data.project_context.notice : projectMode ? t('Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.') : linkedConcepts.size ? t('Select a paper, concept, or connection to read its evidence. Filters apply to paper relations.') : t('Check relation types and both endpoints before selecting an edge or the corresponding record in the list.');
     const legend = byId('map-legend');
     legend.textContent = scene === 'context' ? t('Purple dashed lines · suggested reading order.') : projectMode ? t('Dashed lines · project evidence references. Paper review and project decisions are separate.') : t('Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck');
-    if (linkedConcepts.size && presentation.conceptPlan(data).order.length) {
-      legend.append(node('br'), node('span', '', t('Concept, numbered in reading order')));
-    }
+    if (linkedConcepts.size && scene === 'papers') {
+      // First maps show line samples instead of prose: the map itself explains selection.
+      byId('map-notice').hidden = true;
+      legend.replaceChildren(...[
+        ['source', t('Source-checked relation')],
+        ['ai', t('AI-suggested reading path')],
+        ...(data.relations.some(relation => presentation.category(relation) === 'stale') ? [['stale', t('Recheck')]] : []),
+        ...(plan.order.length ? [['concept', t('Concept, numbered in reading order')]] : [])
+      ].map(([kind, label]) => {
+        const key = node('span', 'legend-key'); key.append(node('i', 'legend-sample legend-' + kind, kind === 'concept' ? '1' : ''), label);
+        return key;
+      }));
+      // Training, data and evaluation concepts stay one click away instead of crowding the opening map.
+      const recipe = (data.concepts ?? []).filter(concept => concept.tier === 'recipe' && linkedConcepts.has(concept.id));
+      if (recipe.length) {
+        const fold = node('details', 'recipe-fold'), list = node('ul', '');
+        fold.append(node('summary', '', foldedCount(recipe.length)), list);
+        for (const concept of recipe) {
+          const li = node('li', ''), contexts = linkedConcepts.get(concept.id);
+          li.append(localLink('concept', concept.id, concept.title, ''));
+          if (contexts.every(background => !background.readings.length)) li.append(node('span', 'recipe-gap', ' · ' + t('No reading secured')));
+          for (const background of contexts) {
+            const suffix = contexts.length > 1 ? t(' · from {paper}', { paper: backgroundPaperName(background.paper_id) }) : '';
+            for (const reading of background.readings) {
+              li.append(' · ', localLink('background-reading', background.id + ':' + reading.paper_id, backgroundPaperName(reading.paper_id) + suffix, ''));
+            }
+          }
+          list.append(li);
+        }
+        legend.append(fold);
+      }
+    } else byId('map-notice').hidden = false;
     if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
     if (scene === 'papers' && hasCitationCounts) {
       legend.append(node('br'), node('span', '', t('Node size = citation count · capped; unavailable counts use the base size.')));
@@ -329,10 +391,10 @@
       };
       for (const background of backgrounds.values()) {
         const title = concepts.get(background.concept_id).title;
-        const from = paperName(background.paper_id);
+        const from = backgroundPaperName(background.paper_id);
         addConnection('concept-need', background.id, t('Explore concept · ') + from + ' → ' + title);
         for (const reading of background.readings) {
-          const route = t('Background reading · ') + title + ' → ' + paperName(reading.paper_id);
+          const route = t('Background reading · ') + title + ' → ' + backgroundPaperName(reading.paper_id);
           addConnection('background-reading', background.id + ':' + reading.paper_id, linkedConcepts.get(background.concept_id).length > 1 ? route + t(' · from {paper}', { paper: from }) : route);
         }
       }
@@ -361,7 +423,7 @@
     byId('count').textContent = t('{count} items', { count: background.readings.length + 2 });
     byId('node-kind').textContent = t('Papers and concept'); byId('map-node-navigation').setAttribute('aria-label', t('Concept background items'));
     byId('map-heading').textContent = t('Concept background · ') + concept.title;
-    byId('map-notice').textContent = backgroundNotice;
+    byId('map-notice').textContent = backgroundNotice; byId('map-notice').hidden = false;
     byId('map-legend').textContent = t('Paper rectangles · concept ellipse / dashed lines · suggested background readings');
     byId('map-links').append(localLink('paper', background.paper_id, t('Return to paper relationships · ') + paperName(background.paper_id), 'map-item'));
     map = window.DanseoMap?.mount(byId('research-map'), data, scene, item => {
@@ -371,11 +433,38 @@
     }, () => {}, background.id);
     byId('map-status').textContent = map ? t('Drag nodes · pan background · wheel/buttons to zoom · fit all') : t('Unable to load the map. Use the matching concept background items to navigate.');
   }
+  const conceptOrder = () => plan.order;
+  const foldedCount = count => t(count === 1 ? '{count} training and evaluation concept' : '{count} training and evaluation concepts', { count });
   function appendConceptChoices(parent, paper) {
     const linked = [...backgrounds.values()].filter(item => item.paper_id === paper.id);
     if (!linked.length) return;
     const sectionNode = section(t('Concept background'));
-    for (const item of linked) sectionNode.append(localLink('background', item.id, t('Explore background · ') + concepts.get(item.concept_id).title, 'map-item'));
+    if (scene === 'papers') {
+      const order = conceptOrder();
+      const conceptLink = item => {
+        const link = localLink('background', item.id, concepts.get(item.concept_id).title, 'concept-order-link');
+        link.setAttribute('aria-label', t('Explore background · ') + concepts.get(item.concept_id).title);
+        return link;
+      };
+      // Concepts on the map keep the same numbers as their pills.
+      const numbered = linked.filter(item => order.includes(item.concept_id))
+        .sort((a, b) => order.indexOf(a.concept_id) - order.indexOf(b.concept_id));
+      if (numbered.length) {
+        const list = node('ol', 'concept-order-list');
+        for (const item of numbered) {
+          const li = node('li', ''); li.value = order.indexOf(item.concept_id) + 1;
+          li.append(conceptLink(item)); list.append(li);
+        }
+        sectionNode.append(list);
+      }
+      // Folded training and evaluation concepts have no map number, so they get their own unnumbered list.
+      const unnumbered = linked.filter(item => !order.includes(item.concept_id));
+      if (unnumbered.length) {
+        const list = node('ul', 'concept-folded-list');
+        for (const item of unnumbered) { const li = node('li', ''); li.append(conceptLink(item)); list.append(li); }
+        sectionNode.append(node('p', 'concept-folded-heading', foldedCount(unnumbered.length)), list);
+      }
+    } else for (const item of linked) sectionNode.append(localLink('background', item.id, t('Explore background · ') + concepts.get(item.concept_id).title, 'map-item'));
     parent.append(sectionNode);
   }
   function appendBackgroundReadings(content, background, readingRoute) {
@@ -399,6 +488,8 @@
     else if (scene === 'background') mountMap('papers');
     const content = byId('content'), meta = byId('metadata'); content.replaceChildren(); meta.replaceChildren();
     byId('position').textContent = t('CONCEPT BACKGROUND · ') + id; byId('item-title').textContent = concept.title;
+    // A required concept recorded without an accessible primary reading says so before its explanation.
+    if (linked.every(context => !context.readings.length)) meta.append(badge(t('No reading secured'), true));
     content.append(p(concept.summary));
     if (type !== 'background') content.append(node('p', 'origin-note', backgroundNotice));
     for (const context of linked) {
@@ -456,11 +547,34 @@
       decision.append(p(t('Status: ') + item.decision.status + t(' · action: ') + (item.decision.action ?? t('Unspecified'))), p(item.decision.rationale), node('p', 'section-note', t('Project adoption does not establish source verification or experiment reproduction.')));
       content.append(context, refs, interpretation, observation, checks, decision);
     } else {
-      appendPublication(meta, item);
-      meta.append(badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
+      // First maps answer "why and where to read" first; edition provenance stays one click away.
+      const firstMap = backgrounds.size > 0 && scene === 'papers';
+      let editionHost = meta;
+      if (firstMap) {
+        editionHost = node('div', 'edition-fold-body');
+        const fold = node('details', 'edition-fold');
+        fold.append(node('summary', '', t('Edition and date source')), editionHost);
+        appendPublication(meta, item, editionHost); meta.append(fold);
+      } else appendPublication(meta, item);
+      editionHost.append(badge(t('Edition · ') + (item.edition ?? t('Not recorded'))));
+      if (firstMap) {
+        // The eyebrow says why this card is on the map: the focal paper or the concept it supports.
+        // The title names the concept the reader came through. Opened directly, a paper names the concept
+        // it hangs under on the map, or else the first concept that suggests it.
+        const entry = backgroundReading?.background;
+        const conceptId = entry?.concept_id ?? plan.owner.get(item.id) ?? plan.order.find(id => plan.readings.get(id).includes(item.id));
+        if (data.focal_paper_id === item.id) byId('position').textContent = t('Focal paper');
+        else if (conceptId) {
+          const number = plan.order.indexOf(conceptId) + 1;
+          // Folded training and evaluation concepts have no map number, so they are named without one.
+          const label = number ? t('Concept {number} · {title}', { number, title: concepts.get(conceptId).title }) : concepts.get(conceptId).title;
+          const firstReading = entry ? entry.readings[0]?.paper_id : plan.readings.get(conceptId)?.[0];
+          byId('position').textContent = label + (firstReading === item.id ? '' : ' · ' + t('Also read'));
+        }
+      }
       appendReadingReason(content, item);
-      appendPaperSources(content, item);
-      appendPaperMetrics(content, item);
+      appendPaperSources(content, item, firstMap);
+      if (!firstMap) appendPaperMetrics(content, item);
       if (backgroundReading) {
         const { background, reading } = backgroundReading, returning = section(t('Return and compare'));
         const inMainMap = scene === 'papers';
@@ -473,16 +587,46 @@
         }
         returning.append(p(reading.return_question), localLink('paper', background.paper_id, t('Return to current paper · ') + paperName(background.paper_id), 'map-item'), localLink(inMainMap ? 'concept-need' : 'background', background.id, t('Return to concept background · ') + concepts.get(background.concept_id).title, 'map-item'));
         content.append(returning);
-      } else appendConceptChoices(content, item);
+      } else {
+        if (firstMap) {
+          // A paper opened from the map still shows what to bring back from each concept that suggests it.
+          // One section per concept: several backgrounds may suggest the same reading for the same concept.
+          const questions = new Map();
+          for (const background of backgrounds.values()) {
+            const reading = background.readings.find(entry => entry.paper_id === item.id);
+            if (!reading?.return_question) continue;
+            if (!questions.has(background.concept_id)) questions.set(background.concept_id, new Set());
+            questions.get(background.concept_id).add(reading.return_question);
+          }
+          for (const [conceptId, texts] of questions) {
+            const returning = section(t('Return and compare') + ' · ' + concepts.get(conceptId).title);
+            for (const text of texts) returning.append(node('p', 'return-box', text));
+            content.append(returning);
+          }
+        }
+        appendConceptChoices(content, item);
+      }
       const incident = data.relations.filter(r => r.source === item.id || r.target === item.id);
       const connections = section(t('Connections for this paper'));
       if (!incident.length) connections.append(node('p', 'empty-note', t('No linked relations recorded · this does not establish that no relations exist.')));
-      for (const relation of incident) connections.append(localLink('relation', relation.id, paperName(relation.source) + ' → ' + paperName(relation.target) + ' · ' + kindLabels[relation.kind], 'map-item'));
+      for (const relation of incident) {
+        // First maps list relations as quiet rows with the same line sample as the map.
+        const link = localLink('relation', relation.id, paperName(relation.source) + ' → ' + paperName(relation.target) + ' · ' + kindLabels[relation.kind], firstMap ? 'relation-row' : 'map-item');
+        if (firstMap) link.dataset.category = presentation.category(relation);
+        connections.append(link);
+      }
       content.append(connections);
-      if (item.notes?.length) { const notes = section(t('Card conditions, comparisons and interpretations')); appendNotes(notes, item.notes); content.append(notes); }
+      if (firstMap) appendPaperMetrics(content, item);
+      // On first maps the full claim records stay available but folded, so the panel reads as a reading guide.
+      const host = firstMap ? node('details', 'claims-fold') : content;
+      if (firstMap) {
+        host.append(node('summary', '', t('Show all claim records · {count}', { count: item.claims.length })));
+        content.append(host);
+      }
+      if (item.notes?.length) { const notes = section(t('Card conditions, comparisons and interpretations')); appendNotes(notes, item.notes); host.append(notes); }
       const own = section(t('Claims and source locations for this paper'));
       if (!item.claims.length) own.append(node('p', 'empty-note', t('No claims recorded')));
-      claims(own, item.claims.map(claim => ({ paper_id: item.id, claim_id: claim.id }))); content.append(own);
+      claims(own, item.claims.map(claim => ({ paper_id: item.id, claim_id: claim.id }))); host.append(own);
     }
     byId('previous').disabled = index === 0; byId('next').disabled = index === items.length - 1;
     byId('current-count').textContent = (index + 1) + ' / ' + items.length;
