@@ -10,10 +10,53 @@
     const prefix = title.split(/[:：]/)[0].trim();
     return !paper.short_title && prefix.length > 0 && prefix.length <= 28 ? prefix : title;
   }
+  const topicOf = paper => paper.topic || t('Uncategorized');
+  // The topic most of the readings share. A tie keeps the topic of the earlier reading.
+  function winningTopic(topics, fallback) {
+    const counts = new Map();
+    for (const topic of topics) counts.set(topic, (counts.get(topic) ?? 0) + 1);
+    let best = fallback, bestCount = 0;
+    for (const [topic, count] of counts) if (count > bestCount) { best = topic; bestCount = count; }
+    return best;
+  }
+  // Decides, for a first map, which concepts are drawn, in what order, and under which concept each reading sits.
+  // The map layout and the detail panel both read this plan, so pill numbers and "Concept N" labels always agree.
+  function conceptPlan(data) {
+    const backgrounds = data.backgrounds ?? [];
+    const papers = new Map(data.papers.map(paper => [paper.id, paper]));
+    const linked = new Set(backgrounds.map(background => background.concept_id));
+    const startConcepts = new Set(backgrounds.filter(background => background.paper_id === data.start).map(background => background.concept_id));
+    // Recipe-tier concepts (training, data, evaluation) fold off the map, so they take no number.
+    const order = (data.concepts ?? [])
+      .filter(concept => linked.has(concept.id) && concept.tier !== 'recipe')
+      .map(concept => concept.id)
+      .sort((a, b) => Number(startConcepts.has(b)) - Number(startConcepts.has(a)));
+    const startPaper = papers.get(data.start) ?? data.papers[0];
+    const startTopic = startPaper ? topicOf(startPaper) : t('Uncategorized');
+    const readings = new Map(), topics = new Map(), groups = new Map(), owner = new Map(), unread = new Set();
+    for (const conceptId of order) {
+      const ids = backgrounds.filter(background => background.concept_id === conceptId)
+        .flatMap(background => background.readings.map(reading => reading.paper_id))
+        .filter((id, index, all) => papers.has(id) && all.indexOf(id) === index);
+      readings.set(conceptId, ids);
+      // A concept without readings stays visible in the start paper's column as a recorded gap.
+      if (!ids.length) unread.add(conceptId);
+      const candidates = ids.filter(id => id !== data.start);
+      const topic = winningTopic(candidates.map(id => topicOf(papers.get(id))), startTopic);
+      topics.set(conceptId, topic);
+      // A reading is drawn under the first concept that claims it from the same topic column.
+      const own = candidates.filter(id => !owner.has(id) && topicOf(papers.get(id)) === topic);
+      for (const id of own) owner.set(id, conceptId);
+      groups.set(conceptId, own);
+    }
+    // The first listed reading is where to start; any other reading is labelled "Also read".
+    const alsoRead = paperId => owner.has(paperId) && readings.get(owner.get(paperId))[0] !== paperId;
+    return { order, readings, topics, groups, owner, unread, alsoRead };
+  }
   function topicLayout(papers) {
     const groups = new Map();
     for (const paper of papers) {
-      const topic = paper.topic || t('Uncategorized');
+      const topic = topicOf(paper);
       if (!groups.has(topic)) groups.set(topic, []);
       groups.get(topic).push(paper);
     }
@@ -71,10 +114,12 @@
     const status = element('p', 'graph-explorer-status'); status.setAttribute('aria-live','polite');
     const note = element('p', 'graph-topic-note', t('Topic groups are editorial interpretations, not citation or method-extension order. Select a paper to show its connections.'));
     root.append(controls, note, status); host.append(root);
-    function update(papers, edges, selection) {
+    function update(papers, edges, selection, foldedCount = 0) {
       const eligible = edges.filter(edge => matchesRelation(edge, filters));
       const shown = edges.filter(edge => shownRelation(edge, filters, selection));
-      status.textContent = t('Papers: {papers} · filtered relations: {eligible} / {total} · map connections: {shown}', { papers: papers.length, eligible: eligible.length, total: edges.length, shown: shown.length }) + (!selection && filters.mode === 'focus' ? t(' · select a paper to show connections') : '');
+      const drawn = shown.length - foldedCount;
+      const summary = foldedCount ? t('Focal paper relations shown only in the list: {count}. Select another paper to see its connections.', { count: foldedCount }) : '';
+      status.textContent = t('Papers: {papers} · filtered relations: {eligible} / {total} · map connections: {shown}', { papers: papers.length, eligible: eligible.length, total: edges.length, shown: drawn }) + (!selection && filters.mode === 'focus' ? t(' · select a paper to show connections') : '') + (summary ? ' · ' + summary : '');
     }
     return { filters, update, reset() { filters.category='all'; filters.kind='all'; filters.mode='focus'; for(const key of Object.keys(selects))selects[key].value=filters[key]; onChange(); }, reveal(edge) { if (!matchesRelation(edge,filters)) { filters.category='all'; filters.kind='all'; selects.category.value='all'; selects.kind.value='all'; onChange(); } }, destroy() { root.remove(); } };
   }
@@ -211,6 +256,19 @@
     node.classList.toggle('is-undated', paper.undated === true);
     return node;
   }
+  // Long single words ("Language", "Normalization") can overflow a two-line title; step the size down
+  // until the title fits, keeping the ellipsis only as a last resort. The full title stays in the tooltip and detail.
+  function fitTitles(cardElements) {
+    for (const cardElement of cardElements) {
+      const title = cardElement.querySelector('.graph-paper-title');
+      if (!title) continue;
+      title.style.fontSize = '';
+      for (const size of [18, 16, 15]) {
+        if (title.scrollHeight <= title.clientHeight + 1) break;
+        title.style.fontSize = size + 'px';
+      }
+    }
+  }
   function syncCard(cardElement, graphNode) {
     const position = graphNode.position();
     cardElement.hidden = graphNode.hasClass('hidden');
@@ -228,5 +286,5 @@
       { selector: 'edge.selected', style: { width: 2.6, label: '' } }
     ];
   }
-  window.DanseoGraph = Object.freeze({ card, kindNames, category, nodeDimensions, paperCard, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer, venueRankScale, linkedVenueRank, venueBadge, isJcr });
+  window.DanseoGraph = Object.freeze({ card, kindNames, category, nodeDimensions, paperCard, fitTitles, topicOf, conceptPlan, syncCard, edgeStyles, freePositions, shortTitle, topicLayout, drawTopics, matchesRelation, shownRelation, relationState, explorer, venueRankScale, linkedVenueRank, venueBadge, isJcr });
 })();

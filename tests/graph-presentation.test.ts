@@ -15,7 +15,10 @@ interface Presentation {
   shownRelation(relation: Relation, filters: Filters, selection: Selection): boolean;
   matchesRelation(relation: Relation, filters: Filters): boolean;
   relationState(relation: Relation): string;
+  conceptPlan(data: PlanInput): {order: string[]; readings: Map<string, string[]>; topics: Map<string, string>; owner: Map<string, string>; unread: Set<string>; alsoRead(paperId: string): boolean};
 }
+type PlanInput = {start: string; papers: Paper[]; concepts?: {id: string; title?: string; tier?: string}[];
+  backgrounds?: {concept_id: string; paper_id: string; readings: {paper_id: string}[]}[]};
 const asset = (name: string) => readFileSync(new URL('../skills/danseo/assets/' + name, import.meta.url), 'utf8');
 const scope = {window: {} as {DanseoGraph: Presentation}};
 runInNewContext(asset('graph-presentation.js'), scope);
@@ -117,9 +120,102 @@ test('short aliases retain the full title and fallback does not invent acronyms'
   assert.equal(view.shortTitle({title: 'Long descriptive title without a colon'}), 'Long descriptive title without a colon');
 });
 
+test('concept plan numbers start-paper concepts first, skips recipe concepts and gives each reading one owner', () => {
+  const papers = [{id: 'F', topic: 'Core'}, {id: 'a', topic: 'RNN'}, {id: 'b', topic: 'RNN'}, {id: 'c', topic: 'Attention'}, {id: 'd', topic: 'Attention'}];
+  const background = (concept_id: string, paper_id: string, readings: string[]) => ({concept_id, paper_id, readings: readings.map(id => ({paper_id: id}))});
+  const plan = view.conceptPlan({start: 'F', papers,
+    concepts: [{id: 'later'}, {id: 'rnn'}, {id: 'attn'}, {id: 'train', tier: 'recipe'}, {id: 'gap'}],
+    backgrounds: [background('later', 'a', ['c']), background('rnn', 'F', ['a', 'b']), background('attn', 'F', ['b', 'c', 'd']),
+      background('train', 'F', ['d']), background('gap', 'F', [])]});
+  // Concepts the focal paper needs come first; recipe concepts get no number.
+  assert.deepEqual(plan.order, ['rnn', 'attn', 'gap', 'later']);
+  // "attn" has two Attention readings against one RNN reading, so its column is Attention.
+  assert.equal(plan.topics.get('attn'), 'Attention');
+  // "b" already hangs under "rnn"; "attn" keeps only its Attention readings, and "later" finds "c" taken.
+  assert.equal(plan.owner.get('b'), 'rnn');
+  assert.equal(plan.owner.get('c'), 'attn');
+  assert.equal(plan.owner.get('d'), 'attn');
+  assert.ok(!plan.alsoRead('a'));
+  assert.ok(plan.alsoRead('b'));
+  // "c" is the second reading of "attn" (after "b"), so it is labelled "Also read" there.
+  assert.ok(plan.alsoRead('c'));
+  // A concept with no reading stays as a gap in the start paper's column.
+  assert.ok(plan.unread.has('gap'));
+  assert.equal(plan.topics.get('gap'), 'Core');
+});
+
+test('concept plan keeps the earlier reading topic on a tie', () => {
+  const plan = view.conceptPlan({start: 'F', papers: [{id: 'F', topic: 'Core'}, {id: 'x', topic: 'One'}, {id: 'y', topic: 'Two'}],
+    concepts: [{id: 'k'}], backgrounds: [{concept_id: 'k', paper_id: 'F', readings: [{paper_id: 'y'}, {paper_id: 'x'}]}]});
+  assert.equal(plan.topics.get('k'), 'Two');
+  assert.equal(plan.owner.get('y'), 'k');
+  assert.ok(!plan.owner.has('x'));
+});
+
+test('a map whose only concepts are recipe-tier keeps every paper as both a card and a graph node', () => {
+  let cy: cytoscape.Core | undefined;
+  const cards: string[] = [];
+  const element = () => ({style: {}, classList: {add() {}, remove() {}, toggle() {}}, append() {}, setAttribute() {}, remove() {}, querySelector: () => null});
+  const container = {...element(), before() {}, after() {}, addEventListener() {}, removeEventListener() {}};
+  // Frames run immediately so card positions are synced against their graph nodes, as in a browser.
+  const context = {window: {} as {DanseoGraph: Presentation; DanseoMap: {mount(...args: unknown[]): {destroy(): void}}},
+    document: {createElement: element}, requestAnimationFrame: (callback: () => void) => { callback(); return 1; }, cancelAnimationFrame() {},
+    cytoscape: (options: unknown) => (cy = cytoscape({...JSON.parse(JSON.stringify(options)), container: undefined, headless: true, styleEnabled: true}))};
+  runInNewContext(asset('graph-presentation.js'), context);
+  context.window.DanseoGraph = Object.assign({}, context.window.DanseoGraph, {drawTopics() {},
+    paperCard: (paper: {id: string}) => { cards.push(paper.id); return element(); },
+    explorer: () => ({filters: {category: 'all', kind: 'all', mode: 'focus'}, update() {}, destroy() {}, reveal() {}})});
+  runInNewContext(asset('research-map.js'), context);
+  const data = {version: 2, mode: 'paper-relations', start: 'F', focal_paper_id: 'F', relations: [],
+    papers: ['F', 'r'].map(id => ({id, title: id, short_title: id, topic: 'Test', claims: []})),
+    concepts: [{id: 'train', title: 'Training', summary: 's', tier: 'recipe'}],
+    backgrounds: [{id: 'bg', concept_id: 'train', paper_id: 'F', origin: 'ai', status: 'proposed', rationale: 'r', readings: [{paper_id: 'r'}]}]};
+  let map: {destroy(): void} | undefined;
+  try {
+    map = context.window.DanseoMap.mount(container, data, 'papers', () => {}, () => {});
+    assert.deepEqual(cards.sort(), ['F', 'r']);
+    for (const id of cards) assert.equal(cy?.getElementById('paper:' + id).length, 1, id + ' has a graph node');
+  } finally {if (map) map.destroy(); else cy?.destroy();}
+});
+
+test('selecting the focal paper folds its outgoing citations but keeps follow-up papers that cite it', () => {
+  let cy: cytoscape.Core | undefined;
+  const created: {className: string; textContent: string}[] = [];
+  const element = () => {
+    const node = {className: '', textContent: '', style: {}, classList: {add() {}, remove() {}},
+      append() {}, setAttribute() {}, addEventListener() {}, remove() {}, querySelector: () => null};
+    created.push(node);
+    return node;
+  };
+  const container = {...element(), before() {}, after() {}, addEventListener() {}, removeEventListener() {}};
+  const context = {window: {} as {DanseoGraph: Presentation; DanseoMap: {mount(...args: unknown[]): {select(type: string, id: string): void; destroy(): void}}},
+    document: {createElement: element}, requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+    cytoscape: (options: unknown) => (cy = cytoscape({...JSON.parse(JSON.stringify(options)), container: undefined, headless: true, styleEnabled: true}))};
+  runInNewContext(asset('graph-presentation.js'), context);
+  context.window.DanseoGraph = Object.assign({}, context.window.DanseoGraph, {paperCard: element, drawTopics() {}});
+  runInNewContext(asset('research-map.js'), context);
+  const data = {version: 2, mode: 'paper-relations', start: 'F', focal_paper_id: 'F',
+    papers: ['F', 'prior', 'later'].map(id => ({id, title: id, short_title: id, topic: 'Test', claims: []})),
+    relations: [{id: 'out', source: 'F', target: 'prior', kind: 'cites', origin: 'source', status: 'source-checked'},
+      {id: 'in', source: 'later', target: 'F', kind: 'cites', origin: 'source', status: 'source-checked'}],
+    concepts: [{id: 'k', title: 'K', summary: 's'}],
+    backgrounds: [{id: 'bg', concept_id: 'k', paper_id: 'F', origin: 'ai', status: 'proposed', rationale: 'r', readings: [{paper_id: 'prior'}]}]};
+  let map: {select(type: string, id: string): void; destroy(): void} | undefined;
+  try {
+    map = context.window.DanseoMap.mount(container, data, 'papers', () => {}, () => {});
+    map.select('paper', 'F');
+    assert.ok(cy?.getElementById('relation:out').hasClass('display-hidden'));
+    assert.ok(!cy?.getElementById('relation:in').hasClass('display-hidden'));
+    const status = created.find(node => node.className === 'graph-explorer-status')!;
+    assert.match(status.textContent, /map connections: 1 · Focal paper relations shown only in the list: 1\./);
+    map.select('paper', 'prior');
+    assert.match(status.textContent, /map connections: 1$/);
+  } finally {if (map) map.destroy(); else cy?.destroy();}
+});
+
 test('real Cytoscape selection updates neighbors after source and AI filtering', () => {
   let cy!: cytoscape.Core, change!: () => void, filters!: Filters;
-  const element = () => ({style: {}, classList: {add() {}, remove() {}}, append() {}, setAttribute() {}, remove() {}});
+  const element = () => ({style: {}, classList: {add() {}, remove() {}}, append() {}, setAttribute() {}, remove() {}, querySelector: () => null});
   const container = {...element(), before() {}, addEventListener() {}, removeEventListener() {}};
   const context = {window: {} as {DanseoGraph: Presentation; DanseoMap: {mount(...args: unknown[]): {select(type: string, id: string): void; destroy(): void}}},
     document: {createElement: element}, requestAnimationFrame: () => 1, cancelAnimationFrame() {},
@@ -133,8 +229,9 @@ test('real Cytoscape selection updates neighbors after source and AI filtering',
   const data = {version: 2, mode: 'paper-relations', papers: ['a', 'b', 'c'].map(id => ({id, title: id, short_title: id, topic: 'Test', claims: []})),
     relations: [{id: 's', source: 'a', target: 'b', kind: 'cites', origin: 'source', status: 'source-checked'},
       {id: 'ai', source: 'a', target: 'c', kind: 'reading-order', origin: 'ai', status: 'proposed'}]};
-  const map = context.window.DanseoMap.mount(container, data, 'papers', () => {});
+  let map: ReturnType<typeof context.window.DanseoMap.mount> | undefined;
   try {
+    map = context.window.DanseoMap.mount(container, data, 'papers', () => {});
     map.select('paper', 'a');
     assert.ok(cy.getElementById('paper:c').hasClass('connected'));
     filters.category = 'source'; change();
@@ -144,5 +241,5 @@ test('real Cytoscape selection updates neighbors after source and AI filtering',
     filters.category = 'ai'; change();
     assert.ok(cy.getElementById('paper:c').hasClass('connected'));
     assert.ok(!cy.getElementById('paper:b').hasClass('connected'));
-  } finally {map.destroy();}
+  } finally {if (map) map.destroy(); else cy?.destroy();}
 });
