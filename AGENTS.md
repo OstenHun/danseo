@@ -14,6 +14,7 @@ Read README, the relevant TASKS item, applicable PRD requirements, then needed s
 - Never invent missing source locations. Return to original sources for numbers, methods and conflicting claims.
 - `work/`, `workspaces/` and `private/` are local-only. Do not move or fully copy another project's authoritative records. Public examples must be synthetic or reviewed for publication rights.
 - Card schema_version is a draft. Revisit compatibility and change procedures when external consumers or a formal version exist.
+- Follow the [code style](CONTRIBUTING.md#code-style): run `npm run format`, and prefer code a new contributor can read over a lower line count.
 
 ## Verification and records
 
