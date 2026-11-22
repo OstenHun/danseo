@@ -608,7 +608,6 @@ test('concept background references are explicit, local to a paper and always AI
     data => { data.backgrounds[0].origin = 'source'; },
     data => { data.backgrounds[0].status = 'source-checked'; },
     data => { data.backgrounds[0].required = true; },
-    data => { data.backgrounds[0].readings = []; },
     data => { data.backgrounds[0].readings.push(data.backgrounds[0].readings[0]); },
     data => { data.backgrounds[0].readings[0].paper_id = data.papers[0].id; },
     data => { data.backgrounds[0].readings[0].evidence = ['missing']; },
@@ -617,6 +616,93 @@ test('concept background references are explicit, local to a paper and always AI
   for (const change of invalid) { const data = backgroundFixture(); change(data); assert.throws(() => validateCandidate(data)); }
 });
 
+test('a required concept without an accessible reading stays on the first map as a marked gap', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  data.concepts.push({ id: 'gap-concept', title: 'Unreached concept', summary: 'Needed to read the method; no primary reading was accessible.' });
+  data.backgrounds.push({ id: 'B.gap', paper_id: data.start, concept_id: 'gap-concept', origin: 'ai', status: 'proposed', rationale: 'The cited source could not be opened in this run.', readings: [] });
+  validateCandidate(data);
+  assert.match(renderCandidate(data), /<p class="first-map-summary">[^<]*\d+ key concepts/);
+  const view = openBackground(data, '#concept=gap-concept');
+  assert.equal(view.elements.get('item-title').textContent, 'Unreached concept');
+  assert.match(view.elements.get('metadata').textContent, /No reading secured/);
+  assert.ok(view.elements.get('content').textContent.includes('could not be opened'));
+});
+
+test('recipe-tier concepts fold under the legend and are counted apart from key concepts', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  data.concepts.push({ id: 'recipe-concept', title: 'Training recipe', summary: 'A training detail.', tier: 'recipe' });
+  data.backgrounds.push({ id: 'B.recipe', paper_id: data.start, concept_id: 'recipe-concept', origin: 'ai', status: 'proposed', rationale: 'Not opened in this run.', readings: [] });
+  validateCandidate(data);
+  assert.match(renderCandidate(data), /<p class="first-map-summary">[^<]*1 training and evaluation concept ·/);
+  assert.throws(() => validateCandidate({ ...data, concepts: data.concepts.map(item => item.id === 'recipe-concept' ? { ...item, tier: 'other' } : item) }), /concept\.tier/);
+  const view = openBackground(data, '#paper=' + data.start);
+  const legend = view.elements.get('map-legend').textContent;
+  assert.ok(legend.includes('1 training and evaluation concept') && legend.includes('Training recipe') && legend.includes('No reading secured'));
+  // The paper's concept list numbers only map concepts; the folded one is listed apart, never as "0".
+  const find = (root, className) => typeof root === 'string' ? [] : [...(root.className === className ? [root] : []), ...root.children.flatMap(child => find(child, className))];
+  const content = view.elements.get('content');
+  assert.deepEqual(find(content, 'concept-order-list').flatMap(list => list.children.map(item => item.value)), [1]);
+  assert.ok(find(content, 'concept-folded-list')[0].textContent.includes('Training recipe'));
+});
+
+test('folded recipe shortcuts keep separate questions for a shared reading', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  const background = data.backgrounds[0], reading = background.readings[0];
+  const titles = ['Decoding', 'Vocabulary'];
+  for (const title of titles) {
+    data.concepts.push({ id: title, title, summary: title, tier: 'recipe' });
+    data.backgrounds.push({ ...background, id: 'B.' + title, concept_id: title,
+      readings: [{ ...reading, return_question: 'How does ' + title + ' work?' }] });
+  }
+  validateCandidate(data);
+  const view = openBackground(data, '#paper=' + data.start);
+  const shortcuts = linksIn(view.elements.get('map-legend')).filter(link => link.textContent === data.papers[1].short_title);
+  assert.equal(shortcuts.length, titles.length);
+  titles.forEach((title, index) => {
+    shortcuts[index].click();
+    assert.equal(view.location.hash, '#background-reading=' + encodeURIComponent('B.' + title + ':' + reading.paper_id));
+    assert.equal(view.elements.get('position').textContent, title);
+    const content = view.elements.get('content');
+    assert.ok(content.textContent.includes('How does ' + title + ' work?'));
+    assert.ok(linksIn(content).some(link => link.href === '#concept-need=B.' + title));
+  });
+});
+
+test('English first-map summary uses singular nouns for one item', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  assert.match(renderCandidate(data), /<p class="first-map-summary">[^<]*1 key concept · 1 paper to read</);
+});
+
+test('a reading opened through a concept names that concept, not the one it hangs under', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  const reading = data.backgrounds[0].readings[0];
+  data.concepts.push({ id: 'second', title: 'Second concept', summary: 'Another concept that suggests the same reading.' });
+  data.backgrounds.push({ ...data.backgrounds[0], id: 'B.Second', concept_id: 'second', readings: [{ ...reading }] });
+  validateCandidate(data);
+  const position = hash => openBackground(data, hash).elements.get('position').textContent;
+  assert.equal(position('#background-reading=B.Second:' + reading.paper_id), 'Concept 2 · Second concept');
+  assert.equal(position('#paper=' + reading.paper_id), 'Concept 1 · ' + data.concepts[0].title);
+});
+
+test('first maps lead with a reader summary and keep full authorship and coverage text in the scope fold', () => {
+  const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
+  const html = renderCandidate(data);
+  const concepts = new Set(data.backgrounds.map(item => item.concept_id)).size;
+  assert.match(html, new RegExp('<p class="first-map-summary">[^<]*' + concepts + (concepts === 1 ? ' key concept ' : ' key concepts')));
+  assert.match(html, /<p class="first-map-note">Prepared with an AI agent · Exploration view/);
+  const fold = markup => markup.slice(markup.indexOf('<details class="first-map-overview">'), markup.indexOf('<div class="research-workspace">'));
+  assert.equal((html.match(/class="description authorship"/g) ?? []).length, 1);
+  assert.ok(fold(html).includes('class="description authorship"') && fold(html).includes('Exploration view: source checks may be incomplete.'));
+  const complete = renderCandidate(data, { complete: true, completionScope: 'Selected passages only.' });
+  assert.match(complete, /<p class="first-map-note">Prepared with an AI agent · Source checks recorded for the displayed claims<\/p>/);
+  assert.ok(fold(complete).includes('Recorded source checks complete') && fold(complete).includes('Selected passages only.'));
+  const focal = data.papers.find(paper => paper.id === data.start);
+  const escaped = renderCandidate({ ...data, focal_paper_id: data.start, papers: data.papers.map(paper => paper === focal ? { ...paper, title: 'A <b> title' } : paper) });
+  assert.match(escaped, /<p class="first-map-summary">A &lt;b&gt; title/);
+  const plain = renderCandidate(fixture('paper-relations', 2));
+  assert.ok(!plain.includes('<p class="first-map-summary">'));
+  assert.ok(plain.indexOf('class="description authorship"') < plain.indexOf('class="description source-coverage"'));
+});
 test('the distributed background example validates and renders with separate concepts', () => {
   const data = JSON.parse(readFileSync(new URL('../assets/paper-backgrounds.v2.example.json', import.meta.url), 'utf8'));
   validateCandidate(data);
@@ -641,7 +727,8 @@ test('Korean UI follows the declared language without translating research or so
   assert.equal(view.elements.get('item-title').textContent, 'Read the paper');
   assert.ok(content.textContent.includes('Cites'));
   assert.ok(content.textContent.includes('논문 원문'));
-  assert.ok(linksIn(content).some(link => link.textContent === '배경 펼치기 · ' + data.concepts[0].title));
+  // First maps show the bare concept title (as numbered on the map) and keep the action in the accessible name.
+  assert.ok(linksIn(content).some(link => link.textContent === data.concepts[0].title && link.attributes.get('aria-label') === '배경 펼치기 · ' + data.concepts[0].title));
   linksIn(content).find(link => link.href === '#background=B.Explore').click();
   assert.equal(view.elements.get('map-heading').textContent, '개념 배경 · ' + data.concepts[0].title);
   assert.ok(view.elements.get('map-notice').textContent.includes('원문의 인용 관계나 필수 선수 조건을 뜻하지 않습니다.'));

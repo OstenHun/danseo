@@ -186,8 +186,10 @@ export function validateCandidate(data) {
       const concepts = unique(data.concepts, 'concepts');
       unique(data.backgrounds, 'backgrounds');
       for (const concept of concepts.values()) {
-        object(concept, ['id', 'title', 'summary'], 'concept');
+        object(concept, ['id', 'title', 'summary', ...(Object.hasOwn(concept, 'tier') ? ['tier'] : [])], 'concept');
         text(concept.title, 'concept.title'); text(concept.summary, 'concept.summary');
+        // Optional reading priority; absent means a core-method concept, as in maps made before tiers existed.
+        if (Object.hasOwn(concept, 'tier')) oneOf(concept.tier, ['method', 'claims', 'recipe'], 'concept.tier');
       }
       const pairs = new Set();
       for (const background of data.backgrounds) {
@@ -197,7 +199,6 @@ export function validateCandidate(data) {
         if (pairs.has(pair)) fail('background: duplicate paper/concept pair'); pairs.add(pair);
         oneOf(background.origin, ['ai'], 'background.origin'); oneOf(background.status, ['proposed'], 'background.status');
         text(background.rationale, 'background.rationale'); list(background.readings, 'background.readings');
-        if (!background.readings.length) fail('background.readings: at least one representative paper required');
         const seen = new Set();
         for (const reading of background.readings) {
           object(reading, ['paper_id', 'rationale', 'evidence', 'return_question'], 'background.reading');
@@ -231,9 +232,28 @@ function renderValidatedCandidate(candidate, complete = false, completionScope =
   const coverage = !project ? `<p class="description source-coverage">${ui(complete ? 'Recorded source checks complete for the displayed claims and source relations.' : 'Exploration view: source checks may be incomplete. Read the evidence status before using a claim or relation.')}</p>` : '';
   const sourceScope = complete ? `<details class="source-check-scope"><summary>${ui('Read the recorded source-check scope')}</summary><p>${escape(completionScope)}</p></details>` : '';
   const goal = `<p class="goal"><span>${project ? escape(candidate.project.title) + ' · ' + escape(candidate.project.id) : ui('View scope')}</span>${project ? escape(candidate.project.question) : escape(candidate.scope ?? ui('Explore all input papers and their recorded relations together.'))}</p>`;
+  // First maps lead with what the reader will find; the full authorship and coverage text moves into the scope fold.
+  // English needs "1 key concept" but "2 key concepts"; translations map both keys.
+  const counted = (one, many, count) => ui(count === 1 ? one : many).replace('{count}', String(count));
+  const focal = candidate.papers.find(paper => paper.id === candidate.focal_paper_id);
+  // Recipe-tier concepts are counted separately, matching the fold under the map legend.
+  const recipeIds = new Set((candidate.concepts ?? []).filter(item => item.tier === 'recipe').map(item => item.id));
+  const linkedIds = new Set((candidate.backgrounds ?? []).map(item => item.concept_id));
+  const recipeCount = [...linkedIds].filter(id => recipeIds.has(id)).length;
+  const keyCount = linkedIds.size - recipeCount;
+  const readingCount = new Set((candidate.backgrounds ?? []).flatMap(item => item.readings.map(reading => reading.paper_id))).size;
+  const focalLabel = focal ? escape(focal.title) + (focal.publication ? ' (' + escape(focal.publication.date.slice(0, 4)) + ')' : '') : null;
+  const firstMapSummary = hasBackgrounds ? [
+    ...(focalLabel ? [focalLabel] : []),
+    counted('{count} key concept', '{count} key concepts', keyCount),
+    ...(recipeCount ? [counted('{count} training and evaluation concept', '{count} training and evaluation concepts', recipeCount)] : []),
+    counted('{count} paper to read', '{count} papers to read', readingCount)
+  ].join(' · ') : '';
+  const authorship = `<p class="description authorship">${ui('Prepared with an AI agent. Source relations and reading suggestions are distinguished.')}</p>`;
+  const firstMapNote = `<p class="first-map-note">${ui('Prepared with an AI agent')} · ${ui(complete ? 'Source checks recorded for the displayed claims' : 'Exploration view · some source checks may be unfinished')}</p>`;
   const overview = hasBackgrounds
-    ? `${coverage}<details class="first-map-overview"><summary>${ui('Map scope and coverage')}</summary>${description}${goal}${sourceScope}</details>`
-    : description + coverage + sourceScope + goal;
+    ? `<p class="first-map-summary">${firstMapSummary}</p>${firstMapNote}<details class="first-map-overview"><summary>${ui('Map scope and coverage')}</summary>${authorship}${coverage}${description}${goal}${sourceScope}</details>`
+    : authorship + description + coverage + sourceScope + goal;
   const sceneControls = '<div class="scene-controls" id="scene-controls"></div>';
   return `<!doctype html>
 <html lang="${candidate.language ?? 'en'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -241,7 +261,7 @@ function renderValidatedCandidate(candidate, complete = false, completionScope =
 <meta name="referrer" content="no-referrer"><title>${escape(candidate.title)} · Danseo</title><style>${style}</style></head>
 <body class="${project ? 'project-application' : 'paper-relations' + (hasBackgrounds ? ' first-map' : '')}"><a class="skip" id="skip" href="#item-title">${ui("Skip to content")}</a>
 <header class="topbar"><span class="brand">Danseo<span class="brand-dot">.</span></span><span class="product">${ui("RESEARCH DESK")}</span><span class="local">${project ? ui('From papers to projects') : ui('Connections between papers')}</span></header>
-<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1><p class="description authorship">${ui('Prepared with an AI agent. Source relations and reading suggestions are distinguished.')}</p>${overview}${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
+<main><section class="page-heading" aria-labelledby="page-title"><p class="eyebrow">${project ? ui('PROJECT APPLICATION') : ui('PAPER RELATIONS')} <span>${project ? ui('Application decisions') : ui('Paper relation map')}</span></p><h1 id="page-title">${escape(candidate.title)}</h1>${overview}${project && candidate.scope ? `<p class="description">${escape(candidate.scope)}</p>` : ''}</section>
 <div class="research-workspace"><section class="map-area" aria-label="${ui("Map and record list")}"><div class="map-toolbar"><h2 id="map-heading">${ui("Connections")}</h2><div class="map-controls"><button type="button" id="zoom-out" aria-label="${ui("Zoom out")}">−</button><button type="button" id="zoom-in" aria-label="${ui("Zoom in")}">+</button><button type="button" id="fit-map">${ui("Fit all")}</button></div></div>${hasBackgrounds ? '' : sceneControls}<p class="map-notice" id="map-notice"></p><p class="map-legend" id="map-legend"></p><div id="research-map" role="img" aria-label="${ui("Pan and zoom the relation map. Use the matching record list below for keyboard navigation.")}"></div><p id="map-status" class="map-status" aria-live="polite"></p>${hasBackgrounds ? sceneControls : ''}<section class="map-records" aria-label="${ui("Records shown on the map")}"><nav id="map-node-navigation" aria-label="${project ? ui('Projects and papers') : ui('Paper list')}"><p class="nav-heading"><span id="node-kind">${project ? ui('Projects · papers') : ui('Paper')}</span> <span id="count"></span></p><ol id="items" class="map-items"></ol></nav><div id="map-links"></div></section><details class="composition-note"><summary>${ui("View scope and rationale")}</summary><p>${escape(candidate.view_reason)}</p><p>${escape(candidate.scope ?? ui('Only records declared in the input are shown.'))}</p><div id="provenance"></div></details></section>
 <article class="lesson research detail-area" aria-labelledby="item-title"><div class="lesson-header"><p class="eyebrow" id="position"></p><h2 id="item-title" tabindex="-1"></h2><div id="metadata" class="metadata"></div></div><div id="content"></div><div class="controls"><button id="previous" type="button">${ui("← Previous record")}</button><span id="current-count"></span><button id="next" type="button">${ui("Next record →")}</button></div></article></div>
 <footer><span>${ui("Danseo · view derived from research records")}</span><span>${ui("Source verification, project adoption and experiment reproduction are separate.")}</span></footer></main>
