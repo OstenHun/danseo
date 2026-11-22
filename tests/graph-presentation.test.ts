@@ -196,7 +196,7 @@ test('selecting the focal paper folds its outgoing citations but keeps follow-up
   // Cytoscape's style parser expects native objects from its own JS realm.
   compileFunction(asset('research-map.js'), Object.keys(context))(...Object.values(context));
   const data = {version: 2, mode: 'paper-relations', start: 'F', focal_paper_id: 'F',
-    papers: ['F', 'prior', 'later'].map(id => ({id, title: id, short_title: id, topic: 'Test', claims: []})),
+    papers: ['F', 'prior', 'later'].map(id => ({id, title: id, short_title: id, topic: id === 'later' ? 'Other' : 'Test', claims: []})),
     relations: [{id: 'out', source: 'F', target: 'prior', kind: 'cites', origin: 'source', status: 'source-checked'},
       {id: 'in', source: 'later', target: 'F', kind: 'cites', origin: 'source', status: 'source-checked'}],
     concepts: [{id: 'k', title: 'K', summary: 's'}, {id: 'later-k', title: 'Later', summary: 's'}],
@@ -220,6 +220,10 @@ test('selecting the focal paper folds its outgoing citations but keeps follow-up
     const weight = parseFloat(edge.style('segment-weights')), distance = parseFloat(edge.style('segment-distances'));
     assert.ok(Math.abs(dy * weight + dx / length * distance) < .01, 'first bend stays level with the source');
     assert.ok(from.x + dx * weight - dy / length * distance < cy!.getElementById('concept:k').boundingBox().x1, 'first bend clears the column');
+    const weights = edge.style('segment-weights').split(/\s+/).map(Number);
+    const distances = edge.style('segment-distances').split(/\s+/).map(parseFloat);
+    const laneY = from.y + dy * weights[1]! + dx / length * distances[1]!;
+    assert.ok(laneY < -22 && laneY > -54, 'cross-column lane clears the focal badge and two-line heading');
   } finally {if (map) map.destroy(); else cy?.destroy();}
 });
 
