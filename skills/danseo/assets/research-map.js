@@ -119,8 +119,8 @@
     groupGap: 30,        // extra space before the next concept group
     conceptHeight: 52,
     line: 12,            // tree line x, measured from the column's left edge
-    bus: -18,            // y of the lane above the columns that concept-need lines use
-    headingTop: -66,
+    bus: -32,            // above the focal badge, which starts 22px above the top card
+    headingTop: -102,    // leave room for a two-line heading above both routing lanes
     maxColumn: 560       // a topic stack taller than this wraps into a second column
   });
   // Where lines run, measured left of a card's column edge. Each kind keeps its own lane so lines do not merge.
@@ -130,7 +130,7 @@
     linkLane: 12,        // links rise this far above the concept-need lane before crossing columns
     focalOutline: 7      // the focal card's outline extends this far beyond the card
   });
-  const view = Object.freeze({ firstMapMinZoom: .72, narrowWidth: 520, narrowZoom: .8, padding: 84 });
+  const view = Object.freeze({ firstMapMinZoom: .72, narrowWidth: 520, narrowZoom: .8, padding: 108 });
   // Positions each card: plain papers first in their topic column, then each concept with its readings indented below.
   function conceptLayout(plan, paperOrder, nodeSizes) {
     const { width } = window.DanseoGraph.card;
