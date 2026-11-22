@@ -3,3 +3,6 @@
 *.json text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
+
+# Upstream notice with mixed line endings and trailing spaces; keep its bytes unchanged.
+third-party-licenses/prettier-third-party-notices.txt -text -whitespace
