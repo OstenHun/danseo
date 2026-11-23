@@ -115,6 +115,24 @@ export default defineConfig([
   },
   { files: ['**/*.{js,mjs,cjs,ts}'], rules: readabilityRules },
   {
+    // Files already cleaned up: readability rules are errors here so warnings cannot return.
+    files: [
+      'src/cli.ts',
+      'src/core/claim-state.ts',
+      'src/core/dependencies.ts',
+      'src/core/index.ts',
+      'src/core/reviews.ts',
+      'src/core/source-pdf.ts',
+      'src/core/topic.ts',
+    ],
+    rules: Object.fromEntries(
+      Object.entries(readabilityRules).map(([rule, setting]) => [
+        rule,
+        Array.isArray(setting) ? ['error', ...setting.slice(1)] : 'error',
+      ]),
+    ),
+  },
+  {
     // Long test functions and the fake DOM that tests load are mostly fixture data, so only
     // the length rule is relaxed.
     files: ['tests/**', '**/*.test.mjs', 'skills/*/scripts/*-dom.mjs'],
