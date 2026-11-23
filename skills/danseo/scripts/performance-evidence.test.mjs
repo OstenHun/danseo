@@ -358,6 +358,58 @@ test('common Korean and English superiority paraphrases cannot be exempted', (t)
     assert.throws(() => verifyEvidence(f.c, f.e, f.dir), /cannot be exempted/);
   }
 });
+test('a rejected exemption quotes the wording that was matched', (t) => {
+  const f = fixture(t);
+  const exempt = (claim, comparison = null) => {
+    f.c.papers[0].claims[0].statement = claim;
+    f.screen();
+    Object.assign(
+      f.e.performance.find((x) => x.path === '/papers/0/claims/0/statement'),
+      { kind: 'non-performance', comparison },
+    );
+    return () => verifyEvidence(f.c, f.e, f.dir);
+  };
+  const rejection = (matched) =>
+    new RegExp(
+      `cannot be exempted as non-performance${matched ? ` \\(matched "${matched}"\\)` : ''}$`,
+    );
+  // "A is ahead of B" and two order statements, "cites earlier work" and "extends
+  // a model published earlier". The check reads the word, not the meaning, so all
+  // three are stopped and the message shows which word did it.
+  for (const [claim, matched] of [
+    ['A가 B보다 앞선다', '앞선'],
+    ['앞선 연구를 인용한다', '앞선'],
+    ['앞서 발표된 모델을 확장한다', '앞서'],
+    ['정확도를 크게 향상한다', '정확도를 크게 향상'],
+    ['The method outperforms the baseline.', 'outperform'],
+    ['The method has higher accuracy than the baseline.', 'higher accuracy'],
+  ])
+    assert.throws(exempt(claim), rejection(matched), claim);
+  // The same order statements in words without a ranking sense: previous work,
+  // prior work, published first.
+  for (const claim of [
+    '이전 연구를 인용한다',
+    '선행 연구를 인용한다',
+    '먼저 발표된 모델을 확장한다',
+  ])
+    assert.doesNotThrow(exempt(claim), claim);
+  // The direction next to a measure is quoted even when 앞선 ("earlier") comes first.
+  assert.throws(exempt('앞선 연구 reports higher accuracy.'), rejection('higher accuracy'));
+  // "Score ... improve" three sentences apart: only the two ends are quoted, so
+  // the text between them stays out of the message.
+  const farApart =
+    '점수 산정은 부록에 있다. 평가 자료의 내부 식별자는 TEST-42다. 다음 절에서 성능을 개선한다.';
+  assert.throws(exempt(farApart), (error) => {
+    assert.match(
+      error.message,
+      /\(matched "점수 산정은 부록에 있" \.\.\. "음 절에서 성능을 개선"\)$/,
+    );
+    assert.doesNotMatch(error.message, /TEST-42/);
+    return true;
+  });
+  // A comparison attached to a non-performance review is rejected with no word to quote.
+  assert.throws(exempt('방법을 결합한다.', f.comparison), rejection(null));
+});
 test('source counts in table footnotes compose with exact performance reports', (t) => {
   const f = fixture(t),
     oldFooter = f.table.footer;

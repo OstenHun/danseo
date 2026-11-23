@@ -71,10 +71,17 @@ const COMPARATIVE_WORDING = new RegExp(
   'iu',
 );
 
+// Returns the comparison wording found in the sentence, or null. A direction next
+// to a measure ("higher accuracy") is reported before any other wording, even
+// when the other wording stands earlier in the sentence.
+function matchedComparativeWording(sentence) {
+  const match = DIRECTION_OF_MEASURE.exec(sentence) ?? COMPARATIVE_WORDING.exec(sentence);
+  return match ? match[0] : null;
+}
+
 // A migration tripwire, not a semantic classifier. It reads words rather than
 // meaning, which is why evidence v2 also requires a review of every displayed field.
-export const performanceSignal = (sentence) =>
-  DIRECTION_OF_MEASURE.test(sentence) || COMPARATIVE_WORDING.test(sentence);
+export const performanceSignal = (sentence) => matchedComparativeWording(sentence) !== null;
 
 // ---------------------------------------------------------------------------
 // Displayed fields that need a performance review
@@ -490,6 +497,32 @@ function verifyTableComparison(entry, field, tables) {
   }
 }
 
+const LONGEST_MATCH_QUOTED_WHOLE = 40;
+const QUOTED_END_LENGTH = 12;
+
+// A measure and its change can stand far apart, as in "점수 ... 개선" (score ...
+// improve), and the match then spans everything between them. The two ends are
+// what the check reacted to, so a long match is quoted by its ends only.
+function quoteMatch(wording) {
+  const characters = [...wording];
+  if (characters.length <= LONGEST_MATCH_QUOTED_WHOLE) return JSON.stringify(wording);
+  const start = characters.slice(0, QUOTED_END_LENGTH).join('');
+  const end = characters.slice(-QUOTED_END_LENGTH).join('');
+  return `${JSON.stringify(start)} ... ${JSON.stringify(end)}`;
+}
+
+// A non-performance review carries no comparison and no comparison wording. The
+// tripwire cannot tell "earlier work" from "ahead of the baseline", so a rejection
+// quotes what it matched. The writer then knows which words to report from a table
+// or, when they only state order, to replace.
+function verifyNonPerformanceReview(entry, field) {
+  const wording = matchedComparativeWording(field.value);
+  if (entry.comparison === null && wording === null) return;
+  const matched = wording === null ? '' : ` (matched ${quoteMatch(wording)})`;
+  const rule = 'comparative performance wording cannot be exempted as non-performance';
+  fail(`${entry.path}: ${rule}${matched}`);
+}
+
 function verifyPerformanceReview(entry, fields, covered, tables) {
   object(entry, ['path', 'text_sha256', 'kind', 'reason', 'comparison'], 'performance review');
   const field = fields.get(entry.path);
@@ -498,8 +531,7 @@ function verifyPerformanceReview(entry, fields, covered, tables) {
   text(entry.reason, 'performance review reason');
   oneOf(entry.kind, ['non-performance', 'table-comparison'], 'performance review kind');
   if (entry.kind === 'table-comparison') verifyTableComparison(entry, field, tables);
-  else if (entry.comparison !== null || performanceSignal(field.value))
-    fail(`${entry.path}: comparative performance wording cannot be exempted as non-performance`);
+  else verifyNonPerformanceReview(entry, field);
   covered.add(entry.path);
 }
 
