@@ -298,28 +298,101 @@ function comparisonHoldReason(
     return 'Paper needs rechecking';
 }
 
+type ComparisonPaper = {
+  key: string;
+  number: number;
+  title: string;
+  paper_id?: string;
+  workspace?: string;
+  card_sha256?: string;
+  document?: string;
+  document_sha256?: string;
+  source?: Source['file'];
+};
+
+// A paper or claim left out of the comparison, with the reason.
+type HeldItem =
+  | {
+      key: string;
+      document: string;
+      reason: string;
+      paper_id?: undefined;
+      claim_id?: undefined;
+      warnings?: undefined;
+    }
+  | {
+      key: string;
+      reason: string;
+      document?: undefined;
+      paper_id?: undefined;
+      claim_id?: undefined;
+      warnings?: undefined;
+    }
+  | {
+      key: string;
+      paper_id: string;
+      claim_id: string;
+      reason: string;
+      warnings: string[];
+      document?: undefined;
+    };
+
+// Splits one paper's comparison candidates into included claims and held items with a reason.
+// Both lists keep the order of revision.comparison_claims.
+function sortCandidateClaims(
+  key: string,
+  revision: Revision,
+  card: Card,
+  reviews: Awaited<ReturnType<typeof loadClaimReviews>>,
+  file: Source['file'],
+  document: { path: string; sha256: string },
+) {
+  const held: HeldItem[] = [];
+  const included = [];
+  const claims = card.data.type === 'paper' ? (card.data.claims ?? []) : [];
+  if (!revision.comparison_claims.length) {
+    held.push({ key, reason: 'No candidate claims for comparison' });
+  }
+  for (const claimId of revision.comparison_claims) {
+    const claim = claims.find((candidate) => candidate.id === claimId);
+    const entries = reviews.claims[claimId] ?? [];
+    const reason = comparisonHoldReason(reviews.warnings, Boolean(claim), entries, card);
+    if (reason) {
+      held.push({
+        key,
+        paper_id: revision.paper_id,
+        claim_id: claimId,
+        reason,
+        warnings: reviews.warnings,
+      });
+      continue;
+    }
+    included.push({
+      key,
+      paper_id: revision.paper_id,
+      claim_id: claimId,
+      claim,
+      source: {
+        edition: file.edition,
+        path: file.path,
+        sha256: file.sha256,
+      },
+      document: document.path,
+      document_sha256: document.sha256,
+      review: entries[0],
+    });
+  }
+  return { held, included };
+}
+
 export async function comparisonInput(root: string) {
   const collection = await sourceCollection(root);
   const included = [];
-  const held = [];
-  const papers: {
-    key: string;
-    number: number;
-    title: string;
-    paper_id?: string;
-    workspace?: string;
-    card_sha256?: string;
-    document?: string;
-    document_sha256?: string;
-    source?: Source['file'];
-  }[] = [];
+  const held: HeldItem[] = [];
+  const papers: ComparisonPaper[] = [];
   for (const row of collection.rows) {
     const paper = row.paper;
-    const entry: (typeof papers)[number] = {
-      key: paper.key,
-      number: paper.number,
-      title: paper.title,
-    };
+    const entry: ComparisonPaper = { key: paper.key, number: paper.number, title: paper.title };
     papers.push(entry);
     const documentPath = join(root, nameFor(paper.key));
     let doc: Document | undefined;
@@ -356,39 +429,12 @@ export async function comparisonInput(root: string) {
       source: source.file,
     });
     const reviews = await loadClaimReviews(workspace, card, source.file.sha256);
-    const claims = card.data.type === 'paper' ? (card.data.claims ?? []) : [];
-    if (!revision.comparison_claims.length) {
-      held.push({ key: paper.key, reason: 'No candidate claims for comparison' });
-    }
-    for (const claimId of revision.comparison_claims) {
-      const claim = claims.find((candidate) => candidate.id === claimId);
-      const entries = reviews.claims[claimId] ?? [];
-      const reason = comparisonHoldReason(reviews.warnings, Boolean(claim), entries, card);
-      if (reason) {
-        held.push({
-          key: paper.key,
-          paper_id: revision.paper_id,
-          claim_id: claimId,
-          reason,
-          warnings: reviews.warnings,
-        });
-        continue;
-      }
-      included.push({
-        key: paper.key,
-        paper_id: revision.paper_id,
-        claim_id: claimId,
-        claim,
-        source: {
-          edition: source.file.edition,
-          path: source.file.path,
-          sha256: source.file.sha256,
-        },
-        document: documentPath,
-        document_sha256: doc.sha256,
-        review: entries[0],
-      });
-    }
+    const sorted = sortCandidateClaims(paper.key, revision, card, reviews, source.file, {
+      path: documentPath,
+      sha256: doc.sha256,
+    });
+    held.push(...sorted.held);
+    included.push(...sorted.included);
   }
   return {
     version: 1,
@@ -400,35 +446,143 @@ export async function comparisonInput(root: string) {
   };
 }
 
+const analysisOptions = Object.fromEntries(
+  ['dir', 'id', 'workspace', 'paper', 'sha', 'input'].map((k) => [k, { type: 'string' as const }]),
+);
+const optionsByAnalysisAction: Record<string, string[]> = {
+  'analysis-open': ['id', 'workspace', 'paper'],
+  'analysis-save': ['id', 'sha', 'input'],
+  'analysis-list': [],
+  'comparison-input': [],
+};
+
+// Returns the parsed options and the checked topic folder.
+function parseAnalysisArguments(action: string, args: string[]) {
+  const { values } = parseArgs({ args, options: analysisOptions });
+  if (
+    !values.dir ||
+    !Object.hasOwn(optionsByAnalysisAction, action) ||
+    Object.entries(values).some(
+      ([k, value]) =>
+        !value?.trim() || (k !== 'dir' && !optionsByAnalysisAction[action]!.includes(k)),
+    )
+  )
+    invalid(help);
+  return { values, dir: values.dir };
+}
+type AnalysisOptions = ReturnType<typeof parseAnalysisArguments>['values'];
+
+// The new edition section that opening a paper for a topic edition appends to its document.
+function editionSection(
+  doc: Document | undefined,
+  source: Source,
+  question: string,
+  revision: Revision,
+) {
+  return (
+    (doc?.body ??
+      `# ${source.paper.title}
+
+Summary: Continue topic answers and open questions in this paper document. Shared claims, conditions and source locations belong to the linked Paper card.
+`) +
+    `
+## Analysis edition: ${source.file.edition}\n\nPDF SHA-256: ${source.file.sha256}
+
+Topic question: ${question}
+
+Selection reason: ${source.paper.note ?? source.paper.reason}\n\nPaper: ${revision.paper_id}\n`
+  );
+}
+
+// An edition keeps the Paper it was first connected to.
+function checkPaperConnection(current: Revision | undefined, revision: Revision, source: Source) {
+  if (!revision.workspace || !revision.paper_id)
+    invalid(
+      'For the first analysis, connect the shared card workspace with --workspace and --paper. Follow docs/PAPER_ANALYSIS.md to prepare the card.',
+    );
+  if (
+    current &&
+    sameSource(current, source) &&
+    (current.workspace !== revision.workspace || current.paper_id !== revision.paper_id)
+  )
+    invalid('Preserve the existing Paper connection for this edition.');
+}
+
+async function openAnalysis(
+  root: string,
+  values: AnalysisOptions,
+  source: Source,
+  question: string,
+  doc: Document | undefined,
+) {
+  const current = doc ? currentRevision(doc) : undefined;
+  if (!!values.workspace !== !!values.paper)
+    invalid('Specify the card workspace and Paper ID together.');
+  const revision: Revision = {
+    round: source.paper.round,
+    edition: source.file.edition,
+    pdf_sha256: source.file.sha256,
+    workspace: values.workspace ? await realpath(values.workspace) : (current?.workspace ?? ''),
+    paper_id: values.paper ?? current?.paper_id ?? '',
+    answered: false,
+    comparison_claims: [],
+  };
+  checkPaperConnection(current, revision, source);
+  await boundPaper(revision, source);
+  if (doc && sameSource(current!, source)) return doc;
+  const state: Session = doc
+    ? { ...doc.state, revisions: [...doc.state.revisions, revision] }
+    : { version: 1, key: source.paper.key, revisions: [revision] };
+  const body = editionSection(doc, source, question, revision);
+  return saveDocument(root, source.paper.key, state, body, doc);
+}
+
+function parseAnswer(bytes: Buffer) {
+  if (bytes.length > 512 * 1024) invalid('The answer JSON exceeds 512 KiB.');
+  const input: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+  if (!validateAnswer(input))
+    invalid(
+      'Check the answer JSON overview, answer, AI interpretation, open questions, reading position and claim IDs.',
+    );
+  if (input.overview && /\n\s*\n/.test(input.overview))
+    invalid('Write the overview as one short paragraph.');
+  return input;
+}
+
+async function saveAnswer(
+  root: string,
+  values: AnalysisOptions,
+  source: Source,
+  doc: Document | undefined,
+) {
+  if (!doc || !sameSource(currentRevision(doc), source))
+    invalid(
+      'Open the current edition with analysis-open first to check existing answers and notes.',
+    );
+  if (values.sha !== doc.sha256 || !values.input)
+    invalid('Reopen the analysis document and provide its current SHA-256 and answer JSON.');
+  const input = parseAnswer(await readFile(values.input));
+  const revision = currentRevision(doc);
+  if (!revision.answered && !input.overview)
+    invalid(
+      'The first answer for this edition needs a short overview of the research question, method and main results.',
+    );
+  const { card } = await boundPaper(revision, source);
+  checkReferences(input, card);
+  const state = structuredClone(doc.state);
+  const saved = state.revisions.at(-1)!;
+  saved.answered = true;
+  saved.comparison_claims = input.comparison_claims;
+  return saveDocument(root, source.paper.key, state, doc.body + replyBlock(input, revision), doc);
+}
+
 export async function runAnalysis([action = '', ...args]: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
     console.log(help);
     return;
   }
-  const { values } = parseArgs({
-    args,
-    options: Object.fromEntries(
-      ['dir', 'id', 'workspace', 'paper', 'sha', 'input'].map((k) => [
-        k,
-        { type: 'string' as const },
-      ]),
-    ),
-  });
-  const allowed: Record<string, string[]> = {
-    'analysis-open': ['id', 'workspace', 'paper'],
-    'analysis-save': ['id', 'sha', 'input'],
-    'analysis-list': [],
-    'comparison-input': [],
-  };
-  if (
-    !values.dir ||
-    !Object.hasOwn(allowed, action) ||
-    Object.entries(values).some(
-      ([k, value]) => !value?.trim() || (k !== 'dir' && !allowed[action]!.includes(k)),
-    )
-  )
-    invalid(help);
-  const root = await realpath(values.dir);
+  const { values, dir } = parseAnalysisArguments(action, args);
+  const root = await realpath(dir);
   const unlock = ['analysis-open', 'analysis-save'].includes(action)
     ? await workspaceLock(root)
     : undefined;
@@ -450,85 +604,12 @@ export async function runAnalysis([action = '', ...args]: string[]) {
     const id = Number(values.id);
     if (!Number.isSafeInteger(id) || id < 1) invalid(help);
     const { source, question } = await readySource(root, id);
-    let doc = await readDocument(root, source.paper.key);
-    if (action === 'analysis-open') {
-      const current = doc ? currentRevision(doc) : undefined;
-      if (!!values.workspace !== !!values.paper)
-        invalid('Specify the card workspace and Paper ID together.');
-      const revision: Revision = {
-        round: source.paper.round,
-        edition: source.file.edition,
-        pdf_sha256: source.file.sha256,
-        workspace: values.workspace ? await realpath(values.workspace) : (current?.workspace ?? ''),
-        paper_id: values.paper ?? current?.paper_id ?? '',
-        answered: false,
-        comparison_claims: [],
-      };
-      if (!revision.workspace || !revision.paper_id)
-        invalid(
-          'For the first analysis, connect the shared card workspace with --workspace and --paper. Follow docs/PAPER_ANALYSIS.md to prepare the card.',
-        );
-      if (
-        current &&
-        sameSource(current, source) &&
-        (current.workspace !== revision.workspace || current.paper_id !== revision.paper_id)
-      )
-        invalid('Preserve the existing Paper connection for this edition.');
-      await boundPaper(revision, source);
-      if (!doc || !sameSource(current!, source)) {
-        const state: Session = doc
-          ? { ...doc.state, revisions: [...doc.state.revisions, revision] }
-          : { version: 1, key: source.paper.key, revisions: [revision] };
-        const body =
-          (doc?.body ??
-            `# ${source.paper.title}
-
-Summary: Continue topic answers and open questions in this paper document. Shared claims, conditions and source locations belong to the linked Paper card.
-`) +
-          `
-## Analysis edition: ${source.file.edition}\n\nPDF SHA-256: ${source.file.sha256}
-
-Topic question: ${question}
-
-Selection reason: ${source.paper.note ?? source.paper.reason}\n\nPaper: ${revision.paper_id}\n`;
-        doc = await saveDocument(root, source.paper.key, state, body, doc);
-      }
-    } else {
-      if (!doc || !sameSource(currentRevision(doc), source))
-        invalid(
-          'Open the current edition with analysis-open first to check existing answers and notes.',
-        );
-      if (values.sha !== doc.sha256 || !values.input)
-        invalid('Reopen the analysis document and provide its current SHA-256 and answer JSON.');
-      const bytes = await readFile(values.input);
-      if (bytes.length > 512 * 1024) invalid('The answer JSON exceeds 512 KiB.');
-      const input: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-      if (!validateAnswer(input))
-        invalid(
-          'Check the answer JSON overview, answer, AI interpretation, open questions, reading position and claim IDs.',
-        );
-      if (input.overview && /\n\s*\n/.test(input.overview))
-        invalid('Write the overview as one short paragraph.');
-      const revision = currentRevision(doc);
-      if (!revision.answered && !input.overview)
-        invalid(
-          'The first answer for this edition needs a short overview of the research question, method and main results.',
-        );
-      const { card } = await boundPaper(revision, source);
-      checkReferences(input, card);
-      const state = structuredClone(doc.state);
-      const saved = state.revisions.at(-1)!;
-      saved.answered = true;
-      saved.comparison_claims = input.comparison_claims;
-      doc = await saveDocument(
-        root,
-        source.paper.key,
-        state,
-        doc.body + replyBlock(input, revision),
-        doc,
-      );
-    }
-    console.log(JSON.stringify(context(root, source, question, doc!), null, 2));
+    const doc = await readDocument(root, source.paper.key);
+    const current =
+      action === 'analysis-open'
+        ? await openAnalysis(root, values, source, question, doc)
+        : await saveAnswer(root, values, source, doc);
+    console.log(JSON.stringify(context(root, source, question, current), null, 2));
   } finally {
     await unlock?.();
   }
