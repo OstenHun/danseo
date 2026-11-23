@@ -120,7 +120,10 @@ export default defineConfig([
     // ESLint ignores a path that matches nothing, so update this list when one of these files moves.
     files: [
       'src/cli.ts',
+      'src/core/analysis.ts',
       'src/core/claim-state.ts',
+      'src/core/collection.ts',
+      'src/core/comparison.ts',
       'src/core/dependencies.ts',
       'src/core/index.ts',
       'src/core/reviews.ts',
