@@ -62,11 +62,43 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
 export const MAX_BUNDLE_BYTES = 256 * 1024;
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
-// Small ATX selector, not a Markdown renderer. Unsupported headings fail closed.
-export function selectQuestion(raw: string, section: string) {
-  const lines = raw.split(/(?<=\n)/);
-  const headings: { index: number; level: number; title: string }[] = [];
-  let fence: { char: string; size: number } | undefined;
+type Fence = { char: string; size: number };
+type Heading = { index: number; level: number; title: string };
+
+function closesFence(line: string, fence: Fence) {
+  const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
+  return Boolean(closing && closing[1]![0] === fence.char && closing[1]!.length >= fence.size);
+}
+
+function openingFence(line: string): Fence | undefined {
+  const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  if (!opening || (opening[1]![0] === '`' && opening[2]!.includes('`'))) return undefined;
+  return { char: opening[1]![0]!, size: opening[1]!.length };
+}
+
+function rejectSetextHeading(lines: string[], index: number, line: string) {
+  if (/^ {0,3}(=+|-+)[ \t]*$/.test(line) && index > 0 && lines[index - 1]!.trim()) {
+    throw new DanseoError(
+      'QUESTION_MARKDOWN',
+      'Setext headings are unsupported. Use an ATX (#) heading in the question document. The full file is not used as a fallback.',
+    );
+  }
+}
+
+function atxHeading(line: string, index: number): Heading | undefined {
+  const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/.exec(line);
+  if (!heading) return undefined;
+  return {
+    index,
+    level: heading[1]!.length,
+    title: (heading[2] ?? '').replace(/[ \t]+#+[ \t]*$/, '').trim(),
+  };
+}
+
+// Skips YAML frontmatter and fenced code, and fails closed on Setext headings.
+function collectHeadings(lines: string[]) {
+  const headings: Heading[] = [];
+  let fence: Fence | undefined;
   let frontmatter = /^\uFEFF?---\s*$/.test(lines[0]?.trimEnd() ?? '');
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!.replace(/\r?\n$/, '').replace(/^\uFEFF/, '');
@@ -75,30 +107,22 @@ export function selectQuestion(raw: string, section: string) {
       continue;
     }
     if (fence) {
-      const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
-      if (closing && closing[1]![0] === fence.char && closing[1]!.length >= fence.size)
-        fence = undefined;
+      if (closesFence(line, fence)) fence = undefined;
       continue;
     }
-    const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    if (opening && !(opening[1]![0] === '`' && opening[2]!.includes('`'))) {
-      fence = { char: opening[1]![0]!, size: opening[1]!.length };
-      continue;
-    }
-    if (/^ {0,3}(=+|-+)[ \t]*$/.test(line) && index > 0 && lines[index - 1]!.trim()) {
-      throw new DanseoError(
-        'QUESTION_MARKDOWN',
-        'Setext headings are unsupported. Use an ATX (#) heading in the question document. The full file is not used as a fallback.',
-      );
-    }
-    const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/.exec(line);
-    if (heading)
-      headings.push({
-        index,
-        level: heading[1]!.length,
-        title: (heading[2] ?? '').replace(/[ \t]+#+[ \t]*$/, '').trim(),
-      });
+    fence = openingFence(line);
+    if (fence) continue;
+    rejectSetextHeading(lines, index, line);
+    const heading = atxHeading(line, index);
+    if (heading) headings.push(heading);
   }
+  return headings;
+}
+
+// Small ATX selector, not a Markdown renderer. Unsupported headings fail closed.
+export function selectQuestion(raw: string, section: string) {
+  const lines = raw.split(/(?<=\n)/);
+  const headings = collectHeadings(lines);
   const matches = headings.filter((heading) => heading.title === section);
   if (matches.length !== 1)
     throw new DanseoError(
@@ -205,11 +229,8 @@ async function readText(path: string): Promise<string> {
   }
 }
 
-export async function readCard(path: string): Promise<Card> {
-  const raw = await readText(path);
-  const frontmatter = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(raw);
-  if (!frontmatter) throw new DanseoError('FRONTMATTER', `Missing YAML frontmatter: ${path}`);
-  const doc = parseDocument(frontmatter[1]!, { uniqueKeys: true });
+function parseCardData(path: string, yamlText: string): Paper | Application {
+  const doc = parseDocument(yamlText, { uniqueKeys: true });
   if (doc.errors.length || doc.warnings.length)
     throw new DanseoError(
       'YAML',
@@ -223,38 +244,52 @@ export async function readCard(path: string): Promise<Card> {
   }
   if (!cardSchema(data))
     throw new DanseoError('SCHEMA', `${path}: ${ajv.errorsText(cardSchema.errors)}`);
-  const typed = data as Paper | Application;
+  return data as Paper | Application;
+}
+
+function checkPaperEvidence(paper: Paper) {
+  const ids = new Set<string>();
+  for (const claim of paper.claims ?? []) {
+    if (ids.has(claim.id)) throw new DanseoError('DUPLICATE_CLAIM', `${paper.id}: ${claim.id}`);
+    ids.add(claim.id);
+    for (const loc of claim.locators)
+      if (loc.type === 'pdf-page-range' && loc.start! > loc.end!) {
+        throw new DanseoError(
+          'PAGE_RANGE',
+          `${paper.id}/${claim.id}: the start page exceeds the end page.`,
+        );
+      }
+  }
+  if (
+    paper.review.status === 'source-checked' &&
+    (!paper.source.version || !paper.claims?.length)
+  ) {
+    throw new DanseoError(
+      'CHECKED_WITHOUT_EVIDENCE',
+      `${paper.id}: source-checked requires an edition and claims.`,
+    );
+  }
+}
+
+export async function readCard(path: string): Promise<Card> {
+  const raw = await readText(path);
+  const frontmatter = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(raw);
+  if (!frontmatter) throw new DanseoError('FRONTMATTER', `Missing YAML frontmatter: ${path}`);
+  const typed = parseCardData(path, frontmatter[1]!);
   const body = raw.slice(frontmatter[0].length);
   const title = /^# (.+)\r?$/m.exec(body)?.[1]?.trim();
   if (!title) throw new DanseoError('TITLE', `A Markdown heading (# Title) is required: ${path}`);
-  if (typed.type === 'paper') {
-    const ids = new Set<string>();
-    for (const claim of typed.claims ?? []) {
-      if (ids.has(claim.id)) throw new DanseoError('DUPLICATE_CLAIM', `${typed.id}: ${claim.id}`);
-      ids.add(claim.id);
-      for (const loc of claim.locators)
-        if (loc.type === 'pdf-page-range' && loc.start! > loc.end!) {
-          throw new DanseoError(
-            'PAGE_RANGE',
-            `${typed.id}/${claim.id}: the start page exceeds the end page.`,
-          );
-        }
-    }
-    if (
-      typed.review.status === 'source-checked' &&
-      (!typed.source.version || !typed.claims?.length)
-    ) {
-      throw new DanseoError(
-        'CHECKED_WITHOUT_EVIDENCE',
-        `${typed.id}: source-checked requires an edition and claims.`,
-      );
-    }
-  }
+  if (typed.type === 'paper') checkPaperEvidence(typed);
   return { data: typed, raw, path, title, sha256: createHash('sha256').update(raw).digest('hex') };
 }
 
-export async function loadWorkspace(directory: string): Promise<Workspace> {
-  const path = resolve(directory);
+type Manifest = {
+  records: string[];
+  projects: Project[];
+  claim_reviews?: Workspace['claim_reviews'];
+};
+
+async function readManifest(path: string): Promise<Manifest> {
   const configText = await readText(resolve(path, 'workspace.json'));
   let config: unknown;
   try {
@@ -264,68 +299,91 @@ export async function loadWorkspace(directory: string): Promise<Workspace> {
   }
   if (!workspaceSchema(config))
     throw new DanseoError('WORKSPACE_SCHEMA', ajv.errorsText(workspaceSchema.errors));
-  const manifest = config as {
-    records: string[];
-    projects: Project[];
-    claim_reviews?: Workspace['claim_reviews'];
-  };
+  return config as Manifest;
+}
+
+async function checkProjectPaths(project: Project, root: string, question: string) {
+  try {
+    if (!(await stat(root)).isDirectory() || !(await stat(question)).isFile())
+      throw new Error('Directory/file type mismatch');
+    const realRel = relative(await realpath(root), await realpath(question));
+    if (isAbsolute(realRel) || realRel === '..' || realRel.startsWith(`..${sep}`))
+      throw new Error('The question file points outside the root.');
+  } catch (error) {
+    throw new DanseoError('PROJECT_PATH', `${project.id}: ${(error as Error).message}`, 3);
+  }
+}
+
+async function resolveProject(path: string, project: Project): Promise<Project> {
+  const root = resolve(path, project.root);
+  const question = resolve(root, project.question_source);
+  const rel = relative(root, question);
+  if (isAbsolute(project.question_source) || rel === '..' || rel.startsWith(`..${sep}`)) {
+    throw new DanseoError(
+      'QUESTION_PATH',
+      `${project.id}: question_source must be a relative path inside the project root.`,
+    );
+  }
+  await checkProjectPaths(project, root, question);
+  if (project.question_section) selectQuestion(await readText(question), project.question_section);
+  return { ...project, root, question_source: question };
+}
+
+async function resolveProjects(path: string, entries: Project[]) {
   const projects: Project[] = [];
-  for (const project of manifest.projects) {
+  for (const project of entries) {
     if (projects.some((known) => known.id === project.id))
       throw new DanseoError('DUPLICATE_PROJECT', project.id);
-    const root = resolve(path, project.root);
-    const question = resolve(root, project.question_source);
-    const rel = relative(root, question);
-    if (isAbsolute(project.question_source) || rel === '..' || rel.startsWith(`..${sep}`)) {
-      throw new DanseoError(
-        'QUESTION_PATH',
-        `${project.id}: question_source must be a relative path inside the project root.`,
-      );
-    }
-    try {
-      if (!(await stat(root)).isDirectory() || !(await stat(question)).isFile())
-        throw new Error('Directory/file type mismatch');
-      const realRel = relative(await realpath(root), await realpath(question));
-      if (isAbsolute(realRel) || realRel === '..' || realRel.startsWith(`..${sep}`))
-        throw new Error('The question file points outside the root.');
-    } catch (error) {
-      throw new DanseoError('PROJECT_PATH', `${project.id}: ${(error as Error).message}`, 3);
-    }
-    if (project.question_section)
-      selectQuestion(await readText(question), project.question_section);
-    projects.push({ ...project, root, question_source: question });
+    projects.push(await resolveProject(path, project));
   }
+  return projects;
+}
+
+async function readRecords(path: string, entries: string[]) {
   const cards: Card[] = [];
-  for (const entry of manifest.records) {
+  for (const entry of entries) {
     // Explicit file references only: no recursive discovery or following document links.
     const card = await readCard(resolve(path, entry));
     if (cards.some((known) => known.data.id === card.data.id))
       throw new DanseoError('DUPLICATE_ID', card.data.id);
     cards.push(card);
   }
-  for (const card of cards)
-    if (card.data.type === 'application') {
-      const app = card.data;
-      if (!projects.some((project) => project.id === app.project_id))
-        throw new DanseoError('PROJECT_REF', `${app.id}: ${app.project_id}`);
-      for (const ref of app.claim_refs) {
-        const paper = cards.find((candidate) => candidate.data.id === ref.paper_id)?.data;
-        if (paper?.type !== 'paper' || !paper.claims?.some((claim) => claim.id === ref.claim_id)) {
-          throw new DanseoError('CLAIM_REF', `${app.id}: ${ref.paper_id}/${ref.claim_id}`);
-        }
-        if (!paper.source.version)
-          throw new DanseoError(
-            'SOURCE_VERSION',
-            `${paper.id}: linked claims require a source edition.`,
-          );
-      }
+  return cards;
+}
+
+function checkApplicationRefs(app: Application, cards: Card[], projects: Project[]) {
+  if (!projects.some((project) => project.id === app.project_id))
+    throw new DanseoError('PROJECT_REF', `${app.id}: ${app.project_id}`);
+  for (const ref of app.claim_refs) {
+    const paper = cards.find((candidate) => candidate.data.id === ref.paper_id)?.data;
+    if (paper?.type !== 'paper' || !paper.claims?.some((claim) => claim.id === ref.claim_id)) {
+      throw new DanseoError('CLAIM_REF', `${app.id}: ${ref.paper_id}/${ref.claim_id}`);
     }
-  const warnings = cards
+    if (!paper.source.version)
+      throw new DanseoError(
+        'SOURCE_VERSION',
+        `${paper.id}: linked claims require a source edition.`,
+      );
+  }
+}
+
+function sourceReviewWarnings(cards: Card[]) {
+  return cards
     .filter((card) => card.data.type === 'paper' && card.data.review.status !== 'source-checked')
     .map(
       (card) =>
         `${card.data.id}: ${(card.data as Paper).review.status} — source review is incomplete.`,
     );
+}
+
+export async function loadWorkspace(directory: string): Promise<Workspace> {
+  const path = resolve(directory);
+  const manifest = await readManifest(path);
+  const projects = await resolveProjects(path, manifest.projects);
+  const cards = await readRecords(path, manifest.records);
+  for (const card of cards)
+    if (card.data.type === 'application') checkApplicationRefs(card.data, cards, projects);
+  const warnings = sourceReviewWarnings(cards);
   return { path, cards, projects, warnings, claim_reviews: manifest.claim_reviews };
 }
 
