@@ -156,7 +156,7 @@
       : '';
     return 'Created by · ' + relation.created_by + review;
   }
-  // Each show* function fills the details panel and returns false when the record is gone.
+  // Each show* function fills the details panel and returns false, appending nothing, when the record is gone.
   function showRelation(view: View, panel: HTMLElement, id: string): boolean {
     const relation = visibleRelations(view).find((item) => item.id === id);
     if (!relation) return false;

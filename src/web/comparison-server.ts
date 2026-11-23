@@ -5,7 +5,7 @@ import { buildComparison, type Comparison } from '../core/comparison.js';
 import { sha256 } from '../core/source-pdf.js';
 
 type Assets = Map<string, Buffer>;
-type Route = {
+type RequestContext = {
   server: Server;
   token: string;
   assets: Assets;
@@ -87,7 +87,7 @@ function sendAsset(response: ServerResponse, assets: Assets, asset: string) {
 async function handleRequest(
   request: IncomingMessage,
   response: ServerResponse,
-  { server, token, assets, currentComparison }: Route,
+  { server, token, assets, currentComparison }: RequestContext,
 ) {
   const host = `127.0.0.1:${(server.address() as { port: number }).port}`;
   setSecurityHeaders(response);
