@@ -146,6 +146,7 @@
   }
   type Relation = View['relations'][number];
   function relationProvenance(relation: Relation): string {
+    const creator = 'Created by · ' + relation.created_by;
     const review = relation.review
       ? ' / ' +
         (relation.status === 'source-checked' ? 'Source check' : 'Previous source check') +
@@ -154,7 +155,7 @@
         ' · ' +
         relation.review.checked_at
       : '';
-    return 'Created by · ' + relation.created_by + review;
+    return creator + review;
   }
   // Each show* function fills the details panel and returns false, appending nothing, when the record is gone.
   function showRelation(view: View, panel: HTMLElement, id: string): boolean {

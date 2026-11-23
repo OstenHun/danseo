@@ -65,6 +65,7 @@
     const project = data.mode === 'project-application';
     return (type, item, index, count, column) => {
       const position = nodePosition(scene, project, index, count, column);
+      const statusLine = stateLabel(data, type, item);
       const node: MapElement = {
         group: 'nodes',
         data: {
@@ -74,7 +75,7 @@
           label:
             (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') +
             (item.short_title ?? item.title) +
-            stateLabel(data, type, item),
+            statusLine,
           state: item.review_status ?? item.decision?.status ?? 'context',
         },
         position,
@@ -179,10 +180,11 @@
     });
   }
   function relationLabel(relation: NonNullable<LegacyMapData['relations']>[number], index: number) {
+    const prefix = String(index + 1).padStart(2, '0') + ' · ' + kind[relation.kind];
     const recheck = relation.needs_recheck
       ? ' · ' + (relation.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck'
       : '';
-    return String(index + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + recheck;
+    return prefix + recheck;
   }
   function addRelationElements(data: LegacyMapData, elements: MapElement[]) {
     if (!data.relations) throw new Error('The paper relation list is missing.');
