@@ -2,24 +2,27 @@
 
 Summary: Preserve the licenses of locked runtime and development dependencies. Danseo's MIT License does not replace the terms of these packages, external papers, or datasets.
 
-The dependency review was recorded on 2026-10-21 KST and updated on 2026-11-22 KST when Prettier was added; the table reflects the versions listed in this source tree. Package versions and license texts are recorded in `package-lock.json` and `third-party-licenses/`. Recheck versions, transitive dependencies, and notices when dependencies change. License originals are preserved without translation.
+The dependency review was recorded on 2026-10-21 KST and updated on 2026-11-23 KST when ESLint was added; the table reflects the versions listed in this source tree. Package versions and license texts are recorded in `package-lock.json` and `third-party-licenses/`. Recheck versions, transitive dependencies, and notices when dependencies change. License originals are preserved without translation.
 
 | Package | Version | Scope | License | Notice |
 | --- | --- | --- | --- | --- |
+| @eslint/js | 10.0.1 | Development | MIT | [Original](third-party-licenses/eslint.txt) |
 | @types/node | 22.20.5 | Development | MIT | [Original](third-party-licenses/types-node.txt) |
 | ajv | 8.20.0 | Runtime | MIT | [Original](third-party-licenses/ajv.txt) |
 | cytoscape | 3.34.4 | Local comparison map and standalone views | MIT | [Original](third-party-licenses/cytoscape.txt) |
+| eslint | 10.15.0 | Development | MIT | [Original](third-party-licenses/eslint.txt) |
 | fast-deep-equal | 3.1.3 | Runtime | MIT | [Original](third-party-licenses/fast-deep-equal.txt) |
 | fast-uri | 3.1.9 | Runtime | BSD-3-Clause | [Original](third-party-licenses/fast-uri.txt) |
 | json-schema-traverse | 1.0.0 | Runtime | MIT | [Original](third-party-licenses/json-schema-traverse.txt) |
 | prettier | 3.10.1 | Development | MIT | [Original](third-party-licenses/prettier.txt) |
 | require-from-string | 2.0.2 | Runtime | MIT | [Original](third-party-licenses/require-from-string.txt) |
 | typescript | 5.9.3 | Development | Apache-2.0 | [Original](third-party-licenses/typescript.txt) |
+| typescript-eslint | 8.73.0 | Development | MIT | [Original](third-party-licenses/typescript-eslint.txt) |
 | undici-types | 6.21.0 | Development | MIT | [Original](third-party-licenses/undici-types.txt) |
 | unpdf | 1.9.1 | Source collection | MIT; bundled PDF.js uses Apache-2.0 | [unpdf](third-party-licenses/unpdf.txt) · [PDF.js](third-party-licenses/pdfjs.txt) |
 | yaml | 2.9.1 | Runtime | ISC | [Original](third-party-licenses/yaml.txt) |
 
-Runtime packages are Ajv, yaml, unpdf, Cytoscape.js, and their transitive dependencies. TypeScript, Prettier and type definitions are development tools and are not bundled into the CLI. npm installs dependency packages separately. The standalone HTML skill includes Cytoscape 3.34.4's minified distribution and its [MIT notice](skills/danseo/assets/cytoscape-LICENSE.txt) for offline use. External papers, datasets, and private research workspaces are excluded from distribution.
+Runtime packages are Ajv, yaml, unpdf, Cytoscape.js, and their transitive dependencies. TypeScript, Prettier, ESLint and type definitions are development tools and are not bundled into the CLI. ESLint and typescript-eslint pull in 92 further development-only packages (MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC and BlueOak-1.0.0); they are never packaged or distributed, so their versions and licenses are recorded in `package-lock.json` instead of one original per package. npm installs dependency packages separately. The standalone HTML skill includes Cytoscape 3.34.4's minified distribution and its [MIT notice](skills/danseo/assets/cytoscape-LICENSE.txt) for offline use. External papers, datasets, and private research workspaces are excluded from distribution.
 
 The third-party notices distributed with [TypeScript](third-party-licenses/typescript-third-party-notices.txt) and [Prettier](third-party-licenses/prettier-third-party-notices.txt) are also preserved.
 
