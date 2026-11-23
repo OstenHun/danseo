@@ -144,88 +144,90 @@
       text('p', 'Select a paper, criterion or relation to inspect currently available evidence.'),
     );
   }
+  type Relation = View['relations'][number];
+  function relationProvenance(relation: Relation): string {
+    const review = relation.review
+      ? ' / ' +
+        (relation.status === 'source-checked' ? 'Source check' : 'Previous source check') +
+        ' · ' +
+        relation.review.checked_by +
+        ' · ' +
+        relation.review.checked_at
+      : '';
+    return 'Created by · ' + relation.created_by + review;
+  }
+  // Each show* function fills the details panel and returns false when the record is gone.
+  function showRelation(view: View, panel: HTMLElement, id: string): boolean {
+    const relation = visibleRelations(view).find((item) => item.id === id);
+    if (!relation) return false;
+    panel.append(
+      text('h2', (labels[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label),
+      text(
+        'p',
+        paperById(view, relation.source).title + ' → ' + paperById(view, relation.target).title,
+      ),
+      text('p', relation.rationale),
+      text('p', relationProvenance(relation), 'metadata'),
+    );
+    const columns = text('div', '', 'evidence-columns');
+    for (const paper of view.papers.filter((item) =>
+      [relation.source, relation.target].includes(item.paper_id ?? ''),
+    )) {
+      columns.append(
+        evidence(
+          paper,
+          view.claims.filter(
+            (claim) =>
+              claim.key === paper.key &&
+              relation.evidence_refs.some(
+                (ref) => ref.paper_id === claim.paper_id && ref.claim_id === claim.claim_id,
+              ),
+          ),
+        ),
+      );
+    }
+    panel.append(columns);
+    return true;
+  }
+  function showCriterion(view: View, panel: HTMLElement, id: string): boolean {
+    const criterion = view.criteria.find((item) => item.id === id);
+    if (!criterion) return false;
+    panel.append(
+      text('h2', criterion.title),
+      text('p', 'AI grouping · ' + criterion.rationale, 'badge'),
+    );
+    const columns = text('div', '', 'evidence-columns');
+    for (const paper of view.papers)
+      columns.append(evidence(paper, criterionClaims(criterion, paper)));
+    panel.append(columns);
+    return true;
+  }
+  function showPaper(view: View, panel: HTMLElement, id: string): boolean {
+    const paper = view.papers.find((item) => item.id === id);
+    if (!paper) return false;
+    panel.append(text('h2', paper.title));
+    for (const criterion of view.criteria)
+      panel.append(
+        text('h3', criterion.title),
+        text('p', 'AI grouping · ' + criterion.rationale, 'badge'),
+        evidence(paper, criterionClaims(criterion, paper)),
+      );
+    return true;
+  }
   function show(type: SelectionType, id: string, focus = true): void {
     const view = data;
     if (!view) return;
     const panel = element('details');
     panel.replaceChildren();
     selection = { type, id };
-    if (type === 'relation') {
-      const relation = visibleRelations(view).find((item) => item.id === id);
-      if (!relation) {
-        selection = undefined;
-        emptyDetails();
-        return;
-      }
-      panel.append(
-        text('h2', (labels[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label),
-        text(
-          'p',
-          paperById(view, relation.source).title + ' → ' + paperById(view, relation.target).title,
-        ),
-        text('p', relation.rationale),
-        text(
-          'p',
-          'Created by · ' +
-            relation.created_by +
-            (relation.review
-              ? ' / ' +
-                (relation.status === 'source-checked' ? 'Source check' : 'Previous source check') +
-                ' · ' +
-                relation.review.checked_by +
-                ' · ' +
-                relation.review.checked_at
-              : ''),
-          'metadata',
-        ),
-      );
-      const columns = text('div', '', 'evidence-columns');
-      for (const paper of view.papers.filter((item) =>
-        [relation.source, relation.target].includes(item.paper_id ?? ''),
-      )) {
-        columns.append(
-          evidence(
-            paper,
-            view.claims.filter(
-              (claim) =>
-                claim.key === paper.key &&
-                relation.evidence_refs.some(
-                  (ref) => ref.paper_id === claim.paper_id && ref.claim_id === claim.claim_id,
-                ),
-            ),
-          ),
-        );
-      }
-      panel.append(columns);
-    } else if (type === 'criterion') {
-      const criterion = view.criteria.find((item) => item.id === id);
-      if (!criterion) {
-        selection = undefined;
-        emptyDetails();
-        return;
-      }
-      panel.append(
-        text('h2', criterion.title),
-        text('p', 'AI grouping · ' + criterion.rationale, 'badge'),
-      );
-      const columns = text('div', '', 'evidence-columns');
-      for (const paper of view.papers)
-        columns.append(evidence(paper, criterionClaims(criterion, paper)));
-      panel.append(columns);
-    } else {
-      const paper = view.papers.find((item) => item.id === id);
-      if (!paper) {
-        selection = undefined;
-        emptyDetails();
-        return;
-      }
-      panel.append(text('h2', paper.title));
-      for (const criterion of view.criteria)
-        panel.append(
-          text('h3', criterion.title),
-          text('p', 'AI grouping · ' + criterion.rationale, 'badge'),
-          evidence(paper, criterionClaims(criterion, paper)),
-        );
+    let shown: boolean;
+    if (type === 'relation') shown = showRelation(view, panel, id);
+    else if (type === 'criterion') shown = showCriterion(view, panel, id);
+    else shown = showPaper(view, panel, id);
+    if (!shown) {
+      selection = undefined;
+      emptyDetails();
+      return;
     }
     document
       .querySelectorAll<HTMLButtonElement>('[data-selection]')
@@ -257,6 +259,16 @@
       holder.append(choice);
     }
   }
+  function emptyRelationsMessage(view: View, relations: View['relations']): string {
+    if (relations.length) return '';
+    if (!sourceOnly.checked) return 'No research relations are currently available.';
+    return (
+      'No currently valid source relations.' +
+      (view.relations.length
+        ? ' Clear the filter to inspect unchecked relations and proposals.'
+        : '')
+    );
+  }
   function render(view: View): void {
     const relations = visibleRelations(view);
     if (selection?.type === 'relation' && !relations.some((item) => item.id === selection?.id)) {
@@ -278,14 +290,7 @@
         ' → ' +
         paperById(view, relation.target).number,
     );
-    element('empty-relations').textContent = relations.length
-      ? ''
-      : sourceOnly.checked
-        ? 'No currently valid source relations.' +
-          (view.relations.length
-            ? ' Clear the filter to inspect unchecked relations and proposals.'
-            : '')
-        : 'No research relations are currently available.';
+    element('empty-relations').textContent = emptyRelationsMessage(view, relations);
     element('status').textContent =
       `Papers: ${view.papers.length} · criteria: ${view.criteria.length} · research relations: ${relations.length}. Checked against current files.`;
     map?.destroy();
