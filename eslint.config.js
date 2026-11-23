@@ -118,7 +118,9 @@ export default defineConfig([
   {
     // Files already cleaned up: readability rules are errors here so warnings cannot return.
     // ESLint ignores a path that matches nothing, so update this list when one of these files moves.
+    // Every skill script except tests is covered, including scripts added later.
     files: [
+      'skills/*/scripts/*.mjs',
       'src/cli.ts',
       'src/core/analysis.ts',
       'src/core/claim-state.ts',
@@ -134,6 +136,7 @@ export default defineConfig([
       'src/web/comparison-server.ts',
       'src/web/comparison.ts',
     ],
+    ignores: ['**/*.test.mjs'],
     rules: Object.fromEntries(
       Object.entries(readabilityRules).map(([rule, setting]) => [
         rule,
