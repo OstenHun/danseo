@@ -109,6 +109,14 @@ execFileSync(
 console.log(
   'Installed source-complete delivery: date/claim passage bindings, stale evidence and no-write regressions passed.',
 );
+execFileSync(
+  process.execPath,
+  ['--test', path.join(standalone, 'scripts/assemble-readings.test.mjs')],
+  { cwd: scratch, stdio: 'pipe' },
+);
+console.log(
+  'Installed reading-result assembly: bundled examples pass the complete check from the skill folder alone.',
+);
 for (const file of [
   'SKILL.md',
   'assets/graph-presentation.js',

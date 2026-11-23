@@ -16,7 +16,7 @@ Without a separate verification request, inspect view titles, short paper names/
 2. For a performance statement, reread original table pages. Check generator/model size, train/evaluation splits, dataset, metric/direction, comparator, reproduced versus cited results, missing values, ties, errors/significance and footnotes. Do not mix one generator's rows with another metric's columns. Retain table exceptions even when prose says always better.
 3. Put the entire continuous table block, complete header and caption/footnotes in evidence v2 `tables`. Do not remove unfavorable rows/columns or change values/symbols. Preserve nearby prose conditions in review scope and separate condition fields.
 4. Use `kind: table-comparison` with the comparison contract below and exact `comparisonText()` output. Separate mixed method/performance prose: retain method rationale and move computed performance text into conditions/notes without deleting valid conditions/limits. These deterministic reports are English; adjacent agent-authored prose follows the requested language.
-5. Mark non-performance fields `non-performance`, `comparison: null` with a reason. Do not force ambiguous exemptions or reword to evade detection. Preserve unsupported claims in the original draft, stop final HTML generation and report needed evidence. Refresh fields/hashes after changes and rerun.
+5. Mark non-performance fields `non-performance`, `comparison: null` with a reason. Do not force ambiguous exemptions or reword to evade detection; the only rewording allowed is for [wording that states order](#order-wording). Preserve unsupported claims in the original draft, stop final HTML generation and report needed evidence. Refresh fields/hashes after changes and rerun.
 
 ## Evidence v2 additions
 
@@ -65,6 +65,10 @@ Each performance item:
 
 ## Blocking and limits
 
-Immediately before saving, validate all target reviews, current hashes, source links, excerpts, row/column consistency, same-condition calculations and exact display text. Any loss/tie/missing result blocks all-condition superiority. Known comparison phrases cannot be exempted as non-performance.
+Immediately before saving, validate all target reviews, current hashes, source links, excerpts, row/column consistency, same-condition calculations and exact display text. Any loss/tie/missing result blocks all-condition superiority. Known comparison phrases cannot be exempted as non-performance. The error quotes the wording it matched, as in `(matched "outperform")`; a match longer than 40 characters is quoted by its two ends.
+
+<a id="order-wording"></a>
+
+The wording check reads words, not meaning, so it also stops a sentence that only says which work came first. Korean `앞선` and `앞서` mean both "earlier" and "ahead of": `앞선 연구를 인용한다` (cites earlier work) is rejected in the same way as `B보다 앞선다` (is ahead of B). When the matched wording states order or time and nothing about results, write the order with a word that has no ranking sense, such as `이전 연구` (previous work), `선행 연구` (prior work) or `먼저 발표된` (published first), then refresh the hashes and rerun. A sentence that does compare results still needs a table comparison, whatever words it uses.
 
 Original extraction, block boundaries, condition classification and meaningful comparison scope still need agent source inspection. This is neither an all-language performance classifier nor a forged PDF/extraction detector. Wrong exemptions or selectively narrowed scope remain review errors. Requiring every field reduces omissions but preserves `source_semantics:not-certified`. Mean improvement does not imply gains in every condition or statistical significance.

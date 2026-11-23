@@ -19,6 +19,8 @@ Claude, Argon and Codex use the same Node generator. First perform [source verif
 5. For normal delivery, finish the displayed-source checks and bind completion as described below, then run the same candidate/evidence with `--out new-view.html --complete`. Checks rerun immediately before saving; existing files are not overwritten.
 6. Read actual source/AI labels, counts, evidence selection and text. Do not deliver failed results as complete; state remaining checks.
 
+When the originals are archived in the output directory, steps 1 to 3 can come from per-paper [reading results](reading-results.md): the bundled assembler writes the candidate, overview, hashes, performance reviews and completion binding from what you recorded for each paper, replacing the binding snippet below. Continue from step 4 with the files it writes.
+
 Use actual command results during this loop. A failed command does not create a passing output: fix the named field against the input contract/source, rerun structural checks after candidate edits, regenerate affected overview/performance reviews, then rerun the verified check and save. Preserve uncertainty rather than inventing missing provenance, evidence, checker names or timestamps. Stop and report the diagnostic when a required source or execution capability is unavailable. Do not substitute `renderCandidate()` or manual HTML for a blocked verified save.
 
 `render-research-view.mjs --check` checks structure only. Its relationship `--out` route is blocked; use the verified generator above. `project-application` keeps its existing command. Pure `renderCandidate()` is a library function, not a verified-output API.
