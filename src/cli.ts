@@ -91,6 +91,7 @@ function outputFormat(options: CliOptions) {
   return format;
 }
 
+// Returns the checked workspace path.
 function requireCommandInputs(command: WorkspaceCommand, options: CliOptions) {
   if (!options.workspace?.trim())
     throw new DanseoError('WORKSPACE_REQUIRED', 'Provide a --workspace path.');
@@ -101,6 +102,7 @@ function requireCommandInputs(command: WorkspaceCommand, options: CliOptions) {
     throw new DanseoError('SHOW_ID', 'Specify exactly one of --paper or --application.');
   if (command === 'export' && (!options.project || !options.application))
     throw new DanseoError('EXPORT_IDS', 'Both --project and --application are required.');
+  return options.workspace;
 }
 
 function renderValidation(ws: Workspace, format: string) {
@@ -124,7 +126,8 @@ function renderList(ws: Workspace, options: CliOptions, format: string) {
     : rows.map((row) => `${row.id}\t${row.type}\t${row.status}\t${row.title}`).join('\n') + '\n';
 }
 
-function renderShow(ws: Workspace, options: CliOptions, format: string) {
+// Also writes the relative-link base to stderr for Markdown output.
+function showOutput(ws: Workspace, options: CliOptions, format: string) {
   const card = getCard(
     ws,
     (options.paper ?? options.application)!,
@@ -137,13 +140,17 @@ function renderShow(ws: Workspace, options: CliOptions, format: string) {
   return output;
 }
 
-async function renderExport(ws: Workspace, options: CliOptions, format: string) {
-  const bundle = await buildBundle(
+function exportBundle(ws: Workspace, options: CliOptions) {
+  return buildBundle(
     ws,
     options.project!,
     options.application!,
     options['include-drafts'] ?? false,
   );
+}
+
+// Also writes bundle warnings to stderr.
+function exportOutput(bundle: Awaited<ReturnType<typeof buildBundle>>, format: string) {
   const output = renderBundle(bundle, format);
   if (bundle.warnings.length)
     process.stderr.write(
@@ -154,16 +161,16 @@ async function renderExport(ws: Workspace, options: CliOptions, format: string) 
   return output;
 }
 
-async function renderCommand(
-  command: WorkspaceCommand,
+// Synchronous on purpose: stderr notes and the output are written without an await between them.
+function commandOutput(
+  command: Exclude<WorkspaceCommand, 'export'>,
   ws: Workspace,
   options: CliOptions,
   format: string,
-): Promise<string> {
+) {
   if (command === 'validate') return renderValidation(ws, format);
   if (command === 'list') return renderList(ws, options, format);
-  if (command === 'show') return renderShow(ws, options, format);
-  return renderExport(ws, options, format);
+  return showOutput(ws, options, format);
 }
 
 async function deliverOutput(output: string, options: CliOptions, format: string) {
@@ -186,9 +193,12 @@ async function main() {
   const command = requireWorkspaceCommand(positionals);
   rejectUnsupportedOptions(command, options);
   const format = outputFormat(options);
-  requireCommandInputs(command, options);
-  const ws = await loadWorkspace(options.workspace!);
-  const output = await renderCommand(command, ws, options, format);
+  const workspace = requireCommandInputs(command, options);
+  const ws = await loadWorkspace(workspace);
+  const output =
+    command === 'export'
+      ? exportOutput(await exportBundle(ws, options), format)
+      : commandOutput(command, ws, options, format);
   await deliverOutput(output, options, format);
 }
 

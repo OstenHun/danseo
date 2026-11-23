@@ -239,14 +239,6 @@ export async function runTopic(args: string[]) {
 const analysisActions = ['analysis-open', 'analysis-save', 'analysis-list', 'comparison-input'];
 const collectionActions = ['sources', 'collect', 'unavailable', 'decide'];
 
-// Actions owned by other modules are loaded only when requested.
-async function loadDelegatedAction(action: string) {
-  if (action === 'compare') return (await import('./comparison.js')).runComparison;
-  if (analysisActions.includes(action)) return (await import('./analysis.js')).runAnalysis;
-  if (collectionActions.includes(action)) return (await import('./collection.js')).runCollection;
-  return undefined;
-}
-
 const optionsByTopicAction: Record<string, string[]> = {
   init: ['question'],
   search: ['input'],
@@ -268,8 +260,8 @@ function parseTopicOptions(args: string[]) {
     },
   }).values;
 }
-type TopicOptions = ReturnType<typeof parseTopicOptions>;
 
+// Returns the action, its options and the checked topic folder.
 function parseTopicArguments(args: string[]) {
   const [action, ...rest] = args;
   const values = parseTopicOptions(rest);
@@ -280,19 +272,12 @@ function parseTopicArguments(args: string[]) {
     Object.keys(values).some((key) => key !== 'dir' && !optionsByTopicAction[action]!.includes(key))
   )
     invalid(topicHelp);
-  return { action, values };
+  return { action, values, dir: values.dir };
 }
 
-async function openTopic(action: string, values: TopicOptions, root: string, path: string) {
-  if (action !== 'init') return readTopic(root);
+async function createTopic(path: string, question: string): Promise<Topic> {
   if (await exists(path)) invalid('This topic already exists. Reopen it with show.');
-  const topic: Topic = {
-    version: 1,
-    question: values.question!.trim(),
-    searches: [],
-    selected: [],
-  };
-  return topic;
+  return { version: 1, question, searches: [], selected: [] };
 }
 
 async function showTopic(root: string, result: ReturnType<typeof overview>['result']) {
@@ -309,50 +294,54 @@ async function showTopic(root: string, result: ReturnType<typeof overview>['resu
   );
 }
 
-async function changeTopic(
-  action: string,
-  values: TopicOptions,
-  topic: Topic,
-  catalog: ReadonlyMap<string, CatalogEntry>,
-) {
-  if (action === 'search') {
-    if (!values.input) invalid(topicHelp);
-    const search = await readJson(values.input);
-    if (!validSearch(search)) invalid(ajv.errorsText(validSearch.errors));
-    if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
-  }
-  if (action === 'select' || action === 'unselect') {
-    updateSelection(topic, catalog, action, values);
-  }
+async function addSearch(topic: Topic, input: string | undefined) {
+  if (!input) invalid(topicHelp);
+  const search = await readJson(input);
+  if (!validSearch(search)) invalid(ajv.errorsText(validSearch.errors));
+  if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
 }
 
-async function executeTopic(args: string[]) {
-  const delegated = await loadDelegatedAction(args[0] ?? '');
-  if (delegated) return delegated(args);
+// Help and argument checks run synchronously when called, before the first await.
+async function runTopicAction(args: string[]) {
   if (args.includes('--help') || args.includes('-h')) {
     console.log(topicHelp);
     return;
   }
-  const { action, values } = parseTopicArguments(args);
+  const { action, values, dir } = parseTopicArguments(args);
+  let question = '';
   if (action === 'init') {
     if (!values.question?.trim()) invalid(topicHelp);
-    await mkdir(values.dir!, { recursive: true });
+    question = values.question.trim();
+    await mkdir(dir, { recursive: true });
   }
-  const root = await realpath(values.dir!);
+  const root = await realpath(dir);
   const path = join(root, 'topic.json');
   const unlock = action === 'show' ? undefined : await workspaceLock(root);
   try {
-    const topic = await openTopic(action, values, root, path);
+    const topic = action === 'init' ? await createTopic(path, question) : await readTopic(root);
     const current = overview(topic);
     if (action === 'show') {
       await showTopic(root, current.result);
       return;
     }
-    await changeTopic(action, values, topic, current.catalog);
+    if (action === 'search') await addSearch(topic, values.input);
+    if (action === 'select' || action === 'unselect') {
+      updateSelection(topic, current.catalog, action, values);
+    }
     const { result } = overview(topic);
     await replaceTopicJson(root, path, topic);
     console.log(JSON.stringify(result, null, 2));
   } finally {
     await unlock?.();
   }
+}
+
+// Actions owned by other modules are loaded only when requested.
+async function executeTopic(args: string[]) {
+  const action = args[0] ?? '';
+  if (action === 'compare') return (await import('./comparison.js')).runComparison(args);
+  if (analysisActions.includes(action)) return (await import('./analysis.js')).runAnalysis(args);
+  if (collectionActions.includes(action))
+    return (await import('./collection.js')).runCollection(args);
+  return runTopicAction(args);
 }
