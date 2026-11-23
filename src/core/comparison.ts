@@ -223,10 +223,11 @@ export async function relationState(
   const endpoints = [source, target];
   const sourceStates = await Promise.all(endpoints.map(readSourceState));
   const current = currentDependencies(relation, refs, endpoints, sourceStates, papers);
+  const stale = dependenciesStale(refs, prior, sourceStates, currentRefs, current);
   return {
     ...relation,
     origin_label: label,
-    needs_recheck: dependenciesStale(refs, prior, sourceStates, currentRefs, current),
+    needs_recheck: stale,
     current_dependencies: current,
   };
 }
