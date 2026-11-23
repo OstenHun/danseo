@@ -28,6 +28,7 @@ The development default is Node 24, as specified in `.node-version`. Check runti
 ```sh
 npm ci
 npm run check:format
+npm run lint
 npm test
 npm run check:docs
 npm run test:package
@@ -52,6 +53,16 @@ A formatter breaks long lines; it does not make dense code clear. In new and cha
 - Name a long regular expression or condition, and comment why the rule exists rather than what the code does.
 - Build long HTML or message templates from named parts.
 - Keep cleanup apart from behavior changes. Put a rename or restructuring in its own commit so a reviewer can confirm that nothing else changed.
+
+ESLint checks the JavaScript (`.js`, `.mjs`) and TypeScript (`.ts`) files with `eslint.config.js`; run `npm run lint`, and CI runs it too. Rules that find likely mistakes (`@eslint/js` and `typescript-eslint` recommended sets) are errors and fail CI. Rules that point at code a reader will struggle with are warnings and do not fail CI:
+
+- `max-lines-per-function`: a function longer than 60 lines, not counting blank lines and comments. Test files are exempt because long setup is mostly data.
+- `complexity`: more than 15 independent paths through a function.
+- `max-depth`: blocks nested more than 4 deep.
+- `id-length`: variable and parameter names of one character, except `i`, `j`, `k`, `a`, `b`, `t` and `_`.
+- `no-nested-ternary`: a conditional expression inside another one.
+
+A warning is not a bug. In new and changed code, leave no new warning unless splitting the code would make it harder to follow; say why in the pull request. Prettier already owns layout, so the linter has no formatting rules. On the Node 22 line, ESLint 10 needs 22.13 or later (Node 24 also works); this applies to contributors only, not to the CLI or the skills.
 
 Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected.
 

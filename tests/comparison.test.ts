@@ -226,7 +226,7 @@ test('changing relation reason/direction or source claim invalidates its pinned 
   const f = await comparisonFixture(t);
   required(f.relations[0]).rationale += ' changed';
   f.saveRelations();
-  let data = await buildComparison(f.topic);
+  const data = await buildComparison(f.topic);
   assert.deepEqual(
     data.relations.map((r) => r.id),
     ['suggestion'],

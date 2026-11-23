@@ -13,11 +13,9 @@ import {
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
-import { pdf } from './helpers/source-pdf.js';
 import { runNode } from './helpers/run-node.js';
 import {
   setup,
-  claim,
   answer,
   required,
   parseJson,

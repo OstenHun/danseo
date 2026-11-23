@@ -30,7 +30,7 @@ function inFile(fileName, work) {
   try {
     return work();
   } catch (error) {
-    throw new Error(`${fileName}: ${error.message}`);
+    throw new Error(`${fileName}: ${error.message}`, { cause: error });
   }
 }
 
