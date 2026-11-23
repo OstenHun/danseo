@@ -574,23 +574,19 @@ function loadReadings(assembly, map) {
   );
 }
 
-export function assemble(mapFile) {
-  const directory = path.dirname(path.resolve(mapFile));
-  const mapName = path.basename(mapFile);
-  const assembly = newAssembly(directory, mapName);
-
-  const { bytes: mapBytes, data: map } = inFile(mapName, () => {
+function readMapPlan(directory, mapName) {
+  return inFile(mapName, () => {
     const file = readJsonFile(directory, mapName);
     checkMapShape(file.data);
     return file;
   });
+}
 
-  // First register every source and table, so a sentence in any file can
-  // report a comparison from any registered table. Shared sources come first
-  // because a reading result may refer to them.
-  inFile(mapName, () => registerSources(assembly, map.sources, mapName));
-  const readings = loadReadings(assembly, map);
-
+// The candidate's map-level fields come from the map plan and its papers from
+// the reading results. The order of the keys is part of the output: it decides
+// the bytes of candidate.json, and the completion record names their hash.
+function assembleCandidate(assembly, map, mapBytes, readings) {
+  const { mapName } = assembly;
   const papers = readings.map(({ readingPath, reading }, paperIndex) =>
     inFile(readingPath, () => assemblePaper(assembly, reading, paperIndex, readingPath)),
   );
@@ -619,8 +615,13 @@ export function assemble(mapFile) {
   // description, view_reason and scope are derived from the relation states.
   Object.assign(candidate, overviewFor(candidate));
   validateCandidate(candidate);
+  return candidate;
+}
 
-  const evidence = {
+// Everything except the performance reviews was collected while the papers
+// were assembled.
+function assembleEvidence(assembly, candidate) {
+  return {
     version: 2,
     sources: assembly.evidence.sources,
     counts: [],
@@ -630,19 +631,38 @@ export function assemble(mapFile) {
     claim_checks: assembly.evidence.claim_checks,
     publication_checks: assembly.evidence.publication_checks,
   };
+}
+
+// Binding records a check the reader already finished; it is not a check.
+function bindCompletion(assembly, evidence, declaration, candidateJson, contentSha256) {
+  inFile(assembly.mapName, () => requireCurrentDeclaration(declaration, contentSha256));
+  evidence.completion = {
+    candidate_sha256: hash(candidateJson),
+    evidence_sha256: completionEvidenceHash(evidence),
+    checked_by: declaration.checked_by,
+    checked_at: declaration.checked_at,
+    scope: declaration.scope,
+  };
+}
+
+export function assemble(mapFile) {
+  const directory = path.dirname(path.resolve(mapFile));
+  const mapName = path.basename(mapFile);
+  const assembly = newAssembly(directory, mapName);
+  const { bytes: mapBytes, data: map } = readMapPlan(directory, mapName);
+
+  // First register every source and table, so a sentence in any file can
+  // report a comparison from any registered table. Shared sources come first
+  // because a reading result may refer to them.
+  inFile(mapName, () => registerSources(assembly, map.sources, mapName));
+  const readings = loadReadings(assembly, map);
+
+  const candidate = assembleCandidate(assembly, map, mapBytes, readings);
+  const evidence = assembleEvidence(assembly, candidate);
   const candidateJson = JSON.stringify(candidate, null, 2) + '\n';
   const contentSha256 = contentHash(candidate, evidence);
-  // Binding records a check the reader already finished; it is not a check.
-  if (map.completion !== null) {
-    inFile(mapName, () => requireCurrentDeclaration(map.completion, contentSha256));
-    evidence.completion = {
-      candidate_sha256: hash(candidateJson),
-      evidence_sha256: completionEvidenceHash(evidence),
-      checked_by: map.completion.checked_by,
-      checked_at: map.completion.checked_at,
-      scope: map.completion.scope,
-    };
-  }
+  if (map.completion !== null)
+    bindCompletion(assembly, evidence, map.completion, candidateJson, contentSha256);
   const evidenceJson = JSON.stringify(evidence, null, 2) + '\n';
 
   return {
@@ -737,13 +757,14 @@ function writeTogether(directory, files) {
   for (const { temporary, target } of pending) renameSync(temporary, target);
 }
 
-export function run(args) {
-  const [mapFile, action] = args;
-  if (args.length !== 2 || !['--check', '--write'].includes(action))
-    fail('Expected map.json --check | map.json --write');
-  const assembled = assemble(mapFile);
+// What the command prints: the sizes and hashes of the assembled files. It says
+// plainly that the evidence gate has not run.
+function summaryOf(assembled) {
   const { candidate, evidence } = assembled;
-  const receipt = {
+  const tableComparisons = evidence.performance.filter(
+    (entry) => entry.kind === 'table-comparison',
+  );
+  return {
     ok: true,
     map_sha256: hash(assembled.mapBytes),
     content_sha256: assembled.contentSha256,
@@ -751,30 +772,41 @@ export function run(args) {
     sources: candidate.sources.length,
     relations: candidate.relations.length,
     performance_reviews: evidence.performance.length,
-    table_comparisons: evidence.performance.filter((entry) => entry.kind === 'table-comparison')
-      .length,
+    table_comparisons: tableComparisons.length,
     completion: evidence.completion ? 'bound' : 'not-bound',
     checks: 'reading-shape-and-identifiers',
     evidence_gate: 'not-run',
     candidate_sha256: hash(assembled.candidateJson),
     evidence_sha256: hash(assembled.evidenceJson),
   };
+}
+
+function writeOutputs(assembled, summary) {
+  const assemblyReceipt = {
+    candidate_sha256: summary.candidate_sha256,
+    evidence_sha256: summary.evidence_sha256,
+    replaced: replaceableOutputHashes(assembled.directory),
+  };
+  // The receipt goes first: if a later move fails, it already names both the
+  // new and the replaced files, so the next run can finish the job.
+  writeTogether(assembled.directory, [
+    [RECEIPT_FILE, JSON.stringify(assemblyReceipt, null, 2) + '\n'],
+    [CANDIDATE_FILE, assembled.candidateJson],
+    [EVIDENCE_FILE, assembled.evidenceJson],
+  ]);
+}
+
+export function run(args) {
+  const [mapFile, action] = args;
+  if (args.length !== 2 || !['--check', '--write'].includes(action))
+    fail('Expected map.json --check | map.json --write');
+  const assembled = assemble(mapFile);
+  const summary = summaryOf(assembled);
   if (action === '--write') {
-    const assemblyReceipt = {
-      candidate_sha256: receipt.candidate_sha256,
-      evidence_sha256: receipt.evidence_sha256,
-      replaced: replaceableOutputHashes(assembled.directory),
-    };
-    // The receipt goes first: if a later move fails, it already names both the
-    // new and the replaced files, so the next run can finish the job.
-    writeTogether(assembled.directory, [
-      [RECEIPT_FILE, JSON.stringify(assemblyReceipt, null, 2) + '\n'],
-      [CANDIDATE_FILE, assembled.candidateJson],
-      [EVIDENCE_FILE, assembled.evidenceJson],
-    ]);
-    receipt.candidate = path.join(assembled.directory, CANDIDATE_FILE);
-    receipt.evidence = path.join(assembled.directory, EVIDENCE_FILE);
+    writeOutputs(assembled, summary);
+    summary.candidate = path.join(assembled.directory, CANDIDATE_FILE);
+    summary.evidence = path.join(assembled.directory, EVIDENCE_FILE);
   }
-  return receipt;
+  return summary;
 }
 cliEntry(import.meta.url, run);
