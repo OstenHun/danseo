@@ -140,6 +140,42 @@ function overview(topic: Topic) {
   return { catalog, result: { question: topic.question, searches, selected } };
 }
 
+function selectionRound(topic: Topic, roundInput: string | undefined) {
+  const round = roundInput === undefined ? undefined : Number(roundInput);
+  if (
+    round !== undefined &&
+    (!Number.isSafeInteger(round) || round < 1 || round > topic.searches.length)
+  ) {
+    invalid('The search round is not registered.');
+  }
+  return round;
+}
+
+function addChoice(
+  topic: Topic,
+  entry: CatalogEntry,
+  number: number,
+  round: number | undefined,
+  note: string | undefined,
+) {
+  const { key, edition, source } = entry.paper;
+  if (topic.selected.some((choice) => choice.key === key)) return;
+
+  if (
+    round === undefined &&
+    topic.searches.some((search) =>
+      search.papers.some(
+        (paper) => paper.key === key && (paper.edition !== edition || paper.source !== source),
+      ),
+    )
+  ) {
+    invalid(
+      `This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`,
+    );
+  }
+  topic.selected.push({ key, round: round ?? entry.round, note });
+}
+
 function updateSelection(
   topic: Topic,
   catalog: ReadonlyMap<string, CatalogEntry>,
@@ -148,20 +184,14 @@ function updateSelection(
 ) {
   if (!ids || !/^\d+(,\d+)*$/.test(ids) || (note !== undefined && !note.trim())) invalid(topicHelp);
 
-  const round = roundInput === undefined ? undefined : Number(roundInput);
-  if (
-    round !== undefined &&
-    (!Number.isSafeInteger(round) || round < 1 || round > topic.searches.length)
-  ) {
-    invalid('The search round is not registered.');
-  }
+  const round = selectionRound(topic, roundInput);
 
   const byNumber = new Map([...catalog.values()].map((entry) => [entry.number, entry]));
   for (const number of new Set(ids.split(',').map(Number))) {
     const entry = byNumber.get(number);
     if (!entry) invalid(`Unregistered paper number: ${number}`);
 
-    const { key, edition, source } = entry.paper;
+    const { key } = entry.paper;
     if (
       round !== undefined &&
       !topic.searches[round - 1]!.papers.some((paper) => paper.key === key)
@@ -172,21 +202,7 @@ function updateSelection(
       topic.selected = topic.selected.filter((choice) => choice.key !== key);
       continue;
     }
-    if (topic.selected.some((choice) => choice.key === key)) continue;
-
-    if (
-      round === undefined &&
-      topic.searches.some((search) =>
-        search.papers.some(
-          (paper) => paper.key === key && (paper.edition !== edition || paper.source !== source),
-        ),
-      )
-    ) {
-      invalid(
-        `This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`,
-      );
-    }
-    topic.selected.push({ key, round: round ?? entry.round, note });
+    addChoice(topic, entry, number, round, note);
   }
 }
 
@@ -220,28 +236,20 @@ export async function runTopic(args: string[]) {
   }
 }
 
-async function executeTopic(args: string[]) {
-  if (args[0] === 'compare') {
-    const { runComparison } = await import('./comparison.js');
-    return runComparison(args);
-  }
-  if (
-    ['analysis-open', 'analysis-save', 'analysis-list', 'comparison-input'].includes(args[0] ?? '')
-  ) {
-    const { runAnalysis } = await import('./analysis.js');
-    return runAnalysis(args);
-  }
-  if (['sources', 'collect', 'unavailable', 'decide'].includes(args[0] ?? '')) {
-    const { runCollection } = await import('./collection.js');
-    return runCollection(args);
-  }
-  if (args.includes('--help') || args.includes('-h')) {
-    console.log(topicHelp);
-    return;
-  }
-  const [action, ...rest] = args;
-  const { values } = parseArgs({
-    args: rest,
+const analysisActions = ['analysis-open', 'analysis-save', 'analysis-list', 'comparison-input'];
+const collectionActions = ['sources', 'collect', 'unavailable', 'decide'];
+
+const optionsByTopicAction: Record<string, string[]> = {
+  init: ['question'],
+  search: ['input'],
+  select: ['ids', 'note', 'round'],
+  unselect: ['ids'],
+  show: [],
+};
+
+function parseTopicOptions(args: string[]) {
+  return parseArgs({
+    args,
     options: {
       dir: { type: 'string' },
       question: { type: 'string' },
@@ -250,57 +258,73 @@ async function executeTopic(args: string[]) {
       note: { type: 'string' },
       round: { type: 'string' },
     },
-  });
-  const options: Record<string, string[]> = {
-    init: ['question'],
-    search: ['input'],
-    select: ['ids', 'note', 'round'],
-    unselect: ['ids'],
-    show: [],
-  };
+  }).values;
+}
+
+// Returns the action, its options and the checked topic folder.
+function parseTopicArguments(args: string[]) {
+  const [action, ...rest] = args;
+  const values = parseTopicOptions(rest);
   if (
     !action ||
-    !Object.hasOwn(options, action) ||
+    !Object.hasOwn(optionsByTopicAction, action) ||
     !values.dir?.trim() ||
-    Object.keys(values).some((key) => key !== 'dir' && !options[action]!.includes(key))
+    Object.keys(values).some((key) => key !== 'dir' && !optionsByTopicAction[action]!.includes(key))
   )
     invalid(topicHelp);
+  return { action, values, dir: values.dir };
+}
+
+async function createTopic(path: string, question: string): Promise<Topic> {
+  if (await exists(path)) invalid('This topic already exists. Reopen it with show.');
+  return { version: 1, question: question.trim(), searches: [], selected: [] };
+}
+
+async function showTopic(root: string, result: ReturnType<typeof overview>['result']) {
+  const { listAnalysisDocuments } = await import('./analysis.js');
+  console.log(
+    JSON.stringify(
+      {
+        ...result,
+        analyses: await listAnalysisDocuments(root, result.selected),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+async function addSearch(topic: Topic, input: string | undefined) {
+  if (!input) invalid(topicHelp);
+  const search = await readJson(input);
+  if (!validSearch(search)) invalid(ajv.errorsText(validSearch.errors));
+  if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
+}
+
+// Help and argument checks run synchronously when called, before the first await.
+async function runTopicAction(args: string[]) {
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(topicHelp);
+    return;
+  }
+  const { action, values, dir } = parseTopicArguments(args);
+  let question = '';
   if (action === 'init') {
     if (!values.question?.trim()) invalid(topicHelp);
-    await mkdir(values.dir, { recursive: true });
+    question = values.question;
+    await mkdir(dir, { recursive: true });
   }
-  const root = await realpath(values.dir);
+  const root = await realpath(dir);
   const path = join(root, 'topic.json');
   const unlock = action === 'show' ? undefined : await workspaceLock(root);
   try {
-    let topic: Topic;
-    if (action === 'init') {
-      if (await exists(path)) invalid('This topic already exists. Reopen it with show.');
-      topic = { version: 1, question: values.question!.trim(), searches: [], selected: [] };
-    } else {
-      topic = await readTopic(root);
-    }
+    const topic = action === 'init' ? await createTopic(path, question) : await readTopic(root);
     const current = overview(topic);
     if (action === 'show') {
-      const { listAnalysisDocuments } = await import('./analysis.js');
-      console.log(
-        JSON.stringify(
-          {
-            ...current.result,
-            analyses: await listAnalysisDocuments(root, current.result.selected),
-          },
-          null,
-          2,
-        ),
-      );
+      await showTopic(root, current.result);
       return;
     }
-    if (action === 'search') {
-      if (!values.input) invalid(topicHelp);
-      const search = await readJson(values.input);
-      if (!validSearch(search)) invalid(ajv.errorsText(validSearch.errors));
-      if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
-    }
+    if (action === 'search') await addSearch(topic, values.input);
     if (action === 'select' || action === 'unselect') {
       updateSelection(topic, current.catalog, action, values);
     }
@@ -310,4 +334,14 @@ async function executeTopic(args: string[]) {
   } finally {
     await unlock?.();
   }
+}
+
+// Actions owned by other modules are loaded only when requested.
+async function executeTopic(args: string[]) {
+  const action = args[0] ?? '';
+  if (action === 'compare') return (await import('./comparison.js')).runComparison(args);
+  if (analysisActions.includes(action)) return (await import('./analysis.js')).runAnalysis(args);
+  if (collectionActions.includes(action))
+    return (await import('./collection.js')).runCollection(args);
+  return runTopicAction(args);
 }

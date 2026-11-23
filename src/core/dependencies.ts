@@ -37,17 +37,18 @@ async function hashFile(path: string) {
 }
 export async function readSourceState(card: Card): Promise<SourceState> {
   if (card.data.type !== 'paper') throw new Error('Paper source required');
-  const s = card.data.source;
+  const source = card.data.source;
   const state: SourceState = {
-    version: s.version ?? null,
-    url: s.url ?? null,
+    version: source.version ?? null,
+    url: source.url ?? null,
     pdf_sha256: null,
     text_sha256: null,
     available: true,
   };
   try {
-    if (s.path) state.pdf_sha256 = await hashFile(resolve(dirname(card.path), s.path));
-    if (s.text_path) state.text_sha256 = await hashFile(resolve(dirname(card.path), s.text_path));
+    if (source.path) state.pdf_sha256 = await hashFile(resolve(dirname(card.path), source.path));
+    if (source.text_path)
+      state.text_sha256 = await hashFile(resolve(dirname(card.path), source.text_path));
   } catch {
     state.available = false;
   }

@@ -97,6 +97,38 @@ function matchCoverArxivStamp(
   return { stamp, hasSelectedIds, matchesSelectedIds };
 }
 
+type TextRange = { start: number; end: number };
+
+// Match a complete name item after the verified title boundary; never
+// assemble a name from adjacent authors or earlier title lines.
+function initialsBylinePosition(
+  tokens: string[],
+  frontRuns: string[],
+  front: string,
+  titleEnd: number,
+  occupied: TextRange[],
+) {
+  const initials = new RegExp(
+    '^\\s*' + tokens.join('(?:\\s+[a-z]\\.?){1,3}\\s+') + '\\s*[,;]?\\s*$',
+    'iu',
+  );
+  let offset = 0;
+  for (const run of frontRuns) {
+    if (offset + run.length > front.length) break;
+    if (
+      offset >= titleEnd &&
+      !occupied.some((range) => range.start < offset + run.length && offset < range.end) &&
+      initials.test(run)
+    ) {
+      const position = offset + run.search(/\S/u);
+      occupied.push({ start: offset, end: offset + run.length });
+      return position;
+    }
+    offset += run.length + 1;
+  }
+  return -1;
+}
+
 function verifyCoverIdentity(paper: SelectedPaper, runs: string[], sameArxiv: boolean) {
   const abstract = runs.findIndex(
     (run, index) => index > 0 && /^(?:abstract|초록)\s*[:.]?$/iu.test(run.trim()),
@@ -137,27 +169,7 @@ function verifyCoverIdentity(paper: SelectedPaper, runs: string[], sameArxiv: bo
   const byline = authorTokens.map((tokens, index) => {
     if (exact[index]! >= 0 || tokens.length !== 2 || tokens.some((token) => token.length < 2))
       return exact[index]!;
-    // Match a complete name item after the verified title boundary; never
-    // assemble a name from adjacent authors or earlier title lines.
-    const initials = new RegExp(
-      '^\\s*' + tokens.join('(?:\\s+[a-z]\\.?){1,3}\\s+') + '\\s*[,;]?\\s*$',
-      'iu',
-    );
-    let offset = 0;
-    for (const run of frontRuns) {
-      if (offset + run.length > front.length) break;
-      if (
-        offset >= titleEnd &&
-        !occupied.some((range) => range.start < offset + run.length && offset < range.end) &&
-        initials.test(run)
-      ) {
-        const position = offset + run.search(/\S/u);
-        occupied.push({ start: offset, end: offset + run.length });
-        return position;
-      }
-      offset += run.length + 1;
-    }
-    return -1;
+    return initialsBylinePosition(tokens, frontRuns, front, titleEnd, occupied);
   });
   if (byline.some((index) => index < 0))
     throw Error('Unable to match the first-page authors with the selected authors.');

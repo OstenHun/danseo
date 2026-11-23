@@ -1,11 +1,17 @@
 import { createHash } from 'node:crypto';
 
+// Code-unit order, so the result does not depend on the locale.
+function compareKeys(a: string, b: string) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object')
     return `{${Object.entries(value)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+      .sort(([a], [b]) => compareKeys(a, b))
+      .map(([k, entry]) => `${JSON.stringify(k)}:${canonical(entry)}`)
       .join(',')}}`;
   return JSON.stringify(value) ?? 'null';
 }

@@ -249,21 +249,13 @@ export async function readVerifiedReviews(ws: Workspace) {
 
 type PaperSource = Extract<Card['data'], { type: 'paper' }>['source'];
 
-async function sourceStaleReason(
+// Returns the first file-level reason found, or '' when the files still match the review.
+async function originalFileStaleReason(
   cardPath: string,
   current: PaperSource,
   frozen: FrozenPaper['source'],
-  selectedPdfSha256: string,
 ) {
-  const currentEdition = { version: current.version ?? null, url: current.url ?? null };
-  const reviewedEdition = { version: frozen.version ?? null, url: frozen.url ?? null };
-  let reason =
-    canonical(currentEdition) !== canonical(reviewedEdition)
-      ? 'The source edition or URL changed after review.'
-      : '';
-  if (frozen.pdf_sha256 !== selectedPdfSha256) {
-    reason ||= 'The reviewed PDF differs from the source hash selected in this topic.';
-  }
+  let reason = '';
   try {
     requireValue(current.path, 'The original PDF path is missing.');
     const original = await readFile(resolve(dirname(cardPath), current.path));
@@ -281,6 +273,71 @@ async function sourceStaleReason(
   return reason;
 }
 
+async function sourceStaleReason(
+  cardPath: string,
+  current: PaperSource,
+  frozen: FrozenPaper['source'],
+  selectedPdfSha256: string,
+) {
+  const currentEdition = { version: current.version ?? null, url: current.url ?? null };
+  const reviewedEdition = { version: frozen.version ?? null, url: frozen.url ?? null };
+  let reason =
+    canonical(currentEdition) !== canonical(reviewedEdition)
+      ? 'The source edition or URL changed after review.'
+      : '';
+  if (frozen.pdf_sha256 !== selectedPdfSha256) {
+    reason ||= 'The reviewed PDF differs from the source hash selected in this topic.';
+  }
+  // Edition and selected-hash reasons take precedence, but the files are read in every case.
+  const fileReason = await originalFileStaleReason(cardPath, current, frozen);
+  return reason || fileReason;
+}
+
+type PaperData = Extract<Card['data'], { type: 'paper' }>;
+type VerifiedReview = Awaited<ReturnType<typeof readVerifiedReviews>>['records'][number];
+
+async function addRecordReviews(
+  claims: Record<string, ClaimReview[]>,
+  card: Card,
+  paper: PaperData,
+  { input, result: review, result_sha256 }: VerifiedReview,
+  selectedPdfSha256: string,
+) {
+  const snapshot = input.papers.find((paperSnapshot) => paperSnapshot.paper_id === paper.id);
+  if (!snapshot) return;
+
+  const staleReason = await sourceStaleReason(
+    card.path,
+    paper.source,
+    snapshot.source,
+    selectedPdfSha256,
+  );
+  for (const judgment of review.claims) {
+    if (judgment.paper_id !== paper.id) continue;
+    const current = paper.claims?.find((claim) => claim.id === judgment.claim_id);
+    if (!current) continue;
+    // The validated claim IDs guarantee that this review has a matching frozen claim.
+    const frozen = snapshot.claims.find((claim) => claim.id === judgment.claim_id)!;
+    const changed = claimFingerprint(current) !== claimFingerprint(frozen);
+    const reason =
+      staleReason ||
+      (changed ? 'The claim statement or source locations differ from the reviewed version.' : '');
+
+    (claims[judgment.claim_id] ??= []).push({
+      ...judgment,
+      state: reason ? 'stale' : 'current',
+      ...(reason ? { stale_reason: reason } : {}),
+      run_id: input.run_id,
+      reviewer: review.reviewer,
+      reviewed_at: review.reviewed_at,
+      review_type: review.review_type,
+      input_sha256: review.input_sha256,
+      result_sha256,
+      source: { url: snapshot.source.url, version: snapshot.source.version },
+    });
+  }
+}
+
 /** Optional, explicit review records. Reading them never changes Paper or relation status. */
 export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha256: string) {
   const output: { claims: Record<string, ClaimReview[]>; warnings: string[]; registered: number } =
@@ -294,42 +351,8 @@ export async function loadClaimReviews(ws: Workspace, card: Card, selectedPdfSha
   const paper = card.data;
   const verified = await readVerifiedReviews(ws);
   output.warnings.push(...verified.warnings);
-  for (const { input, result: review, result_sha256 } of verified.records) {
-    const snapshot = input.papers.find((paperSnapshot) => paperSnapshot.paper_id === paper.id);
-    if (!snapshot) continue;
-
-    const staleReason = await sourceStaleReason(
-      card.path,
-      paper.source,
-      snapshot.source,
-      selectedPdfSha256,
-    );
-    for (const judgment of review.claims) {
-      if (judgment.paper_id !== paper.id) continue;
-      const current = paper.claims?.find((claim) => claim.id === judgment.claim_id);
-      if (!current) continue;
-      // The validated claim IDs guarantee that this review has a matching frozen claim.
-      const frozen = snapshot.claims.find((claim) => claim.id === judgment.claim_id)!;
-      const changed = claimFingerprint(current) !== claimFingerprint(frozen);
-      const reason =
-        staleReason ||
-        (changed
-          ? 'The claim statement or source locations differ from the reviewed version.'
-          : '');
-
-      (output.claims[judgment.claim_id] ??= []).push({
-        ...judgment,
-        state: reason ? 'stale' : 'current',
-        ...(reason ? { stale_reason: reason } : {}),
-        run_id: input.run_id,
-        reviewer: review.reviewer,
-        reviewed_at: review.reviewed_at,
-        review_type: review.review_type,
-        input_sha256: review.input_sha256,
-        result_sha256,
-        source: { url: snapshot.source.url, version: snapshot.source.version },
-      });
-    }
+  for (const record of verified.records) {
+    await addRecordReviews(output.claims, card, paper, record, selectedPdfSha256);
   }
   for (const reviews of Object.values(output.claims)) {
     reviews.sort((a, b) => Date.parse(b.reviewed_at) - Date.parse(a.reviewed_at));

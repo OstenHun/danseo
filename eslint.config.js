@@ -3,7 +3,8 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 // Correctness rules are errors. Readability rules are warnings: they point at code to clean up
-// and do not fail CI. Prettier owns layout, so no formatting rules are enabled here.
+// and do not fail CI, except in files already cleaned up, where a block below makes them errors.
+// Prettier owns layout, so no formatting rules are enabled here.
 
 // Globals are listed by hand so the toolchain adds no package beyond ESLint itself.
 const nodeGlobals = {
@@ -114,6 +115,25 @@ export default defineConfig([
     rules: { '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }] },
   },
   { files: ['**/*.{js,mjs,cjs,ts}'], rules: readabilityRules },
+  {
+    // Files already cleaned up: readability rules are errors here so warnings cannot return.
+    // ESLint ignores a path that matches nothing, so update this list when one of these files moves.
+    files: [
+      'src/cli.ts',
+      'src/core/claim-state.ts',
+      'src/core/dependencies.ts',
+      'src/core/index.ts',
+      'src/core/reviews.ts',
+      'src/core/source-pdf.ts',
+      'src/core/topic.ts',
+    ],
+    rules: Object.fromEntries(
+      Object.entries(readabilityRules).map(([rule, setting]) => [
+        rule,
+        Array.isArray(setting) ? ['error', ...setting.slice(1)] : 'error',
+      ]),
+    ),
+  },
   {
     // Long test functions and the fake DOM that tests load are mostly fixture data, so only
     // the length rule is relaxed.
