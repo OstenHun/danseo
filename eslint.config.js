@@ -129,6 +129,10 @@ export default defineConfig([
       'src/core/reviews.ts',
       'src/core/source-pdf.ts',
       'src/core/topic.ts',
+      'src/views/research-map.ts',
+      'src/web/browser-types.d.ts',
+      'src/web/comparison-server.ts',
+      'src/web/comparison.ts',
     ],
     rules: Object.fromEntries(
       Object.entries(readabilityRules).map(([rule, setting]) => [
