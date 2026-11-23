@@ -398,7 +398,7 @@ function editionEvidence(values: CollectionOptions): Edition {
   return { edition: values.edition, proof: values.proof, page, draft: values.kind === 'draft' };
 }
 
-export async function runCollection([action = '', ...args]: string[]) {
+export async function runCollection([action = '', ...args]: string[]): Promise<undefined> {
   if (args.includes('--help') || args.includes('-h')) {
     console.log(help);
     return;
