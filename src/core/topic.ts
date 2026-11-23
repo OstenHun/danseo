@@ -277,7 +277,7 @@ function parseTopicArguments(args: string[]) {
 
 async function createTopic(path: string, question: string): Promise<Topic> {
   if (await exists(path)) invalid('This topic already exists. Reopen it with show.');
-  return { version: 1, question, searches: [], selected: [] };
+  return { version: 1, question: question.trim(), searches: [], selected: [] };
 }
 
 async function showTopic(root: string, result: ReturnType<typeof overview>['result']) {
@@ -311,7 +311,7 @@ async function runTopicAction(args: string[]) {
   let question = '';
   if (action === 'init') {
     if (!values.question?.trim()) invalid(topicHelp);
-    question = values.question.trim();
+    question = values.question;
     await mkdir(dir, { recursive: true });
   }
   const root = await realpath(dir);
