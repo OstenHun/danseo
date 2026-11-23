@@ -99,9 +99,9 @@
     const columns = Math.min(5, Math.max(1, groups.size));
     const rows = Math.max(1, ...[...groups.values()].map((group) => group.length));
     [...groups].forEach(([title, group], i) => {
-      const x = (i % columns) * card.column,
-        y = Math.floor(i / columns) * (rows * card.row + 100);
-      headings.push({ title, x, y: y - 114 });
+      const left = (i % columns) * card.column,
+        top = Math.floor(i / columns) * (rows * card.row + 100);
+      headings.push({ title, x: left, y: top - 114 });
       group.forEach((paper, index) => {
         // Ungrouped legacy inputs remain compact without inventing a topic.
         positions[paper.id] =
@@ -110,7 +110,7 @@
                 x: (index % Math.min(4, group.length)) * card.column,
                 y: Math.floor(index / Math.min(4, group.length)) * card.row,
               }
-            : { x, y: y + index * card.row };
+            : { x: left, y: top + index * card.row };
       });
     });
     return { positions, headings };
@@ -146,19 +146,12 @@
       return (
         (edge.origin === 'ai' ? t('Suggested connection') : t('Source record')) + t(' · recheck')
       );
-    return state === 'ai'
-      ? t('Suggested connection')
-      : state === 'source'
-        ? t('Source check')
-        : t('Source unchecked');
+    if (state === 'ai') return t('Suggested connection');
+    return state === 'source' ? t('Source check') : t('Source unchecked');
   }
-  // Shared filters and counts; adapters own graph selection and keyboard navigation.
-  function explorer(host, onChange, initialFilters = {}) {
-    const root = element('div', 'graph-explorer'),
-      controls = element('div', 'graph-explorer-controls');
-    const filters = { category: 'all', kind: 'all', mode: 'focus', ...initialFilters };
-    const selects = {};
-    for (const [key, label, choices] of [
+  // The three filters: evidence status, relation type, and whether to draw every connection.
+  function filterFields() {
+    return [
       [
         'category',
         t('Evidence status'),
@@ -179,24 +172,59 @@
           ['all', t('All connections')],
         ],
       ],
-    ]) {
-      const field = element('label', ''),
-        select = element('select', '');
-      field.append(element('span', '', label));
-      select.setAttribute('aria-label', label);
-      for (const [value, title] of choices) {
-        const option = element('option', '', title);
-        option.value = value;
-        select.append(option);
-      }
-      select.value = filters[key];
-      selects[key] = select;
-      select.addEventListener('change', () => {
-        filters[key] = select.value;
-        onChange();
-      });
-      field.append(select);
-      controls.append(field);
+    ];
+  }
+  // A labelled select that writes its value into filters and reports each change. It is also
+  // registered in selects, which reset and reveal use to update the shown value.
+  function filterControl([key, label, choices], filters, selects, onChange) {
+    const field = element('label', ''),
+      select = element('select', '');
+    field.append(element('span', '', label));
+    select.setAttribute('aria-label', label);
+    for (const [value, title] of choices) {
+      const option = element('option', '', title);
+      option.value = value;
+      select.append(option);
+    }
+    select.value = filters[key];
+    selects[key] = select;
+    select.addEventListener('change', () => {
+      filters[key] = select.value;
+      onChange();
+    });
+    field.append(select);
+    return field;
+  }
+  function explorerStatus(filters, papers, edges, selection, foldedCount) {
+    const eligible = edges.filter((edge) => matchesRelation(edge, filters));
+    const shown = edges.filter((edge) => shownRelation(edge, filters, selection));
+    const drawn = shown.length - foldedCount;
+    const summary = foldedCount
+      ? t(
+          'Focal paper relations shown only in the list: {count}. Select another paper to see its connections.',
+          { count: foldedCount },
+        )
+      : '';
+    return (
+      t('Papers: {papers} · filtered relations: {eligible} / {total} · map connections: {shown}', {
+        papers: papers.length,
+        eligible: eligible.length,
+        total: edges.length,
+        shown: drawn,
+      }) +
+      (!selection && filters.mode === 'focus' ? t(' · select a paper to show connections') : '') +
+      (summary ? ' · ' + summary : '')
+    );
+  }
+  // Shared filters and counts; adapters own graph selection and keyboard navigation.
+  function explorer(host, onChange, initialFilters = {}) {
+    const root = element('div', 'graph-explorer'),
+      controls = element('div', 'graph-explorer-controls');
+    const filters = { category: 'all', kind: 'all', mode: 'focus', ...initialFilters };
+    const selects = {};
+    for (const field of filterFields()) {
+      const control = filterControl(field, filters, selects, onChange);
+      controls.append(control);
     }
     const status = element('p', 'graph-explorer-status');
     status.setAttribute('aria-live', 'polite');
@@ -210,22 +238,7 @@
     root.append(controls, note, status);
     host.append(root);
     function update(papers, edges, selection, foldedCount = 0) {
-      const eligible = edges.filter((edge) => matchesRelation(edge, filters));
-      const shown = edges.filter((edge) => shownRelation(edge, filters, selection));
-      const drawn = shown.length - foldedCount;
-      const summary = foldedCount
-        ? t(
-            'Focal paper relations shown only in the list: {count}. Select another paper to see its connections.',
-            { count: foldedCount },
-          )
-        : '';
-      status.textContent =
-        t(
-          'Papers: {papers} · filtered relations: {eligible} / {total} · map connections: {shown}',
-          { papers: papers.length, eligible: eligible.length, total: edges.length, shown: drawn },
-        ) +
-        (!selection && filters.mode === 'focus' ? t(' · select a paper to show connections') : '') +
-        (summary ? ' · ' + summary : '');
+      status.textContent = explorerStatus(filters, papers, edges, selection, foldedCount);
     }
     return {
       filters,
@@ -409,6 +422,11 @@
     for (const state of ['selected', 'connected', 'faded', 'hovered'])
       cardElement.classList.toggle('is-' + state, graphNode.hasClass(state));
   }
+  // Checked source relations are solid, relations to recheck dotted, everything else dashed.
+  function lineStyle(state) {
+    if (state === 'source') return 'solid';
+    return state === 'stale' ? 'dotted' : 'dashed';
+  }
   function edgeStyles() {
     return [
       {
@@ -430,7 +448,7 @@
         style: {
           'line-color': color,
           'target-arrow-color': color,
-          'line-style': state === 'source' ? 'solid' : state === 'stale' ? 'dotted' : 'dashed',
+          'line-style': lineStyle(state),
         },
       })),
       { selector: 'edge.connected, edge.hovered', style: { width: 3 } },

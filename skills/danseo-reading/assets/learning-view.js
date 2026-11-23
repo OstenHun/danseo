@@ -43,76 +43,97 @@
   byId('view-label').textContent =
     data.view === 'map' ? t('Follow the connections') : t('Read in order');
   let selected;
-  function select(id, focus = false) {
-    if (!concepts.has(id)) id = data.start;
-    selected = id;
-    const concept = concepts.get(id),
-      index = data.reading_order.indexOf(id);
-    for (const [key, link] of nav) {
-      if (key === id) link.setAttribute('aria-current', 'step');
-      else link.removeAttribute('aria-current');
-    }
-    byId('position').textContent = t('CONCEPT {number}', {
-      number: String(index + 1).padStart(2, '0'),
-    });
-    byId('concept-title').textContent = concept.title;
-    byId('summary').textContent = concept.summary;
-    byId('explanation').replaceChildren(
-      ...concept.body.map((paragraph) => node('p', 'body-paragraph', paragraph)),
+  function relationRow(relation, id) {
+    const row = node('div', 'relation');
+    const meaning = node('div', 'relation-meaning', relation.label);
+    meaning.append(
+      node('span', 'direction', '→'),
+      node(
+        'span',
+        'origin',
+        relation.origin === 'ai'
+          ? t('AI-suggested connection')
+          : t('Connection checked against the source by an agent'),
+      ),
     );
-    byId('example').textContent = concept.example;
+    row.append(
+      conceptLink(relation.from, 'relation-node', relation.from === id),
+      meaning,
+      conceptLink(relation.to, 'relation-node', relation.to === id),
+    );
+    if (relation.evidence.length) {
+      const evidence = node('p', 'relation-evidence', t('Relationship evidence: '));
+      for (const source of relation.evidence) evidence.append(sourceLink(source));
+      row.append(evidence);
+    }
+    return row;
+  }
+  // Map views always show the section; path views show it only when a relation exists.
+  // Returns the relations that touch the concept.
+  function showConnections(id) {
     const connections = byId('connections');
     connections.replaceChildren();
     const relations = data.relations.filter(
       (relation) => relation.from === id || relation.to === id,
     );
-    if (data.view === 'map' || relations.length) {
-      const heading = node('h3', '', t('Connections for this concept'));
-      heading.id = 'connections-title';
+    if (data.view !== 'map' && !relations.length) return relations;
+    const heading = node('h3', '', t('Connections for this concept'));
+    heading.id = 'connections-title';
+    connections.append(
+      heading,
+      node(
+        'p',
+        'section-note',
+        t('Arrows show concept relationships, separately from the suggested reading order.'),
+      ),
+    );
+    if (!relations.length)
       connections.append(
-        heading,
         node(
           'p',
-          'section-note',
-          t('Arrows show concept relationships, separately from the suggested reading order.'),
+          'empty-relations',
+          t(
+            'No relationships are registered for this concept. Missing relationships are not inferred.',
+          ),
         ),
       );
-      if (!relations.length)
-        connections.append(
-          node(
-            'p',
-            'empty-relations',
-            t(
-              'No relationships are registered for this concept. Missing relationships are not inferred.',
-            ),
-          ),
-        );
-      for (const relation of relations) {
-        const row = node('div', 'relation');
-        const meaning = node('div', 'relation-meaning', relation.label);
-        meaning.append(
-          node('span', 'direction', '→'),
-          node(
-            'span',
-            'origin',
-            relation.origin === 'ai'
-              ? t('AI-suggested connection')
-              : t('Connection checked against the source by an agent'),
-          ),
-        );
-        row.append(
-          conceptLink(relation.from, 'relation-node', relation.from === id),
-          meaning,
-          conceptLink(relation.to, 'relation-node', relation.to === id),
-        );
-        if (relation.evidence.length) {
-          const evidence = node('p', 'relation-evidence', t('Relationship evidence: '));
-          for (const source of relation.evidence) evidence.append(sourceLink(source));
-          row.append(evidence);
-        }
-        connections.append(row);
-      }
+    for (const relation of relations) {
+      const row = relationRow(relation, id);
+      connections.append(row);
     }
+    return relations;
+  }
+  function sourceDetails(sourceId, kind) {
+    const source = sources.get(sourceId),
+      details = node('details', 'source');
+    details.append(
+      node(
+        'summary',
+        '',
+        source.title +
+          ' · ' +
+          kind +
+          (source.verification === 'agent-checked'
+            ? ' · ' + t('Agent-checked scope available')
+            : ' · ' + t('Source not checked')),
+      ),
+      node('p', '', source.locator),
+      node('p', '', source.scope),
+      node(
+        'p',
+        '',
+        source.verification === 'agent-checked'
+          ? t(
+              'An agent checked the stated scope. This does not mean independent review, a full-paper review or reproduction.',
+            )
+          : t('Source not checked. A link alone is not evidence of source reading.'),
+      ),
+      sourceLink(sourceId),
+    );
+    return details;
+  }
+  // Concept evidence first, then sources that only the shown relations cite.
+  function showSources(concept, relations) {
     const sourceArea = byId('sources');
     sourceArea.replaceChildren();
     if (!concept.evidence.length)
@@ -131,34 +152,30 @@
         if (!sourceKinds.has(sourceId)) sourceKinds.set(sourceId, t('Relationship evidence'));
       }
     for (const [sourceId, kind] of sourceKinds) {
-      const source = sources.get(sourceId),
-        details = node('details', 'source');
-      details.append(
-        node(
-          'summary',
-          '',
-          source.title +
-            ' · ' +
-            kind +
-            (source.verification === 'agent-checked'
-              ? ' · ' + t('Agent-checked scope available')
-              : ' · ' + t('Source not checked')),
-        ),
-        node('p', '', source.locator),
-        node('p', '', source.scope),
-        node(
-          'p',
-          '',
-          source.verification === 'agent-checked'
-            ? t(
-                'An agent checked the stated scope. This does not mean independent review, a full-paper review or reproduction.',
-              )
-            : t('Source not checked. A link alone is not evidence of source reading.'),
-        ),
-        sourceLink(sourceId),
-      );
+      const details = sourceDetails(sourceId, kind);
       sourceArea.append(details);
     }
+  }
+  function select(id, focus = false) {
+    if (!concepts.has(id)) id = data.start;
+    selected = id;
+    const concept = concepts.get(id),
+      index = data.reading_order.indexOf(id);
+    for (const [key, link] of nav) {
+      if (key === id) link.setAttribute('aria-current', 'step');
+      else link.removeAttribute('aria-current');
+    }
+    byId('position').textContent = t('CONCEPT {number}', {
+      number: String(index + 1).padStart(2, '0'),
+    });
+    byId('concept-title').textContent = concept.title;
+    byId('summary').textContent = concept.summary;
+    byId('explanation').replaceChildren(
+      ...concept.body.map((paragraph) => node('p', 'body-paragraph', paragraph)),
+    );
+    byId('example').textContent = concept.example;
+    const relations = showConnections(id);
+    showSources(concept, relations);
     byId('previous').disabled = index === 0;
     byId('next').disabled = index === data.reading_order.length - 1;
     byId('current-count').textContent = index + 1 + ' / ' + data.reading_order.length;
