@@ -196,7 +196,7 @@ test('untrusted text remains data and CSP binds the shipped inline assets', () =
     ['style', 'style-src'],
     ['script', 'script-src'],
   ]) {
-    const asset = [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)<\/${tag}>`, 'g'))].at(-1)[1];
+    const asset = [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))].at(-1)[1];
     const digest = createHash('sha256').update(asset).digest('base64');
     assert.ok(html.includes(`${directive} 'sha256-${digest}'`));
   }
@@ -252,7 +252,7 @@ test('CRLF asset checkouts emit the same bytes and browser-normalized CSP hashes
     ['style', 'style-src'],
     ['script', 'script-src'],
   ]) {
-    const content = [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)<\/${tag}>`, 'g'))]
+    const content = [...html.matchAll(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'g'))]
       .at(-1)[1]
       .replace(/\r\n?/g, '\n');
     assert.ok(

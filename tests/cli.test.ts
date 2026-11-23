@@ -290,7 +290,7 @@ async function sourceFixture(ws: string) {
     s.replace('  version: synthetic-v1', '  text_path: pages.json\n  version: synthetic-v1'),
   );
   const raw = await readFile(join(ws, 'papers/synthetic.md'), 'utf8');
-  const match = required(/  url: (.+)/.exec(raw));
+  const match = required(/ {2}url: (.+)/.exec(raw));
   const url = required(match[1]).replaceAll('"', '');
   const source: SourceText = {
     source_url: url,
