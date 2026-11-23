@@ -82,10 +82,13 @@ function openView(data, initialHash, { script, elementIds, navigation, prefix, t
     }
   }
   document.createElement = (tag) => new Element(tag);
+  // The page's navigation buttons and skip link; every other element is a div.
+  const tagFor = (id) => {
+    if (['previous', 'next'].includes(id)) return 'button';
+    return id === 'skip' ? 'a' : 'div';
+  };
   for (const id of elementIds) {
-    const element = new Element(
-      ['previous', 'next'].includes(id) ? 'button' : id === 'skip' ? 'a' : 'div',
-    );
+    const element = new Element(tagFor(id));
     element.id = id;
   }
   elements.get('candidate').textContent = JSON.stringify(data);

@@ -20,6 +20,46 @@ import { uiText, languageScript } from './view-language.mjs';
 
 const unique = (items, at) => sharedUnique(items, at, /^[a-z][a-z0-9-]{0,63}$/);
 
+function validateSource(source) {
+  object(source, ['id', 'title', 'url', 'locator', 'scope', 'verification'], `source.${source.id}`);
+  for (const key of ['title', 'url', 'locator', 'scope'])
+    text(source[key], `source.${source.id}.${key}`);
+  httpUrl(source.url, `source.${source.id}`);
+  oneOf(source.verification, ['not-checked', 'agent-checked'], `source.${source.id}.verification`);
+}
+function validateConcept(concept, sources) {
+  object(
+    concept,
+    ['id', 'title', 'summary', 'body', 'example', 'evidence'],
+    `concept.${concept.id}`,
+  );
+  for (const key of ['title', 'summary', 'example'])
+    text(concept[key], `concept.${concept.id}.${key}`);
+  list(concept.body, `concept.${concept.id}.body`);
+  if (!concept.body.length) fail(`concept.${concept.id}.body: at least one paragraph required`);
+  concept.body.forEach((paragraph, i) => text(paragraph, `concept.${concept.id}.body[${i}]`));
+  ids(concept.evidence, sources, `concept.${concept.id}.evidence`);
+}
+// A source relation must cite only agent-checked sources; the same endpoints and label may appear once.
+function validateRelation(relation, i, concepts, sources, seen) {
+  object(relation, ['from', 'to', 'label', 'origin', 'evidence'], `relation[${i}]`);
+  if (!concepts.has(relation.from) || !concepts.has(relation.to) || relation.from === relation.to)
+    fail(`relation[${i}]: invalid endpoints`);
+  text(relation.label, `relation[${i}].label`);
+  oneOf(relation.origin, ['ai', 'source'], `relation[${i}].origin`);
+  ids(relation.evidence, sources, `relation[${i}].evidence`);
+  if (
+    relation.origin === 'source' &&
+    (!relation.evidence.length ||
+      relation.evidence.some((id) => sources.get(id).verification !== 'agent-checked'))
+  ) {
+    fail(`relation[${i}]: source relation needs agent-checked evidence`);
+  }
+  const signature = JSON.stringify([relation.from, relation.to, relation.label]);
+  if (seen.has(signature)) fail(`relation[${i}]: duplicate relation`);
+  seen.add(signature);
+}
+
 export function validateCandidate(data) {
   object(
     data,
@@ -50,34 +90,8 @@ export function validateCandidate(data) {
   if (!data.concepts.length) fail('concepts: at least one concept required');
   const concepts = unique(data.concepts, 'concepts'),
     sources = unique(data.sources, 'sources');
-  for (const source of data.sources) {
-    object(
-      source,
-      ['id', 'title', 'url', 'locator', 'scope', 'verification'],
-      `source.${source.id}`,
-    );
-    for (const key of ['title', 'url', 'locator', 'scope'])
-      text(source[key], `source.${source.id}.${key}`);
-    httpUrl(source.url, `source.${source.id}`);
-    oneOf(
-      source.verification,
-      ['not-checked', 'agent-checked'],
-      `source.${source.id}.verification`,
-    );
-  }
-  for (const concept of data.concepts) {
-    object(
-      concept,
-      ['id', 'title', 'summary', 'body', 'example', 'evidence'],
-      `concept.${concept.id}`,
-    );
-    for (const key of ['title', 'summary', 'example'])
-      text(concept[key], `concept.${concept.id}.${key}`);
-    list(concept.body, `concept.${concept.id}.body`);
-    if (!concept.body.length) fail(`concept.${concept.id}.body: at least one paragraph required`);
-    concept.body.forEach((paragraph, i) => text(paragraph, `concept.${concept.id}.body[${i}]`));
-    ids(concept.evidence, sources, `concept.${concept.id}.evidence`);
-  }
+  for (const source of data.sources) validateSource(source);
+  for (const concept of data.concepts) validateConcept(concept, sources);
   ids(data.reading_order, concepts, 'reading_order');
   if (data.reading_order.length !== concepts.size)
     fail('reading_order: include every concept exactly once');
@@ -85,24 +99,7 @@ export function validateCandidate(data) {
   if (data.view === 'map' && !data.relations.length)
     fail('map: meaningful relations required; use path for order-only content');
   const seen = new Set();
-  data.relations.forEach((relation, i) => {
-    object(relation, ['from', 'to', 'label', 'origin', 'evidence'], `relation[${i}]`);
-    if (!concepts.has(relation.from) || !concepts.has(relation.to) || relation.from === relation.to)
-      fail(`relation[${i}]: invalid endpoints`);
-    text(relation.label, `relation[${i}].label`);
-    oneOf(relation.origin, ['ai', 'source'], `relation[${i}].origin`);
-    ids(relation.evidence, sources, `relation[${i}].evidence`);
-    if (
-      relation.origin === 'source' &&
-      (!relation.evidence.length ||
-        relation.evidence.some((id) => sources.get(id).verification !== 'agent-checked'))
-    ) {
-      fail(`relation[${i}]: source relation needs agent-checked evidence`);
-    }
-    const signature = JSON.stringify([relation.from, relation.to, relation.label]);
-    if (seen.has(signature)) fail(`relation[${i}]: duplicate relation`);
-    seen.add(signature);
-  });
+  data.relations.forEach((relation, i) => validateRelation(relation, i, concepts, sources, seen));
   return data;
 }
 

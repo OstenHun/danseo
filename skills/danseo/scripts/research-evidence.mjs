@@ -391,12 +391,17 @@ function quoteHasDate(quote, date) {
   );
 }
 
+// The first calendar day that a YYYY, YYYY-MM or YYYY-MM-DD date covers.
+function calendarStart(date) {
+  if (date.length === 4) return date + '-01-01';
+  if (date.length === 7) return date + '-01';
+  return date;
+}
+
 // Bibliographic dates have no timezone: the earliest possible civil midnight
 // (UTC+14) is the latest instant at which the date can already have begun.
 function earliestPossibleStart(date) {
-  const calendarStart =
-    date.length === 4 ? date + '-01-01' : date.length === 7 ? date + '-01' : date;
-  return Date.parse(calendarStart + 'T00:00:00+14:00');
+  return Date.parse(calendarStart(date) + 'T00:00:00+14:00');
 }
 
 const CLOCK_TOLERANCE_MS = 60_000;
