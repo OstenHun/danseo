@@ -97,7 +97,10 @@
           ),
         ),
       );
-    for (const relation of relations) connections.append(relationRow(relation, id));
+    for (const relation of relations) {
+      const row = relationRow(relation, id);
+      connections.append(row);
+    }
     return relations;
   }
   function sourceDetails(sourceId, kind) {
@@ -148,7 +151,10 @@
       for (const sourceId of relation.evidence) {
         if (!sourceKinds.has(sourceId)) sourceKinds.set(sourceId, t('Relationship evidence'));
       }
-    for (const [sourceId, kind] of sourceKinds) sourceArea.append(sourceDetails(sourceId, kind));
+    for (const [sourceId, kind] of sourceKinds) {
+      const details = sourceDetails(sourceId, kind);
+      sourceArea.append(details);
+    }
   }
   function select(id, focus = false) {
     if (!concepts.has(id)) id = data.start;

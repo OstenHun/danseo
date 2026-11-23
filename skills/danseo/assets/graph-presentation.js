@@ -174,7 +174,8 @@
       ],
     ];
   }
-  // A labelled select that writes its value into filters and reports each change.
+  // A labelled select that writes its value into filters and reports each change. It is also
+  // registered in selects, which reset and reveal use to update the shown value.
   function filterControl([key, label, choices], filters, selects, onChange) {
     const field = element('label', ''),
       select = element('select', '');
@@ -221,8 +222,10 @@
       controls = element('div', 'graph-explorer-controls');
     const filters = { category: 'all', kind: 'all', mode: 'focus', ...initialFilters };
     const selects = {};
-    for (const field of filterFields())
-      controls.append(filterControl(field, filters, selects, onChange));
+    for (const field of filterFields()) {
+      const control = filterControl(field, filters, selects, onChange);
+      controls.append(control);
+    }
     const status = element('p', 'graph-explorer-status');
     status.setAttribute('aria-live', 'polite');
     const note = element(
