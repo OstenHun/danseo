@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "paper": {
+    "id": "P.TwoPass",
+    "title": "A synthetic two-pass retrieval method",
+    "edition": "Synthetic revision 2",
+    "review_status": "draft",
+    "short_title": {
+      "text": "Two-pass retrieval",
+      "performance": { "kind": "non-performance", "reason": "A name for the method, with no measured result." }
+    },
+    "notes": [
+      {
+        "text": "Synthetic example, not a record of reading a real paper.",
+        "performance": { "kind": "non-performance", "reason": "States what the example is." }
+      }
+    ]
+  },
+  "sources": [
+    {
+      "id": "S.TwoPass",
+      "title": "A synthetic two-pass retrieval method (PDF)",
+      "url": "https://example.org/synthetic-two-pass.pdf",
+      "locator": "p. 1 header · p. 2 §3 · p. 3 Table 1",
+      "scope": {
+        "text": "Synthetic source. The example quotes the header, one method sentence and Table 1.",
+        "performance": { "kind": "non-performance", "reason": "Lists what was read, with no result." }
+      },
+      "verification": "agent-checked",
+      "archive": {
+        "format": "pdf",
+        "document_path": "sources/two-pass.pdf",
+        "text_path": "sources/two-pass.pages.json"
+      }
+    }
+  ],
+  "publication": {
+    "source_id": "S.TwoPass",
+    "first_publication": { "date": "2021-03-04", "page": 1, "quote": "Submitted on 4 Mar 2021" },
+    "edition": { "date": "2022-05-06", "page": 1, "quote": "Revised 6 May 2022" }
+  },
+  "claims": [
+    {
+      "id": "C.Method",
+      "statement": {
+        "text": "The method retrieves passages in two passes and reranks the second pass.",
+        "performance": { "kind": "non-performance", "reason": "Describes the procedure only." }
+      },
+      "conditions": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "source_id": "S.TwoPass",
+          "page": 2,
+          "quote": "We retrieve passages in two passes and rerank the second pass."
+        }
+      ],
+      "reviews": [
+        {
+          "verdict": "supported",
+          "reason": {
+            "text": "The quoted sentence states the same two-pass procedure.",
+            "performance": { "kind": "non-performance", "reason": "Explains the match, with no result." }
+          },
+          "scope": {
+            "text": "Only the quoted sentence on page 2.",
+            "performance": { "kind": "non-performance", "reason": "Names the checked passage." }
+          },
+          "reviewer": "synthetic example",
+          "reviewed_at": "2026-11-22T10:00:00+09:00",
+          "review_type": "agent-self-check"
+        }
+      ]
+    },
+    {
+      "id": "C.Result",
+      "statement": {
+        "performance": {
+          "kind": "table-comparison",
+          "reason": "Compares Method with Baseline under the same generator and keeps the Task-B exception.",
+          "comparison": {
+            "table_id": "TwoPass.Table1",
+            "pairs": [
+              { "condition": "Generator-A", "method": "Method", "baseline": "Baseline" },
+              { "condition": "Generator-B", "method": "Method", "baseline": "Baseline" }
+            ],
+            "assertion": "report"
+          }
+        }
+      },
+      "conditions": [],
+      "limitations": [],
+      "evidence": [
+        {
+          "source_id": "S.TwoPass",
+          "page": 3,
+          "quote": "Table 1. Synthetic test split. No significance test."
+        }
+      ],
+      "reviews": [
+        {
+          "verdict": "supported",
+          "reason": {
+            "text": "The report repeats every cell of Table 1 for both generators.",
+            "performance": { "kind": "non-performance", "reason": "Explains the match; the numbers are in the statement." }
+          },
+          "scope": {
+            "text": "Table 1 on page 3, with its header and caption.",
+            "performance": { "kind": "non-performance", "reason": "Names the checked table." }
+          },
+          "reviewer": "synthetic example",
+          "reviewed_at": "2026-11-22T10:00:00+09:00",
+          "review_type": "agent-self-check"
+        }
+      ]
+    }
+  ],
+  "tables": [
+    {
+      "id": "TwoPass.Table1",
+      "source_id": "S.TwoPass",
+      "page": 3,
+      "quote": "Task-A Task-B\nAccuracy Accuracy\nGenerator-A\nBaseline 70 67.3\nMethod 74 67.2\nGenerator-B\nBaseline 0.7 20\nMethod 0.6 25\nTable 1. Synthetic test split. No significance test.",
+      "header": "Task-A Task-B\nAccuracy Accuracy",
+      "footer": "Table 1. Synthetic test split. No significance test.",
+      "columns": [
+        { "label": "Task-A", "metric": "Accuracy", "direction": "higher" },
+        { "label": "Task-B", "metric": "Accuracy", "direction": "higher" }
+      ],
+      "conditions": ["Generator-A", "Generator-B"],
+      "review": {
+        "checked_by": "synthetic example",
+        "checked_at": "2026-11-22T10:00:00+09:00",
+        "scope": "Synthetic full table, header and caption"
+      }
+    }
+  ]
+}

@@ -4,91 +4,145 @@ import { hash, fail, object, text, list } from './view-core.mjs';
 import { verifyPerformance, performanceFields } from './performance-evidence.mjs';
 
 // A bounded evidence gate, not a natural-language truth classifier.
+
+const normalize = (value) => value.normalize('NFKC').replace(/\s+/g, ' ').trim();
+
+// ---------------------------------------------------------------------------
+// Canonical overview
+// ---------------------------------------------------------------------------
+
+const isCurrentSourceCheckedRelation = (relation) =>
+  relation.origin === 'source' && relation.status === 'source-checked' && !relation.needs_recheck;
+
 export function overviewFor(candidate) {
   const relations = candidate.relations ?? [];
-  const checked = relations.filter(
-    (r) => r.origin === 'source' && r.status === 'source-checked' && !r.needs_recheck,
-  );
-  const ai = relations.filter((r) => r.origin === 'ai');
-  const pending = relations.length - checked.length - ai.length;
+  const checkedCount = relations.filter(isCurrentSourceCheckedRelation).length;
+  const suggestedCount = relations.filter((relation) => relation.origin === 'ai').length;
+  const uncheckedCount = relations.length - checkedCount - suggestedCount;
   const backgroundCount = candidate.backgrounds?.length ?? 0;
-  if (candidate.language === 'ko')
+  const countReadings = () =>
+    candidate.backgrounds.reduce((total, background) => total + background.readings.length, 0);
+
+  if (candidate.language === 'ko') {
+    const relationCounts = [
+      `논문 ${candidate.papers.length}편`,
+      `원문 확인 연결 ${checkedCount}개`,
+      `추천 연결 ${suggestedCount}개`,
+      `미확인 연결 ${uncheckedCount}개.`,
+    ].join(' · ');
+    const backgroundCounts = backgroundCount
+      ? ` 개념 배경 ${backgroundCount}개 · 추천 자료 ${countReadings()}개.`
+      : '';
     return {
-      description:
-        `논문 ${candidate.papers.length}편 · 원문 확인 연결 ${checked.length}개 · 추천 연결 ${ai.length}개 · 미확인 연결 ${pending}개.` +
-        (backgroundCount
-          ? ` 개념 배경 ${backgroundCount}개 · 추천 자료 ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}개.`
-          : ''),
+      description: relationCounts + backgroundCounts,
       view_reason: '원문에서 확인한 관계와 추천 연결을 구분해 살펴보세요.',
       scope:
-        '입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. 원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다.',
+        '입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. ' +
+        '원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다.',
     };
-  const backgroundNotice = backgroundCount
-    ? ` Concept backgrounds: ${backgroundCount} · Suggested readings: ${candidate.backgrounds.reduce((n, b) => n + b.readings.length, 0)}.`
+  }
+
+  const backgroundCounts = backgroundCount
+    ? ` Concept backgrounds: ${backgroundCount} · Suggested readings: ${countReadings()}.`
     : '';
+  const relationCounts = [
+    `Papers: ${candidate.papers.length}`,
+    `source-checked relations: ${checkedCount}`,
+    `suggested connections: ${suggestedCount}`,
+    `unchecked relations: ${uncheckedCount}.`,
+  ].join(' · ');
   return {
-    description:
-      `Papers: ${candidate.papers.length} · source-checked relations: ${checked.length} · suggested connections: ${ai.length} · unchecked relations: ${pending}.` +
-      backgroundNotice,
+    description: relationCounts + backgroundCounts,
     view_reason: 'Explore source-checked relations and suggested connections separately.',
     scope:
-      'Only input papers and relations are shown. Check each evidence scope for source coverage and unknowns. Source checking does not establish reproduction or reader understanding.',
+      'Only input papers and relations are shown. ' +
+      'Check each evidence scope for source coverage and unknowns. ' +
+      'Source checking does not establish reproduction or reader understanding.',
   };
 }
 
-const units = { records: 'Records', documents: 'Documents', pairs: 'Pairs' };
-const normalize = (value) => value.normalize('NFKC').replace(/\s+/g, ' ').trim();
-function containsQuote(page, quote) {
-  const haystack = normalize(page),
-    needle = normalize(quote);
-  // A substring must not turn 117 into 17 or 1,234 into 234.
-  const token = /[\p{L}\p{N}.,]/u;
-  let at = haystack.indexOf(needle);
-  while (at !== -1) {
-    const before = haystack[at - 1],
-      after = haystack[at + needle.length];
-    if (
-      !(token.test(needle[0]) && before && token.test(before)) &&
-      !(token.test(needle.at(-1)) && after && /[\p{L}\p{N}]/u.test(after))
-    )
-      return true;
-    at = haystack.indexOf(needle, at + 1);
+// ---------------------------------------------------------------------------
+// Quotes and counts
+// ---------------------------------------------------------------------------
+
+// A quote must begin and end on a token boundary, so a substring cannot turn
+// 117 into 17 or 1,234 into 234.
+const NUMBER_OR_WORD_CHARACTER = /[\p{L}\p{N}.,]/u;
+const LETTER_OR_DIGIT = /[\p{L}\p{N}]/u;
+
+function containsQuote(pageText, quote) {
+  const haystack = normalize(pageText);
+  const needle = normalize(quote);
+  const startsWithTokenCharacter = NUMBER_OR_WORD_CHARACTER.test(needle[0]);
+  const endsWithTokenCharacter = NUMBER_OR_WORD_CHARACTER.test(needle.at(-1));
+
+  let position = haystack.indexOf(needle);
+  while (position !== -1) {
+    const before = haystack[position - 1];
+    const after = haystack[position + needle.length];
+    const cutsTokenAtStart =
+      startsWithTokenCharacter && before && NUMBER_OR_WORD_CHARACTER.test(before);
+    const cutsTokenAtEnd = endsWithTokenCharacter && after && LETTER_OR_DIGIT.test(after);
+    if (!cutsTokenAtStart && !cutsTokenAtEnd) return true;
+    position = haystack.indexOf(needle, position + 1);
   }
   return false;
 }
+
+const COUNT_UNIT_LABELS = { records: 'Records', documents: 'Documents', pairs: 'Pairs' };
+
+// Explicitly supported numeric count forms only. No claims about arbitrary quantities.
+const NOT_INSIDE_A_NUMBER_OR_WORD = '(?<![\\w.,])';
+const COUNT_VALUE = '([0-9]+(?:,[0-9]{3})*)';
+const OPTIONAL_KOREAN_COUNTER = '(?:개\\s*)?';
+const OPTIONAL_PARENTHESIZED_NOTE = '(?:\\([^)]{1,30}\\)\\s*)?';
+const COUNT_UNIT_WORD = '(records?\\b|documents?\\b|pairs?\\b|레코드|기록|문서|(?:질의\\s*)?쌍)';
+const COUNT_MENTION = new RegExp(
+  NOT_INSIDE_A_NUMBER_OR_WORD +
+    COUNT_VALUE +
+    '\\s*' +
+    OPTIONAL_KOREAN_COUNTER +
+    OPTIONAL_PARENTHESIZED_NOTE +
+    COUNT_UNIT_WORD,
+  'giu',
+);
+
+function countUnit(unitWord) {
+  if (/record|레코드|기록/.test(unitWord)) return 'records';
+  if (/document|문서/.test(unitWord)) return 'documents';
+  return 'pairs';
+}
+
 export function countMentions(value) {
-  const result = [];
-  // Explicitly supported numeric count forms only. No claims about arbitrary quantities.
-  const pattern =
-    /(?<![\w.,])([0-9]+(?:,[0-9]{3})*)\s*(?:개\s*)?(?:\([^)]{1,30}\)\s*)?(records?\b|documents?\b|pairs?\b|레코드|기록|문서|(?:질의\s*)?쌍)/giu;
-  for (const match of normalize(value).matchAll(pattern)) {
-    const raw = match[2].toLowerCase();
-    const unit = /record|레코드|기록/.test(raw)
-      ? 'records'
-      : /document|문서/.test(raw)
-        ? 'documents'
-        : 'pairs';
-    const number = Number(match[1].replaceAll(',', ''));
+  const mentions = [];
+  for (const [, digits, unitWord] of normalize(value).matchAll(COUNT_MENTION)) {
+    const number = Number(digits.replaceAll(',', ''));
     if (!Number.isSafeInteger(number)) fail('Count exceeds safe integer range');
-    result.push({ unit, value: number });
+    mentions.push({ unit: countUnit(unitWord.toLowerCase()), value: number });
   }
-  return result;
+  return mentions;
 }
 
 export function countText(binding) {
-  return `Source count (${binding.source_id}, p. ${binding.page}): ${binding.items.map((i) => `${i.value} ${units[i.unit]}`).join(', ')}.`;
+  const counts = binding.items
+    .map((item) => `${item.value} ${COUNT_UNIT_LABELS[item.unit]}`)
+    .join(', ');
+  return `Source count (${binding.source_id}, p. ${binding.page}): ${counts}.`;
 }
 
 function visibleCountFields(candidate) {
   const fields = new Map();
-  candidate.papers.forEach((paper, p) => {
-    if (paper.reading_reason) fields.set(`/papers/${p}/reading_reason`, paper.reading_reason);
-    (paper.notes ?? []).forEach((value, n) => fields.set(`/papers/${p}/notes/${n}`, value));
-    paper.claims.forEach((claim, c) => {
-      const base = `/papers/${p}/claims/${c}`;
-      fields.set(`${base}/statement`, claim.statement);
+  candidate.papers.forEach((paper, paperIndex) => {
+    const paperPath = `/papers/${paperIndex}`;
+    if (paper.reading_reason) fields.set(`${paperPath}/reading_reason`, paper.reading_reason);
+    (paper.notes ?? []).forEach((note, noteIndex) =>
+      fields.set(`${paperPath}/notes/${noteIndex}`, note),
+    );
+    paper.claims.forEach((claim, claimIndex) => {
+      const claimPath = `${paperPath}/claims/${claimIndex}`;
+      fields.set(`${claimPath}/statement`, claim.statement);
       for (const key of ['conditions', 'limitations'])
-        claim[key].forEach((value, i) => fields.set(`${base}/${key}/${i}`, value));
+        claim[key].forEach((value, index) => fields.set(`${claimPath}/${key}/${index}`, value));
     });
   });
   const performanceByPath = performanceFields(candidate);
@@ -98,158 +152,256 @@ function visibleCountFields(candidate) {
   return { fields, performanceByPath };
 }
 
-function localFile(base, relative, expectedHash) {
-  text(relative, 'source path');
-  if (path.isAbsolute(relative) || relative.split(/[\\/]/).includes('..'))
+// ---------------------------------------------------------------------------
+// Local source files
+// ---------------------------------------------------------------------------
+
+const MAX_SOURCE_FILE_BYTES = 32 * 1024 * 1024;
+const SHA256_HEX = /^[a-f0-9]{64}$/;
+
+// Resolves symlinks before comparing, so a link inside the evidence directory
+// cannot point at a file outside it.
+function resolveInsideDirectory(directory, relativePath) {
+  text(relativePath, 'source path');
+  if (path.isAbsolute(relativePath) || relativePath.split(/[\\/]/).includes('..'))
     fail('Source path must stay inside the evidence directory');
-  const resolved = realpathSync(path.resolve(base, relative));
-  const rel = path.relative(realpathSync(base), resolved);
-  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel))
-    fail('Source path escapes evidence directory');
+  const resolved = realpathSync(path.resolve(directory, relativePath));
+  const fromDirectory = path.relative(realpathSync(directory), resolved);
+  const escapes =
+    fromDirectory === '..' ||
+    fromDirectory.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(fromDirectory);
+  if (escapes) fail('Source path escapes evidence directory');
+  return resolved;
+}
+
+// Returns the real path of a regular file below the directory. Shared with the
+// reading assembler, which must hash a file before any expected hash exists.
+export function confinedFilePath(directory, relativePath) {
+  const resolved = resolveInsideDirectory(directory, relativePath);
   const info = statSync(resolved);
-  if (!info.isFile() || info.size > 32 * 1024 * 1024) fail('Expected source file under 32 MiB');
-  if (!/^[a-f0-9]{64}$/.test(expectedHash)) fail('Expected SHA-256');
+  if (!info.isFile() || info.size > MAX_SOURCE_FILE_BYTES)
+    fail('Expected source file under 32 MiB');
+  return resolved;
+}
+
+function localFile(directory, relativePath, expectedHash) {
+  const resolved = confinedFilePath(directory, relativePath);
+  if (!SHA256_HEX.test(expectedHash)) fail('Expected SHA-256');
   const bytes = readFileSync(resolved);
-  if (hash(bytes) !== expectedHash) fail(`Source hash mismatch: ${relative}`);
+  if (hash(bytes) !== expectedHash) fail(`Source hash mismatch: ${relativePath}`);
   return bytes;
 }
 
-function verifySourceChecks(candidate, evidence, directory, pdfSources) {
+const startsWithPdfMarker = (bytes) => bytes.subarray(0, 5).toString() === '%PDF-';
+
+// ---------------------------------------------------------------------------
+// Archived original source checks
+// ---------------------------------------------------------------------------
+
+const SOURCE_CHECK_FIELDS = [
+  'source_id',
+  'url',
+  'format',
+  'document_path',
+  'document_sha256',
+  'page',
+  'quote',
+];
+const HTML_DOCUMENT_MARKER = /<(?:!doctype\s+html|html)[\s>]/i;
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+const HTML_NON_CONTENT_BLOCK = /<(head|script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+const HTML_TAG = /<[^>]*>/g;
+
+// Match body text, excluding obvious non-content. CSS visibility and the
+// remote publisher's identity still need separate inspection.
+function htmlBodyText(html) {
+  return html.replace(HTML_COMMENT, '').replace(HTML_NON_CONTENT_BLOCK, '').replace(HTML_TAG, ' ');
+}
+
+function verifyPdfSourceCheck(check, source, bytes, evidence, pagesBySource) {
+  const registered = evidence.sources.find((entry) => entry.id === source.id);
+  const matchesRegisteredPdf =
+    registered &&
+    registered.document_sha256 === check.document_sha256 &&
+    startsWithPdfMarker(bytes);
+  if (!matchesRegisteredPdf)
+    fail('source_check: original PDF must match registered page extraction');
+  const pageText = pagesBySource.get(source.id)?.get(check.page);
+  if (!pageText || !containsQuote(pageText, check.quote))
+    fail(`source_check ${source.id}: quote missing from original PDF page`);
+}
+
+function verifyHtmlSourceCheck(check, bytes) {
+  const html = bytes.toString('utf8');
+  if (check.page !== null || !HTML_DOCUMENT_MARKER.test(html))
+    fail('source_check: expected original HTML with page:null, not summary text');
+  if (!containsQuote(htmlBodyText(html), check.quote))
+    fail('source_check: quote missing from original HTML');
+}
+
+function archivedOriginalSourceIds(candidate, evidence, directory, pagesBySource) {
   const checks = evidence.source_checks ?? [];
   list(checks, 'source_checks');
   const originals = new Set();
   for (const check of checks) {
-    object(
-      check,
-      ['source_id', 'url', 'format', 'document_path', 'document_sha256', 'page', 'quote'],
-      'source_check',
-    );
-    const source = candidate.sources.find((s) => s.id === check.source_id);
-    if (!source || check.url !== source.url || (check.format === 'html' && !source.url))
+    object(check, SOURCE_CHECK_FIELDS, 'source_check');
+    const source = candidate.sources.find((entry) => entry.id === check.source_id);
+    const htmlWithoutUrl = check.format === 'html' && !source?.url;
+    if (!source || check.url !== source.url || htmlWithoutUrl)
       fail('source_check: exact registered original URL required (local PDFs may use null)');
     text(check.quote, 'source_check.quote');
     const bytes = localFile(directory, check.document_path, check.document_sha256);
-    if (check.format === 'pdf') {
-      const registered = evidence.sources.find((s) => s.id === source.id);
-      if (
-        !registered ||
-        registered.document_sha256 !== check.document_sha256 ||
-        bytes.subarray(0, 5).toString() !== '%PDF-'
-      )
-        fail('source_check: original PDF must match registered page extraction');
-      const page = pdfSources.get(source.id)?.get(check.page);
-      if (!page || !containsQuote(page, check.quote))
-        fail(`source_check ${source.id}: quote missing from original PDF page`);
-    } else if (check.format === 'html') {
-      const html = bytes.toString('utf8');
-      if (check.page !== null || !/<(?:!doctype\s+html|html)[\s>]/i.test(html))
-        fail('source_check: expected original HTML with page:null, not summary text');
-      // Match body text, excluding obvious non-content. CSS visibility and the
-      // remote publisher's identity still need separate inspection.
-      const body = html
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/<(head|script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-        .replace(/<[^>]*>/g, ' ');
-      if (!containsQuote(body, check.quote)) fail('source_check: quote missing from original HTML');
-    } else fail('source_check: format must be html or pdf');
+    if (check.format === 'pdf') verifyPdfSourceCheck(check, source, bytes, evidence, pagesBySource);
+    else if (check.format === 'html') verifyHtmlSourceCheck(check, bytes);
+    else fail('source_check: format must be html or pdf');
     originals.add(source.id);
   }
-  const requireOriginal = (id, at) => {
-    if (!originals.has(id))
-      fail(
-        `${at}: checked state requires archived original source_checks; summaries stay not-checked/draft/proposed (or retain historical status with needs_recheck:true)`,
-      );
-  };
+  return originals;
+}
+
+function requireOriginalsForCheckedSources(candidate, requireOriginal) {
   for (const source of candidate.sources)
     if (source.verification === 'agent-checked') requireOriginal(source.id, source.id);
-  const claimSources = (paper, claimId) =>
-    paper?.claims.find((c) => c.id === claimId)?.evidence ?? [];
-  for (const paper of candidate.papers)
-    if (paper.review_status === 'source-checked') {
-      if (!paper.claims.length)
-        fail(
-          `${paper.id}: whole-paper source-checked requires original claim evidence; use draft for passage-only checks`,
-        );
-      for (const claim of paper.claims) {
-        if (!claim.evidence.length)
-          fail(`${paper.id}/${claim.id}: checked paper requires original claim evidence`);
-        claim.evidence.forEach((id) => requireOriginal(id, `${paper.id}/${claim.id}`));
-      }
+}
+
+function requireOriginalsForCheckedPapers(candidate, requireOriginal) {
+  for (const paper of candidate.papers) {
+    if (paper.review_status !== 'source-checked') continue;
+    if (!paper.claims.length)
+      fail(
+        `${paper.id}: whole-paper source-checked requires original claim evidence; ` +
+          'use draft for passage-only checks',
+      );
+    for (const claim of paper.claims) {
+      const at = `${paper.id}/${claim.id}`;
+      if (!claim.evidence.length) fail(`${at}: checked paper requires original claim evidence`);
+      claim.evidence.forEach((sourceId) => requireOriginal(sourceId, at));
     }
-  for (const relation of candidate.relations)
-    if (relation.status === 'source-checked' && !relation.needs_recheck) {
-      if (!relation.evidence_refs.length)
-        fail(`${relation.id}: checked relation needs original claim references`);
-      if (!relation.evidence_refs.some((ref) => ref.paper_id === relation.source))
-        fail(`${relation.id}: checked relation requires evidence from its asserting source paper`);
-      for (const ref of relation.evidence_refs) {
-        const sourceIds = claimSources(
-          candidate.papers.find((p) => p.id === ref.paper_id),
-          ref.claim_id,
-        );
-        if (!sourceIds.length)
-          fail(`${relation.id}: checked relation needs original claim evidence`);
-        sourceIds.forEach((id) => requireOriginal(id, relation.id));
-      }
+  }
+}
+
+function requireOriginalsForCheckedRelations(candidate, requireOriginal) {
+  const claimSourceIds = ({ paper_id, claim_id }) => {
+    const paper = candidate.papers.find((entry) => entry.id === paper_id);
+    return paper?.claims.find((claim) => claim.id === claim_id)?.evidence ?? [];
+  };
+  for (const relation of candidate.relations) {
+    if (relation.status !== 'source-checked' || relation.needs_recheck) continue;
+    if (!relation.evidence_refs.length)
+      fail(`${relation.id}: checked relation needs original claim references`);
+    const citesItsOwnPaper = relation.evidence_refs.some((ref) => ref.paper_id === relation.source);
+    if (!citesItsOwnPaper)
+      fail(`${relation.id}: checked relation requires evidence from its asserting source paper`);
+    for (const ref of relation.evidence_refs) {
+      const sourceIds = claimSourceIds(ref);
+      if (!sourceIds.length) fail(`${relation.id}: checked relation needs original claim evidence`);
+      sourceIds.forEach((sourceId) => requireOriginal(sourceId, relation.id));
     }
+  }
+}
+
+function verifySourceChecks(candidate, evidence, directory, pagesBySource) {
+  const originals = archivedOriginalSourceIds(candidate, evidence, directory, pagesBySource);
+  const requireOriginal = (sourceId, at) => {
+    if (!originals.has(sourceId))
+      fail(
+        `${at}: checked state requires archived original source_checks; ` +
+          'summaries stay not-checked/draft/proposed ' +
+          '(or retain historical status with needs_recheck:true)',
+      );
+  };
+  requireOriginalsForCheckedSources(candidate, requireOriginal);
+  requireOriginalsForCheckedPapers(candidate, requireOriginal);
+  requireOriginalsForCheckedRelations(candidate, requireOriginal);
   return originals.size;
 }
+
+// ---------------------------------------------------------------------------
+// Completion
+// ---------------------------------------------------------------------------
 
 // Completion describes only the displayed evidence, not an entire paper or scientific truth.
 export function completionEvidenceHash(evidence) {
   const { completion, ...sourceEvidence } = evidence;
   return hash(JSON.stringify(sourceEvidence));
 }
-const zonedTime = (value) =>
-  typeof value === 'string' &&
-  /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
-  Number.isFinite(Date.parse(value));
-function quoteHasDate(quote, date) {
-  const dates = [];
-  const monthNames = [
-    'january',
-    'february',
-    'march',
-    'april',
-    'may',
-    'june',
-    'july',
-    'august',
-    'september',
-    'october',
-    'november',
-    'december',
-  ];
-  const months = new Map(
-    monthNames.flatMap((name, i) => [
-      [name, i + 1],
-      [name.slice(0, 3), i + 1],
-    ]),
-  );
-  const add = (year, month, day) =>
-    dates.push(
-      [year, String(month).padStart(2, '0'), ...(day ? [String(day).padStart(2, '0')] : [])].join(
-        '-',
-      ),
-    );
-  for (const match of quote.matchAll(/\b([1-9]\d{3})[-/](\d{1,2})(?:[-/](\d{1,2}))?\b/g))
-    add(match[1], match[2], match[3]);
-  for (const match of quote.matchAll(/([1-9]\d{3})년\s*(\d{1,2})월(?:\s*(\d{1,2})일)?/g))
-    add(match[1], match[2], match[3]);
-  for (const match of quote.matchAll(/\b(\d{1,2})\s+([A-Za-z]+)\s+([1-9]\d{3})\b/g)) {
-    const month = months.get(match[2].toLowerCase());
-    if (month) add(match[3], month, match[1]);
-  }
-  for (const match of quote.matchAll(/\b([A-Za-z]+)\s+(?:(\d{1,2}),?\s+)?([1-9]\d{3})\b/g)) {
-    const month = months.get(match[1].toLowerCase());
-    if (month) add(match[3], month, match[2]);
-  }
-  return date.length === 4
-    ? new RegExp(`\\b${date}\\b`).test(quote)
-    : dates.some((value) => value === date || value.startsWith(date + '-'));
+
+const ZONED_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/;
+const isZonedTime = (value) =>
+  typeof value === 'string' && ZONED_TIMESTAMP.test(value) && Number.isFinite(Date.parse(value));
+
+const MONTH_NAMES = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+];
+// Full names and three-letter abbreviations both map to the month number.
+const MONTH_NUMBERS = new Map(
+  MONTH_NAMES.flatMap((name, index) => [
+    [name, index + 1],
+    [name.slice(0, 3), index + 1],
+  ]),
+);
+
+const ISO_OR_SLASH_DATE = /\b([1-9]\d{3})[-/](\d{1,2})(?:[-/](\d{1,2}))?\b/g;
+const KOREAN_DATE = /([1-9]\d{3})년\s*(\d{1,2})월(?:\s*(\d{1,2})일)?/g;
+const DAY_MONTH_YEAR = /\b(\d{1,2})\s+([A-Za-z]+)\s+([1-9]\d{3})\b/g;
+const MONTH_DAY_YEAR = /\b([A-Za-z]+)\s+(?:(\d{1,2}),?\s+)?([1-9]\d{3})\b/g;
+
+function isoDate(year, month, day) {
+  const parts = [year, String(month).padStart(2, '0')];
+  if (day) parts.push(String(day).padStart(2, '0'));
+  return parts.join('-');
 }
-export function verifyCompletion(candidate, evidence, candidateHash) {
-  const completion = evidence.completion;
+
+function datesWrittenIn(quote) {
+  const dates = [];
+  for (const [, year, month, day] of quote.matchAll(ISO_OR_SLASH_DATE))
+    dates.push(isoDate(year, month, day));
+  for (const [, year, month, day] of quote.matchAll(KOREAN_DATE))
+    dates.push(isoDate(year, month, day));
+  for (const [, day, monthName, year] of quote.matchAll(DAY_MONTH_YEAR)) {
+    const month = MONTH_NUMBERS.get(monthName.toLowerCase());
+    if (month) dates.push(isoDate(year, month, day));
+  }
+  for (const [, monthName, day, year] of quote.matchAll(MONTH_DAY_YEAR)) {
+    const month = MONTH_NUMBERS.get(monthName.toLowerCase());
+    if (month) dates.push(isoDate(year, month, day));
+  }
+  return dates;
+}
+
+// A year-only date needs the year as a whole word. A month or day needs a
+// recognized written date at that precision or finer.
+function quoteHasDate(quote, date) {
+  const isYearOnly = date.length === 4;
+  if (isYearOnly) return new RegExp(`\\b${date}\\b`).test(quote);
+  return datesWrittenIn(quote).some(
+    (written) => written === date || written.startsWith(date + '-'),
+  );
+}
+
+// Bibliographic dates have no timezone: the earliest possible civil midnight
+// (UTC+14) is the latest instant at which the date can already have begun.
+function earliestPossibleStart(date) {
+  const calendarStart =
+    date.length === 4 ? date + '-01-01' : date.length === 7 ? date + '-01' : date;
+  return Date.parse(calendarStart + 'T00:00:00+14:00');
+}
+
+const CLOCK_TOLERANCE_MS = 60_000;
+
+function verifyCompletionRecord(completion, evidence, candidateHash) {
   object(
     completion,
     ['candidate_sha256', 'evidence_sha256', 'checked_by', 'checked_at', 'scope'],
@@ -261,256 +413,371 @@ export function verifyCompletion(candidate, evidence, candidateHash) {
     fail('completion: evidence changed since source checking; recheck the final archives');
   text(completion.checked_by, 'completion.checked_by');
   text(completion.scope, 'completion.scope');
-  if (!zonedTime(completion.checked_at)) fail('completion: observed zoned check time required');
-  if (Date.parse(completion.checked_at) > Date.now() + 60_000)
+  if (!isZonedTime(completion.checked_at)) fail('completion: observed zoned check time required');
+  if (Date.parse(completion.checked_at) > Date.now() + CLOCK_TOLERANCE_MS)
     fail('completion: recorded source check cannot be in the future (one-minute clock tolerance)');
-  const originals = new Set((evidence.source_checks ?? []).map((check) => check.source_id));
-  const archivedPassages = new Set(
-    (evidence.source_checks ?? []).map((check) =>
-      JSON.stringify([check.source_id, normalize(check.quote)]),
-    ),
-  );
-  const passage = (id, quote) => {
-    text(quote, 'completion passage quote');
-    if (!archivedPassages.has(JSON.stringify([id, normalize(quote)])))
-      fail(`${id}: completion passage must match an archived source_check quote`);
-  };
-  const checked = (id) => {
-    if (
-      !originals.has(id) ||
-      candidate.sources.find((source) => source.id === id)?.verification !== 'agent-checked'
-    )
-      fail(`${id}: complete delivery requires a directly checked archived original`);
-  };
-  list(evidence.claim_checks, 'claim_checks');
-  list(evidence.publication_checks, 'publication_checks');
-  const claimChecks = new Set(),
-    dateChecks = new Set();
-  for (const check of evidence.claim_checks) {
-    object(check, ['paper_id', 'claim_id', 'source_id', 'quote'], 'claim_check');
-    const paper = candidate.papers.find((paper) => paper.id === check.paper_id);
-    const claim = paper?.claims.find((claim) => claim.id === check.claim_id);
-    if (!claim?.evidence.includes(check.source_id))
-      fail('claim_check: source must belong to the exact displayed paper/claim');
-    passage(check.source_id, check.quote);
-    const key = JSON.stringify([check.paper_id, check.claim_id, check.source_id]);
-    if (claimChecks.has(key)) fail('claim_check: duplicate claim/source binding');
-    claimChecks.add(key);
-  }
-  for (const check of evidence.publication_checks) {
-    object(check, ['paper_id', 'source_id', 'kind', 'date', 'quote'], 'publication_check');
-    const paper = candidate.papers.find((paper) => paper.id === check.paper_id);
-    const field =
-      check.kind === 'first-publication'
-        ? 'date'
-        : check.kind === 'edition'
-          ? 'edition_date'
-          : null;
-    if (
-      !field ||
-      !paper?.publication ||
-      check.source_id !== paper.publication.source_id ||
-      check.date !== paper.publication[field]
-    )
-      fail('publication_check: bind the exact paper, date kind and registered metadata source');
-    passage(check.source_id, check.quote);
-    if (!quoteHasDate(normalize(check.quote), check.date))
-      fail(`${paper.id}: publication date does not match its archived quote`);
-    const key = JSON.stringify([paper.id, check.kind]);
-    if (dateChecks.has(key)) fail('publication_check: duplicate date binding');
-    dateChecks.add(key);
-  }
-  for (const paper of candidate.papers) {
-    if (!paper.publication)
-      fail(`${paper.id}: complete delivery requires source-linked publication metadata`);
-    checked(paper.publication.source_id);
-    for (const [kind, date] of [
-      ['first-publication', paper.publication.date],
-      ['edition', paper.publication.edition_date],
-    ]) {
-      if (date === null) continue;
-      if (!dateChecks.has(JSON.stringify([paper.id, kind])))
-        fail(`${paper.id}: complete delivery requires publication date passage bindings`);
-      const calendarStart =
-        date.length === 4 ? date + '-01-01' : date.length === 7 ? date + '-01' : date;
-      // Bibliographic dates have no timezone: reject only when even the earliest
-      // possible civil midnight (UTC+14) is after the observed check instant.
-      if (Date.parse(calendarStart + 'T00:00:00+14:00') > Date.parse(completion.checked_at))
-        fail(`${paper.id}: publication date is after the recorded source check`);
-    }
-    if (paper.review_status === 'needs-recheck')
-      fail(`${paper.id}: resolve stale paper evidence before complete delivery`);
-    if (!paper.claims.length)
-      fail(`${paper.id}: complete delivery requires at least one source-backed claim`);
-    for (const claim of paper.claims) {
-      if (!claim.evidence.length) fail(`${paper.id}/${claim.id}: claim has no original evidence`);
-      claim.evidence.forEach(checked);
-      if (claim.evidence.some((id) => !claimChecks.has(JSON.stringify([paper.id, claim.id, id]))))
-        fail(`${paper.id}/${claim.id}: complete delivery requires claim passage bindings`);
-      const current = claim.reviews?.filter((review) => review.state === 'current') ?? [];
-      if (
-        !current.length ||
-        current.some((review) => review.verdict !== 'supported' || !zonedTime(review.reviewed_at))
-      )
-        fail(
-          `${paper.id}/${claim.id}: complete delivery requires a current supported passage review without unresolved conflicting reviews`,
-        );
-      if (
-        current.some((review) => Date.parse(review.reviewed_at) > Date.parse(completion.checked_at))
-      )
-        fail(`${paper.id}/${claim.id}: passage review is after completion`);
-    }
-  }
-  for (const relation of candidate.relations) {
-    if (relation.needs_recheck)
-      fail(`${relation.id}: resolve stale relation evidence before complete delivery`);
-    if (relation.origin === 'source' && relation.status !== 'source-checked')
-      fail(`${relation.id}: check the source relation before complete delivery`);
-    if (
-      relation.origin === 'source' &&
-      Date.parse(relation.review.checked_at) > Date.parse(completion.checked_at)
-    )
-      fail(`${relation.id}: relation review is after completion`);
-    if (relation.origin === 'ai' && !relation.evidence_refs.length)
-      fail(`${relation.id}: complete AI proposals need checked supporting claims`);
-  }
-  for (const background of candidate.backgrounds ?? [])
-    for (const reading of background.readings) {
-      if (!reading.evidence.length)
-        fail(`${background.id}: complete background reading needs original evidence`);
-      reading.evidence.forEach(checked);
-    }
 }
 
-export function verifyEvidence(candidate, evidence, directory) {
-  if (candidate.version !== 2 || candidate.mode !== 'paper-relations')
-    fail('Evidence gate requires version 2 paper-relations');
-  for (const r of candidate.relations) {
-    if (r.origin === 'ai' && (r.status !== 'proposed' || r.review !== null))
-      fail(`${r.id}: AI relation must remain proposed with review:null`);
+const claimSourceKey = (paperId, claimId, sourceId) => JSON.stringify([paperId, claimId, sourceId]);
+const paperDateKey = (paperId, kind) => JSON.stringify([paperId, kind]);
+const passageKey = (sourceId, quote) => JSON.stringify([sourceId, normalize(quote)]);
+
+function bindClaimChecks(candidate, claimChecks, requireArchivedPassage) {
+  const bound = new Set();
+  for (const check of claimChecks) {
+    object(check, ['paper_id', 'claim_id', 'source_id', 'quote'], 'claim_check');
+    const paper = candidate.papers.find((entry) => entry.id === check.paper_id);
+    const claim = paper?.claims.find((entry) => entry.id === check.claim_id);
+    if (!claim?.evidence.includes(check.source_id))
+      fail('claim_check: source must belong to the exact displayed paper/claim');
+    requireArchivedPassage(check.source_id, check.quote);
+    const key = claimSourceKey(check.paper_id, check.claim_id, check.source_id);
+    if (bound.has(key)) fail('claim_check: duplicate claim/source binding');
+    bound.add(key);
   }
+  return bound;
+}
+
+// Strict comparison on purpose: a lookup table would coerce a non-string kind.
+function publicationField(kind) {
+  if (kind === 'first-publication') return 'date';
+  if (kind === 'edition') return 'edition_date';
+  return null;
+}
+
+function bindPublicationChecks(candidate, publicationChecks, requireArchivedPassage) {
+  const bound = new Set();
+  for (const check of publicationChecks) {
+    object(check, ['paper_id', 'source_id', 'kind', 'date', 'quote'], 'publication_check');
+    const paper = candidate.papers.find((entry) => entry.id === check.paper_id);
+    const field = publicationField(check.kind);
+    const matchesRegisteredMetadata =
+      field &&
+      paper?.publication &&
+      check.source_id === paper.publication.source_id &&
+      check.date === paper.publication[field];
+    if (!matchesRegisteredMetadata)
+      fail('publication_check: bind the exact paper, date kind and registered metadata source');
+    requireArchivedPassage(check.source_id, check.quote);
+    if (!quoteHasDate(normalize(check.quote), check.date))
+      fail(`${paper.id}: publication date does not match its archived quote`);
+    const key = paperDateKey(paper.id, check.kind);
+    if (bound.has(key)) fail('publication_check: duplicate date binding');
+    bound.add(key);
+  }
+  return bound;
+}
+
+function verifyPublicationDates(paper, boundDates, completion) {
+  const dates = [
+    ['first-publication', paper.publication.date],
+    ['edition', paper.publication.edition_date],
+  ];
+  for (const [kind, date] of dates) {
+    if (date === null) continue;
+    if (!boundDates.has(paperDateKey(paper.id, kind)))
+      fail(`${paper.id}: complete delivery requires publication date passage bindings`);
+    if (earliestPossibleStart(date) > Date.parse(completion.checked_at))
+      fail(`${paper.id}: publication date is after the recorded source check`);
+  }
+}
+
+function verifyClaimCompletion(paper, claim, boundClaims, completion, requireCheckedOriginal) {
+  const at = `${paper.id}/${claim.id}`;
+  if (!claim.evidence.length) fail(`${at}: claim has no original evidence`);
+  claim.evidence.forEach(requireCheckedOriginal);
+  const hasEveryPassageBinding = claim.evidence.every((sourceId) =>
+    boundClaims.has(claimSourceKey(paper.id, claim.id, sourceId)),
+  );
+  if (!hasEveryPassageBinding) fail(`${at}: complete delivery requires claim passage bindings`);
+
+  const currentReviews = claim.reviews?.filter((review) => review.state === 'current') ?? [];
+  const everyCurrentReviewSupports = currentReviews.every(
+    (review) => review.verdict === 'supported' && isZonedTime(review.reviewed_at),
+  );
+  if (!currentReviews.length || !everyCurrentReviewSupports)
+    fail(
+      `${at}: complete delivery requires a current supported passage review ` +
+        'without unresolved conflicting reviews',
+    );
+  const completedAt = Date.parse(completion.checked_at);
+  if (currentReviews.some((review) => Date.parse(review.reviewed_at) > completedAt))
+    fail(`${at}: passage review is after completion`);
+}
+
+function verifyPaperCompletion(paper, boundClaims, boundDates, completion, requireCheckedOriginal) {
+  if (!paper.publication)
+    fail(`${paper.id}: complete delivery requires source-linked publication metadata`);
+  requireCheckedOriginal(paper.publication.source_id);
+  verifyPublicationDates(paper, boundDates, completion);
+  if (paper.review_status === 'needs-recheck')
+    fail(`${paper.id}: resolve stale paper evidence before complete delivery`);
+  if (!paper.claims.length)
+    fail(`${paper.id}: complete delivery requires at least one source-backed claim`);
+  for (const claim of paper.claims)
+    verifyClaimCompletion(paper, claim, boundClaims, completion, requireCheckedOriginal);
+}
+
+function verifyRelationCompletion(relation, completion) {
+  if (relation.needs_recheck)
+    fail(`${relation.id}: resolve stale relation evidence before complete delivery`);
+  if (relation.origin === 'source' && relation.status !== 'source-checked')
+    fail(`${relation.id}: check the source relation before complete delivery`);
+  const reviewedAfterCompletion =
+    relation.origin === 'source' &&
+    Date.parse(relation.review.checked_at) > Date.parse(completion.checked_at);
+  if (reviewedAfterCompletion) fail(`${relation.id}: relation review is after completion`);
+  if (relation.origin === 'ai' && !relation.evidence_refs.length)
+    fail(`${relation.id}: complete AI proposals need checked supporting claims`);
+}
+
+function verifyBackgroundCompletion(background, requireCheckedOriginal) {
+  for (const reading of background.readings) {
+    if (!reading.evidence.length)
+      fail(`${background.id}: complete background reading needs original evidence`);
+    reading.evidence.forEach(requireCheckedOriginal);
+  }
+}
+
+export function verifyCompletion(candidate, evidence, candidateHash) {
+  const completion = evidence.completion;
+  verifyCompletionRecord(completion, evidence, candidateHash);
+
+  const sourceChecks = evidence.source_checks ?? [];
+  const archivedSourceIds = new Set(sourceChecks.map((check) => check.source_id));
+  const archivedPassages = new Set(
+    sourceChecks.map((check) => passageKey(check.source_id, check.quote)),
+  );
+  const requireArchivedPassage = (sourceId, quote) => {
+    text(quote, 'completion passage quote');
+    if (!archivedPassages.has(passageKey(sourceId, quote)))
+      fail(`${sourceId}: completion passage must match an archived source_check quote`);
+  };
+  const isAgentChecked = (sourceId) =>
+    candidate.sources.find((entry) => entry.id === sourceId)?.verification === 'agent-checked';
+  const requireCheckedOriginal = (sourceId) => {
+    if (!archivedSourceIds.has(sourceId) || !isAgentChecked(sourceId))
+      fail(`${sourceId}: complete delivery requires a directly checked archived original`);
+  };
+
+  list(evidence.claim_checks, 'claim_checks');
+  list(evidence.publication_checks, 'publication_checks');
+  const boundClaims = bindClaimChecks(candidate, evidence.claim_checks, requireArchivedPassage);
+  const boundDates = bindPublicationChecks(
+    candidate,
+    evidence.publication_checks,
+    requireArchivedPassage,
+  );
+
+  for (const paper of candidate.papers)
+    verifyPaperCompletion(paper, boundClaims, boundDates, completion, requireCheckedOriginal);
+  for (const relation of candidate.relations) verifyRelationCompletion(relation, completion);
+  for (const background of candidate.backgrounds ?? [])
+    verifyBackgroundCompletion(background, requireCheckedOriginal);
+}
+
+// ---------------------------------------------------------------------------
+// Evidence gate
+// ---------------------------------------------------------------------------
+
+const OPTIONAL_EVIDENCE_FIELDS = [
+  'source_checks',
+  'claim_checks',
+  'publication_checks',
+  'completion',
+];
+const SOURCE_ID = /^[A-Za-z0-9._-]+$/;
+
+function requireProposedAiRelations(candidate) {
+  for (const relation of candidate.relations) {
+    const isAi = relation.origin === 'ai';
+    if (isAi && (relation.status !== 'proposed' || relation.review !== null))
+      fail(`${relation.id}: AI relation must remain proposed with review:null`);
+  }
+}
+
+function requireCanonicalOverview(candidate) {
   for (const [key, value] of Object.entries(overviewFor(candidate))) {
     if (candidate[key] !== value) fail(`${key}: regenerate the canonical overview with --overview`);
   }
+}
+
+function verifyEvidenceShape(evidence) {
   if (![1, 2].includes(evidence.version)) fail('Unsupported evidence version');
-  object(
-    evidence,
-    [
-      ...(evidence.version === 2
-        ? ['version', 'sources', 'counts', 'tables', 'performance']
-        : ['version', 'sources', 'counts']),
-      ...['source_checks', 'claim_checks', 'publication_checks', 'completion'].filter((key) =>
-        Object.hasOwn(evidence, key),
-      ),
-    ],
-    'evidence',
+  const requiredFields =
+    evidence.version === 2
+      ? ['version', 'sources', 'counts', 'tables', 'performance']
+      : ['version', 'sources', 'counts'];
+  const presentOptionalFields = OPTIONAL_EVIDENCE_FIELDS.filter((key) =>
+    Object.hasOwn(evidence, key),
   );
+  object(evidence, [...requiredFields, ...presentOptionalFields], 'evidence');
   list(evidence.sources, 'sources');
   list(evidence.counts, 'counts');
-  const sources = new Map();
-  for (const source of evidence.sources) {
+}
+
+function pageTexts(extraction) {
+  const textByPage = new Map();
+  for (const page of extraction.pages) {
+    const isValidPage =
+      Number.isSafeInteger(page.page) &&
+      page.page >= 1 &&
+      typeof page.text === 'string' &&
+      !textByPage.has(page.page);
+    if (!isValidPage) fail('Invalid or duplicate source page');
+    textByPage.set(page.page, page.text);
+  }
+  return textByPage;
+}
+
+// Returns Map<source id, Map<page number, page text>> after checking each
+// original PDF and its page-aligned text extraction against their hashes.
+function loadSourcePages(sources, directory) {
+  const pagesBySource = new Map();
+  for (const source of sources) {
     object(
       source,
       ['id', 'document_path', 'document_sha256', 'text_path', 'text_sha256'],
       'source',
     );
-    if (
-      typeof source.id !== 'string' ||
-      !/^[A-Za-z0-9._-]+$/.test(source.id) ||
-      sources.has(source.id)
-    )
-      fail('Invalid or duplicate source id');
+    const isNewValidId =
+      typeof source.id === 'string' && SOURCE_ID.test(source.id) && !pagesBySource.has(source.id);
+    if (!isNewValidId) fail('Invalid or duplicate source id');
     const pdf = localFile(directory, source.document_path, source.document_sha256);
-    if (pdf.subarray(0, 5).toString() !== '%PDF-') fail('Expected original PDF');
-    const pages = JSON.parse(
+    if (!startsWithPdfMarker(pdf)) fail('Expected original PDF');
+    const extraction = JSON.parse(
       localFile(directory, source.text_path, source.text_sha256)
         .toString('utf8')
         .replace(/^\uFEFF/, ''),
     );
-    if (pages.pdf_sha256 !== source.document_sha256 || !Array.isArray(pages.pages))
+    if (extraction.pdf_sha256 !== source.document_sha256 || !Array.isArray(extraction.pages))
       fail('Page text must identify the original PDF hash');
-    const byPage = new Map();
-    for (const page of pages.pages) {
-      if (
-        !Number.isSafeInteger(page.page) ||
-        page.page < 1 ||
-        typeof page.text !== 'string' ||
-        byPage.has(page.page)
-      )
-        fail('Invalid or duplicate source page');
-      byPage.set(page.page, page.text);
-    }
-    sources.set(source.id, byPage);
+    pagesBySource.set(source.id, pageTexts(extraction));
   }
-  const { fields, performanceByPath } = visibleCountFields(candidate);
-  const covered = new Set();
-  // These paths only defer the whole-field count format. verifyPerformance below
-  // must validate the exact generated report and its source before any success.
-  const reports = new Map(
-    (Array.isArray(evidence.performance) ? evidence.performance : [])
-      .filter((e) => e?.kind === 'table-comparison')
-      .map((e) => [e.path, e.comparison?.table_id]),
+  return pagesBySource;
+}
+
+// These paths only defer the whole-field count format. verifyPerformance
+// must validate the exact generated report and its source before any success.
+function tableReportsByPath(evidence) {
+  const entries = Array.isArray(evidence.performance) ? evidence.performance : [];
+  return new Map(
+    entries
+      .filter((entry) => entry?.kind === 'table-comparison')
+      .map((entry) => [entry.path, entry.comparison?.table_id]),
   );
+}
+
+function verifyCountItems(items) {
+  list(items, 'items');
+  if (!items.length) fail('Count items cannot be empty');
+  for (const item of items) {
+    object(item, ['unit', 'value'], 'count item');
+    const isValidItem =
+      Object.hasOwn(COUNT_UNIT_LABELS, item.unit) &&
+      Number.isSafeInteger(item.value) &&
+      item.value >= 0;
+    if (!isValidItem) fail('Invalid count unit/value');
+  }
+}
+
+// Returns the set of field paths whose counts are bound to a source quote.
+function verifyCountBindings(candidate, evidence, countFields, pagesBySource, tableReports) {
+  const { fields, performanceByPath } = countFields;
+  const covered = new Set();
   for (const binding of evidence.counts) {
     object(binding, ['path', 'source_id', 'page', 'quote', 'items'], 'count binding');
     if (!fields.has(binding.path) || covered.has(binding.path))
       fail('Invalid or duplicate count field path');
-    const allowedSources = performanceByPath.get(binding.path)?.sourceIds ?? [];
-    if (
-      !candidate.sources.some((s) => s.id === binding.source_id) ||
-      !allowedSources.includes(binding.source_id)
-    )
+
+    const linkedSourceIds = performanceByPath.get(binding.path)?.sourceIds ?? [];
+    const isRegistered = candidate.sources.some((source) => source.id === binding.source_id);
+    if (!isRegistered || !linkedSourceIds.includes(binding.source_id))
       fail(
         `${binding.path}: source must be linked to the displayed paper/claim or concept background`,
       );
+
     text(binding.quote, 'quote');
-    list(binding.items, 'items');
-    if (!binding.items.length) fail('Count items cannot be empty');
-    for (const item of binding.items) {
-      object(item, ['unit', 'value'], 'count item');
-      if (!Object.hasOwn(units, item.unit) || !Number.isSafeInteger(item.value) || item.value < 0)
-        fail('Invalid count unit/value');
-    }
-    const page = sources.get(binding.source_id)?.get(binding.page);
-    if (!page || !containsQuote(page, binding.quote))
+    verifyCountItems(binding.items);
+
+    const pageText = pagesBySource.get(binding.source_id)?.get(binding.page);
+    if (!pageText || !containsQuote(pageText, binding.quote))
       fail(`${binding.path}: quote missing from declared source page (complete tokens required)`);
-    const extracted = countMentions(binding.quote);
-    if (
-      JSON.stringify(extracted) !==
-      JSON.stringify(binding.items.map(({ unit, value }) => ({ unit, value })))
-    )
+
+    const quotedCounts = JSON.stringify(countMentions(binding.quote));
+    const declaredCounts = JSON.stringify(
+      binding.items.map(({ unit, value }) => ({ unit, value })),
+    );
+    if (quotedCounts !== declaredCounts)
       fail(`${binding.path}: count values/units differ from source quote`);
-    if (!reports.has(binding.path) && fields.get(binding.path) !== countText(binding))
+
+    const isTableReport = tableReports.has(binding.path);
+    if (!isTableReport && fields.get(binding.path) !== countText(binding))
       fail(`${binding.path}: use the exact source-derived count text (no equality or paraphrase)`);
     covered.add(binding.path);
   }
+  return covered;
+}
+
+// The regression concerns dataset record/pair totals. A retrieval setting
+// such as top-5 documents is not necessarily expressed as a literal count
+// in the source; do not silently reinterpret it as a dataset total.
+function requireBindingsForCountStatements(fields, covered, tableReports) {
   for (const [pointer, value] of fields) {
-    // The regression concerns dataset record/pair totals. A retrieval setting
-    // such as top-5 documents is not necessarily expressed as a literal count
-    // in the source; do not silently reinterpret it as a dataset total.
-    if (
-      countMentions(value).some((i) => i.unit !== 'documents') &&
-      !covered.has(pointer) &&
-      !reports.has(pointer)
-    )
+    const statesRecordOrPairCount = countMentions(value).some(
+      (mention) => mention.unit !== 'documents',
+    );
+    if (statesRecordOrPairCount && !covered.has(pointer) && !tableReports.has(pointer))
       fail(`${pointer}: record/pair count statement needs source-bound evidence`);
   }
-  const performance = verifyPerformance(candidate, evidence, sources);
-  for (const [pointer, tableId] of reports) {
+}
+
+// A table report may repeat counts from its table block (for example a
+// footnote). Each one must appear in that block with the same unit and value.
+function verifyTableReportCounts(evidence, fields, tableReports, covered) {
+  for (const [pointer, tableId] of tableReports) {
     if (!fields.has(pointer)) continue;
-    const mentions = countMentions(fields.get(pointer));
-    if (!mentions.length) continue;
-    const table = evidence.tables.find((t) => t.id === tableId);
+    const reportedCounts = countMentions(fields.get(pointer));
+    if (!reportedCounts.length) continue;
+    const table = evidence.tables.find((entry) => entry.id === tableId);
     const sourceCounts = countMentions(table.quote);
-    if (mentions.some((i) => !sourceCounts.some((s) => s.unit === i.unit && s.value === i.value)))
+    const isInSourceBlock = (reported) =>
+      sourceCounts.some(
+        (source) => source.unit === reported.unit && source.value === reported.value,
+      );
+    if (!reportedCounts.every(isInSourceBlock))
       fail(`${pointer}: table report count differs from its source block`);
     covered.add(pointer);
   }
-  const originalChecks = verifySourceChecks(candidate, evidence, directory, sources);
+}
+
+export function verifyEvidence(candidate, evidence, directory) {
+  if (candidate.version !== 2 || candidate.mode !== 'paper-relations')
+    fail('Evidence gate requires version 2 paper-relations');
+  requireProposedAiRelations(candidate);
+  requireCanonicalOverview(candidate);
+  verifyEvidenceShape(evidence);
+
+  const pagesBySource = loadSourcePages(evidence.sources, directory);
+  const countFields = visibleCountFields(candidate);
+  const tableReports = tableReportsByPath(evidence);
+  const covered = verifyCountBindings(
+    candidate,
+    evidence,
+    countFields,
+    pagesBySource,
+    tableReports,
+  );
+  requireBindingsForCountStatements(countFields.fields, covered, tableReports);
+
+  const performance = verifyPerformance(candidate, evidence, pagesBySource);
+  verifyTableReportCounts(evidence, countFields.fields, tableReports, covered);
+  const originalChecks = verifySourceChecks(candidate, evidence, directory, pagesBySource);
+
   return {
     checks: 'canonical-overview-source-counts-and-performance',
     count_fields: covered.size,
-    source_files: sources.size,
+    source_files: pagesBySource.size,
     original_source_checks: originalChecks,
     ...performance,
     source_semantics: 'not-certified',
