@@ -135,12 +135,13 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
       files.push({ ...file, path: filePath(root, file), status });
     }
     const ready =
-      files.findLast((f) => f.status === 'ready') ?? files.findLast((f) => f.status === 'accepted');
+      files.findLast((file) => file.status === 'ready') ??
+      files.findLast((file) => file.status === 'accepted');
     const next = ready
       ? 'Ready for analysis'
-      : files.some((f) => f.status === 'pending')
+      : files.some((file) => file.status === 'pending')
         ? 'Analyze this draft edition?'
-        : files.some((f) => f.status === 'needs-recheck')
+        : files.some((file) => file.status === 'needs-recheck')
           ? 'Check and register the source file and edition evidence again.'
           : 'Provide the published PDF or retry this paper only.';
     rows.push({ paper, files, failure: row?.failure, next, ready });
@@ -164,8 +165,9 @@ async function collect(
   const inputPath = await realpath(input.path);
   const bytes = await pdfBytes(inputPath);
   const hash = sha256(bytes);
-  const previous = row.files.find((f) => f.sha256 === hash);
-  const sameEdition = (f: FileRecord) => editionKey(f.edition) === editionKey(evidence.edition);
+  const previous = row.files.find((file) => file.sha256 === hash);
+  const sameEdition = (file: FileRecord) =>
+    editionKey(file.edition) === editionKey(evidence.edition);
   const correctingToDraft = previous && !previous.draft && evidence.draft;
   if (
     previous &&
@@ -181,8 +183,8 @@ async function collect(
     delete row.failure;
     return;
   }
-  const related = [row, ...book.rows.filter((r) => r !== row && r.key === row.key)];
-  for (const candidate of related.flatMap((r) => r.files)) {
+  const related = [row, ...book.rows.filter((other) => other !== row && other.key === row.key)];
+  for (const candidate of related.flatMap((relatedRow) => relatedRow.files)) {
     if (
       !sameEdition(candidate) ||
       candidate.draft !== evidence.draft ||
@@ -190,7 +192,7 @@ async function collect(
     )
       continue;
     if (!row.files.includes(candidate)) {
-      const local = row.files.find((f) => f.sha256 === candidate.sha256);
+      const local = row.files.find((file) => file.sha256 === candidate.sha256);
       const reused = {
         ...candidate,
         decision: candidate.draft ? (local?.decision ?? 'pending') : null,
@@ -291,24 +293,24 @@ export async function runCollection([action = '', ...args]: string[]) {
     console.log(help);
     return;
   }
-  const { values: v } = parseArgs({ args, options });
+  const { values } = parseArgs({ args, options });
   if (
-    !v.dir ||
-    Object.entries(v).some(
+    !values.dir ||
+    Object.entries(values).some(
       ([k, value]) => !value?.trim() || (k !== 'dir' && !allowed[action]?.includes(k)),
     )
   )
     invalid(help);
-  if (v.url) {
+  if (values.url) {
     let url: URL;
     try {
-      url = new URL(v.url);
+      url = new URL(values.url);
     } catch {
       return invalid(help);
     }
     if (!/^https?:$/.test(url.protocol) || url.username || url.password) invalid(help);
   }
-  const root = await realpath(v.dir);
+  const root = await realpath(values.dir);
   const path = join(root, 'sources.json');
   const unlock = action === 'sources' ? undefined : await workspaceLock(root);
   try {
@@ -316,45 +318,48 @@ export async function runCollection([action = '', ...args]: string[]) {
     const book = await readBook(root, path);
     if (action !== 'sources') {
       const paper = topic.selected.find(
-        (p) => p.number === Number(v.id) && p.round === Number(v.round),
+        (selected) =>
+          selected.number === Number(values.id) && selected.round === Number(values.round),
       );
       if (!paper) invalid('Check the currently selected paper number and selection round.');
       const row: Row = findRow(book, paper) ?? { key: paper.key, round: paper.round, files: [] };
       if (!book.rows.includes(row)) book.rows.push(row);
       let created: string | undefined;
       if (action === 'unavailable') {
-        if (!v.reason) invalid(help);
-        row.failure = { source: v.url ?? paper.source, reason: v.reason };
+        if (!values.reason) invalid(help);
+        row.failure = { source: values.url ?? paper.source, reason: values.reason };
       } else if (action === 'decide') {
-        const file = row.files.find((f) => f.draft && f.sha256 === v.sha);
-        if (!file || !['accept', 'decline'].includes(v.answer ?? ''))
+        const file = row.files.find(
+          (candidate) => candidate.draft && candidate.sha256 === values.sha,
+        );
+        if (!file || !['accept', 'decline'].includes(values.answer ?? ''))
           invalid('Check the displayed draft hash and response.');
         if (!(await stillVerified(root, paper, file)))
           invalid('Check the draft file and edition again.');
-        file.decision = v.answer === 'accept' ? 'accepted' : 'declined';
+        file.decision = values.answer === 'accept' ? 'accepted' : 'declined';
       } else {
-        const page = Number(v.page ?? 1);
+        const page = Number(values.page ?? 1);
         if (
-          !!v.pdf === !!v.existing ||
-          !v.edition ||
-          !v.proof ||
+          !!values.pdf === !!values.existing ||
+          !values.edition ||
+          !values.proof ||
           !Number.isSafeInteger(page) ||
           page < 1 ||
-          !['published', 'draft'].includes(v.kind ?? '')
+          !['published', 'draft'].includes(values.kind ?? '')
         )
           invalid(help);
-        const source = v.existing ?? v.pdf!;
+        const source = values.existing ?? values.pdf!;
         try {
           created = await collect(
             root,
             book,
             row,
             paper,
-            { path: source, existing: !!v.existing, url: v.url },
-            { edition: v.edition, proof: v.proof, page, draft: v.kind === 'draft' },
+            { path: source, existing: !!values.existing, url: values.url },
+            { edition: values.edition, proof: values.proof, page, draft: values.kind === 'draft' },
           );
         } catch (error) {
-          row.failure = { source: v.url ?? source, reason: (error as Error).message };
+          row.failure = { source: values.url ?? source, reason: (error as Error).message };
         }
       }
       try {

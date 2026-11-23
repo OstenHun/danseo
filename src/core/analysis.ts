@@ -193,7 +193,7 @@ async function boundPaper(revision: Revision, source: Source) {
 async function readySource(root: string, number: number) {
   // analysis-open/save already hold the topic lock until their document save finishes.
   const collection = await sourceCollection(root, true);
-  const source = collection.ready.find((s) => s.paper.number === number);
+  const source = collection.ready.find((candidate) => candidate.paper.number === number);
   if (!source)
     invalid(
       'No source is ready for analysis. Check the PDF, edition and draft consent with topic sources.',
@@ -361,7 +361,7 @@ export async function comparisonInput(root: string) {
       held.push({ key: paper.key, reason: 'No candidate claims for comparison' });
     }
     for (const claimId of revision.comparison_claims) {
-      const claim = claims.find((c) => c.id === claimId);
+      const claim = claims.find((candidate) => candidate.id === claimId);
       const entries = reviews.claims[claimId] ?? [];
       const reason = comparisonHoldReason(reviews.warnings, Boolean(claim), entries, card);
       if (reason) {
@@ -405,7 +405,7 @@ export async function runAnalysis([action = '', ...args]: string[]) {
     console.log(help);
     return;
   }
-  const { values: v } = parseArgs({
+  const { values } = parseArgs({
     args,
     options: Object.fromEntries(
       ['dir', 'id', 'workspace', 'paper', 'sha', 'input'].map((k) => [
@@ -421,14 +421,14 @@ export async function runAnalysis([action = '', ...args]: string[]) {
     'comparison-input': [],
   };
   if (
-    !v.dir ||
+    !values.dir ||
     !Object.hasOwn(allowed, action) ||
-    Object.entries(v).some(
+    Object.entries(values).some(
       ([k, value]) => !value?.trim() || (k !== 'dir' && !allowed[action]!.includes(k)),
     )
   )
     invalid(help);
-  const root = await realpath(v.dir);
+  const root = await realpath(values.dir);
   const unlock = ['analysis-open', 'analysis-save'].includes(action)
     ? await workspaceLock(root)
     : undefined;
@@ -447,19 +447,20 @@ export async function runAnalysis([action = '', ...args]: string[]) {
       console.log(JSON.stringify(await comparisonInput(root), null, 2));
       return;
     }
-    const id = Number(v.id);
+    const id = Number(values.id);
     if (!Number.isSafeInteger(id) || id < 1) invalid(help);
     const { source, question } = await readySource(root, id);
     let doc = await readDocument(root, source.paper.key);
     if (action === 'analysis-open') {
       const current = doc ? currentRevision(doc) : undefined;
-      if (!!v.workspace !== !!v.paper) invalid('Specify the card workspace and Paper ID together.');
+      if (!!values.workspace !== !!values.paper)
+        invalid('Specify the card workspace and Paper ID together.');
       const revision: Revision = {
         round: source.paper.round,
         edition: source.file.edition,
         pdf_sha256: source.file.sha256,
-        workspace: v.workspace ? await realpath(v.workspace) : (current?.workspace ?? ''),
-        paper_id: v.paper ?? current?.paper_id ?? '',
+        workspace: values.workspace ? await realpath(values.workspace) : (current?.workspace ?? ''),
+        paper_id: values.paper ?? current?.paper_id ?? '',
         answered: false,
         comparison_claims: [],
       };
@@ -497,9 +498,9 @@ Selection reason: ${source.paper.note ?? source.paper.reason}\n\nPaper: ${revisi
         invalid(
           'Open the current edition with analysis-open first to check existing answers and notes.',
         );
-      if (v.sha !== doc.sha256 || !v.input)
+      if (values.sha !== doc.sha256 || !values.input)
         invalid('Reopen the analysis document and provide its current SHA-256 and answer JSON.');
-      const bytes = await readFile(v.input);
+      const bytes = await readFile(values.input);
       if (bytes.length > 512 * 1024) invalid('The answer JSON exceeds 512 KiB.');
       const input: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
       if (!validateAnswer(input))
@@ -536,7 +537,9 @@ Selection reason: ${source.paper.note ?? source.paper.reason}\n\nPaper: ${revisi
 function checkReferences(input: Answer, card: Card) {
   const claims = card.data.type === 'paper' ? (card.data.claims ?? []) : [];
   if (
-    [...input.claim_ids, ...input.comparison_claims].some((id) => !claims.some((c) => c.id === id))
+    [...input.claim_ids, ...input.comparison_claims].some(
+      (id) => !claims.some((claim) => claim.id === id),
+    )
   )
     invalid('Use actual claim IDs from the linked Paper for answers and comparison candidates.');
 }
