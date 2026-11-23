@@ -249,7 +249,7 @@ export async function readVerifiedReviews(ws: Workspace) {
 
 type PaperSource = Extract<Card['data'], { type: 'paper' }>['source'];
 
-// The first reason found wins. Every check still runs so a failed read is reported the same way.
+// Returns the first file-level reason found, or '' when the files still match the review.
 async function originalFileStaleReason(
   cardPath: string,
   current: PaperSource,
@@ -288,6 +288,7 @@ async function sourceStaleReason(
   if (frozen.pdf_sha256 !== selectedPdfSha256) {
     reason ||= 'The reviewed PDF differs from the source hash selected in this topic.';
   }
+  // Edition and selected-hash reasons take precedence, but the files are read in every case.
   const fileReason = await originalFileStaleReason(cardPath, current, frozen);
   return reason || fileReason;
 }
