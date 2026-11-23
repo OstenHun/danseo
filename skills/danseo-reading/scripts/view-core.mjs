@@ -52,7 +52,8 @@ export function httpUrl(value, at) {
 export const escape = (value) =>
   value.replace(
     /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character],
   );
 export const hash = (value) => createHash('sha256').update(value).digest('hex');
 export const cspHash = (value) => createHash('sha256').update(value).digest('base64');
@@ -65,7 +66,7 @@ export function inlineAssets(candidate, cssPaths, jsPath, expectedVersion) {
     script: (Array.isArray(jsPath) ? jsPath : [jsPath]).map(lf).join('\n'),
     json: JSON.stringify(candidate).replace(
       /[<>&\u2028\u2029]/g,
-      (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
+      (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
     ),
   };
 }

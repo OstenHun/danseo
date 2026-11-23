@@ -19,7 +19,7 @@ import { uiText, languageScript } from './view-language.mjs';
 
 const paragraphs = (value, at) => {
   list(value, at);
-  value.forEach((v, i) => text(v, `${at}[${i}]`));
+  value.forEach((item, i) => text(item, `${at}[${i}]`));
 };
 function publicationDate(value, at) {
   if (typeof value !== 'string' || !/^[1-9]\d{3}(?:-\d{2}(?:-\d{2})?)?$/.test(value))
