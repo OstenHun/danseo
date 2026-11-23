@@ -82,7 +82,7 @@
         const node = addNode('criterion', item, i, all.length);
         node.position = { x: 520, y: 90 + i * 170 };
         item.groups.forEach((group) => {
-          const paper = data.papers.find((p) => p.key === group.key);
+          const paper = data.papers.find((candidate) => candidate.key === group.key);
           if (!paper) throw new Error('The comparison criterion has no matching paper.');
           if (group.claims.length)
             elements.push({

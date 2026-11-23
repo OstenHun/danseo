@@ -73,7 +73,9 @@ export async function serveComparison(root: string, port = 0) {
           return;
         }
         const match = /^file\/(\d+)\/(pdf|analysis)\/([a-f0-9]{64})$/.exec(route);
-        const paper = match ? data.papers.find((p) => p.number === Number(match[1])) : undefined;
+        const paper = match
+          ? data.papers.find((candidate) => candidate.number === Number(match[1]))
+          : undefined;
         const pdf = match?.[2] === 'pdf';
         const path = pdf ? paper?.source?.path : paper?.document;
         const expected = pdf ? paper?.source?.sha256 : paper?.document_sha256;
