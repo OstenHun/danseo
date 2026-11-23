@@ -339,7 +339,7 @@ type HeldItem =
 
 // Splits one paper's comparison candidates into included claims and held items with a reason.
 // Both lists keep the order of revision.comparison_claims.
-function sortCandidateClaims(
+function partitionCandidateClaims(
   key: string,
   revision: Revision,
   card: Card,
@@ -429,12 +429,12 @@ export async function comparisonInput(root: string) {
       source: source.file,
     });
     const reviews = await loadClaimReviews(workspace, card, source.file.sha256);
-    const sorted = sortCandidateClaims(paper.key, revision, card, reviews, source.file, {
+    const partitioned = partitionCandidateClaims(paper.key, revision, card, reviews, source.file, {
       path: documentPath,
       sha256: doc.sha256,
     });
-    held.push(...sorted.held);
-    included.push(...sorted.included);
+    held.push(...partitioned.held);
+    included.push(...partitioned.included);
   }
   return {
     version: 1,
@@ -605,11 +605,11 @@ export async function runAnalysis([action = '', ...args]: string[]) {
     if (!Number.isSafeInteger(id) || id < 1) invalid(help);
     const { source, question } = await readySource(root, id);
     const doc = await readDocument(root, source.paper.key);
-    const current =
+    const document =
       action === 'analysis-open'
         ? await openAnalysis(root, values, source, question, doc)
         : await saveAnswer(root, values, source, doc);
-    console.log(JSON.stringify(context(root, source, question, current), null, 2));
+    console.log(JSON.stringify(context(root, source, question, document), null, 2));
   } finally {
     await unlock?.();
   }

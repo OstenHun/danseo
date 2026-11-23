@@ -123,7 +123,7 @@ async function stillVerified(root: string, paper: SelectedPaper, file: FileRecor
 const findRow = (book: Book, paper: SelectedPaper) =>
   book.rows.find((row) => row.key === paper.key && row.round === paper.round);
 
-function nextStep(ready: unknown, files: { status: string }[]) {
+function nextStep(ready: boolean, files: { status: string }[]) {
   if (ready) return 'Ready for analysis';
   if (files.some((file) => file.status === 'pending')) return 'Analyze this draft edition?';
   if (files.some((file) => file.status === 'needs-recheck'))
@@ -145,7 +145,7 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
     const ready =
       files.findLast((file) => file.status === 'ready') ??
       files.findLast((file) => file.status === 'accepted');
-    const next = nextStep(ready, files);
+    const next = nextStep(Boolean(ready), files);
     rows.push({ paper, files, failure: row?.failure, next, ready });
   }
   return {
