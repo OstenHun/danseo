@@ -64,7 +64,7 @@ ESLint checks the JavaScript (`.js`, `.mjs`) and TypeScript (`.ts`) files with `
 
 A warning is not a bug. In new and changed code, leave no new warning unless splitting the code would make it harder to follow; say why in the pull request. Prettier already owns layout, so the linter has no formatting rules. On the Node 22 line, ESLint 10 needs 22.13 or later (Node 24 also works); this applies to contributors only, not to the CLI or the skills.
 
-Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected.
+Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected. Files that have already been cleaned up are listed near the end of `eslint.config.js`. In those files the readability rules are errors and fail CI, so a new warning there must be fixed before merging.
 
 <a id="공통-테스트-fixture-수정"></a>
 
