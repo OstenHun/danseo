@@ -123,6 +123,14 @@ async function stillVerified(root: string, paper: SelectedPaper, file: FileRecor
 const findRow = (book: Book, paper: SelectedPaper) =>
   book.rows.find((row) => row.key === paper.key && row.round === paper.round);
 
+function nextStep(ready: boolean, files: { status: string }[]) {
+  if (ready) return 'Ready for analysis';
+  if (files.some((file) => file.status === 'pending')) return 'Analyze this draft edition?';
+  if (files.some((file) => file.status === 'needs-recheck'))
+    return 'Check and register the source file and edition evidence again.';
+  return 'Provide the published PDF or retry this paper only.';
+}
+
 async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof selectedTopic>>) {
   const rows = [];
   for (const paper of topic.selected) {
@@ -135,14 +143,9 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
       files.push({ ...file, path: filePath(root, file), status });
     }
     const ready =
-      files.findLast((f) => f.status === 'ready') ?? files.findLast((f) => f.status === 'accepted');
-    const next = ready
-      ? 'Ready for analysis'
-      : files.some((f) => f.status === 'pending')
-        ? 'Analyze this draft edition?'
-        : files.some((f) => f.status === 'needs-recheck')
-          ? 'Check and register the source file and edition evidence again.'
-          : 'Provide the published PDF or retry this paper only.';
+      files.findLast((file) => file.status === 'ready') ??
+      files.findLast((file) => file.status === 'accepted');
+    const next = nextStep(Boolean(ready), files);
     rows.push({ paper, files, failure: row?.failure, next, ready });
   }
   return {
@@ -153,6 +156,83 @@ async function report(root: string, book: Book, topic: Awaited<ReturnType<typeof
 }
 
 type Input = { path: string; existing: boolean; url?: string };
+
+function originOf(input: Input): Origin {
+  if (input.existing) return 'existing';
+  return input.url ? 'public' : 'provided';
+}
+
+function putRecord(row: Row, previous: FileRecord | undefined, file: FileRecord) {
+  if (previous) row.files[row.files.indexOf(previous)] = file;
+  else row.files.push(file);
+}
+
+// The same bytes cannot be registered as another edition or moved from draft to published.
+function rejectConflictingRecord(previous: FileRecord | undefined, evidence: Edition) {
+  if (
+    previous &&
+    (editionKey(previous.edition) !== editionKey(evidence.edition) ||
+      (previous.draft && !evidence.draft))
+  ) {
+    throw Error('The same file has conflicting edition or publication classifications.');
+  }
+}
+
+// A draft keeps the consent already given for the same bytes; a new draft waits for consent.
+function verifiedRecord(
+  input: Input,
+  inputPath: string,
+  copyName: string,
+  hash: string,
+  evidence: Edition,
+  previous: FileRecord | undefined,
+): FileRecord {
+  return {
+    ...evidence,
+    path: input.existing ? inputPath : copyName,
+    sha256: hash,
+    origin: originOf(input),
+    source: input.url ?? inputPath,
+    decision: evidence.draft ? (previous?.decision ?? 'pending') : null,
+  };
+}
+
+// Uses an already verified copy of the same edition in this row, replacing a record with the
+// same hash. Draft consent stays with the row that holds it.
+function linkVerifiedCopy(row: Row, candidate: FileRecord) {
+  if (row.files.includes(candidate)) return;
+  const local = row.files.find((file) => file.sha256 === candidate.sha256);
+  const reused = {
+    ...candidate,
+    decision: candidate.draft ? (local?.decision ?? 'pending') : null,
+  };
+  putRecord(row, local, reused);
+}
+
+type ManagedCopy = { name: string; path: string; created?: string };
+
+// Writes the verified bytes into the topic folder unless an identical file is already there.
+// Sets copy.created as soon as a new file exists, so the caller can remove it if a later
+// check fails.
+async function writeManagedCopy(root: string, bytes: Buffer, hash: string, copy: ManagedCopy) {
+  if (await exists(copy.path)) {
+    // Preserve any changed or interrupted copy and publish the verified bytes separately.
+    if (!(await matchesHash(copy.path, hash))) {
+      copy.name = `source-${hash}-${randomUUID()}.pdf`;
+      copy.path = join(root, copy.name);
+    }
+  }
+  if (await exists(copy.path)) return;
+  const temp = join(root, `.topic-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temp, bytes, { flag: 'wx', mode: 0o600 });
+    await rename(temp, copy.path);
+    copy.created = copy.path;
+  } finally {
+    await rm(temp, { force: true });
+  }
+}
+
 async function collect(
   root: string,
   book: Book,
@@ -164,16 +244,12 @@ async function collect(
   const inputPath = await realpath(input.path);
   const bytes = await pdfBytes(inputPath);
   const hash = sha256(bytes);
-  const previous = row.files.find((f) => f.sha256 === hash);
-  const sameEdition = (f: FileRecord) => editionKey(f.edition) === editionKey(evidence.edition);
+  const previous = row.files.find((file) => file.sha256 === hash);
+  const sameEdition = (file: FileRecord) =>
+    editionKey(file.edition) === editionKey(evidence.edition);
+  // Reclassifying a registered published file as a draft is allowed.
   const correctingToDraft = previous && !previous.draft && evidence.draft;
-  if (
-    previous &&
-    !correctingToDraft &&
-    (!sameEdition(previous) || (previous.draft && !evidence.draft))
-  ) {
-    throw Error('The same file has conflicting edition or publication classifications.');
-  }
+  if (!correctingToDraft) rejectConflictingRecord(previous, evidence);
   // Compare the candidate before reusing another copy of the same edition.
   await verifyPdf(bytes, paper, evidence);
   if (correctingToDraft && (await currentFile(root, previous))) {
@@ -181,68 +257,30 @@ async function collect(
     delete row.failure;
     return;
   }
-  const related = [row, ...book.rows.filter((r) => r !== row && r.key === row.key)];
-  for (const candidate of related.flatMap((r) => r.files)) {
-    if (
-      !sameEdition(candidate) ||
-      candidate.draft !== evidence.draft ||
-      !(await stillVerified(root, paper, candidate))
-    )
-      continue;
-    if (!row.files.includes(candidate)) {
-      const local = row.files.find((f) => f.sha256 === candidate.sha256);
-      const reused = {
-        ...candidate,
-        decision: candidate.draft ? (local?.decision ?? 'pending') : null,
-      };
-      if (local) row.files[row.files.indexOf(local)] = reused;
-      else row.files.push(reused);
-    }
+  const reusable = (candidate: FileRecord) =>
+    sameEdition(candidate) && candidate.draft === evidence.draft;
+  const related = [row, ...book.rows.filter((other) => other !== row && other.key === row.key)];
+  for (const candidate of related.flatMap((relatedRow) => relatedRow.files)) {
+    if (!reusable(candidate) || !(await stillVerified(root, paper, candidate))) continue;
+    linkVerifiedCopy(row, candidate);
     delete row.failure;
     return;
   }
-  let name = managedName(hash);
-  let path = input.existing ? inputPath : join(root, name);
-  let created: string | undefined;
+  const name = managedName(hash);
+  const copy: ManagedCopy = { name, path: input.existing ? inputPath : join(root, name) };
   try {
-    if (!input.existing) {
-      if (await exists(path)) {
-        // Preserve any changed or interrupted copy and publish the verified bytes separately.
-        if (!(await matchesHash(path, hash))) {
-          name = `source-${hash}-${randomUUID()}.pdf`;
-          path = join(root, name);
-        }
-      }
-      if (!(await exists(path))) {
-        const temp = join(root, `.topic-${randomUUID()}.tmp`);
-        try {
-          await writeFile(temp, bytes, { flag: 'wx', mode: 0o600 });
-          await rename(temp, path);
-          created = path;
-        } finally {
-          await rm(temp, { force: true });
-        }
-      }
-    }
-    if ((await realpath(path)) !== path) throw Error('The source path changed.');
-    const saved = await pdfBytes(path);
+    if (!input.existing) await writeManagedCopy(root, bytes, hash, copy);
+    if ((await realpath(copy.path)) !== copy.path) throw Error('The source path changed.');
+    const saved = await pdfBytes(copy.path);
     if (sha256(saved) !== hash)
       throw Error('The destination file has different contents. Check the existing file.');
     await verifyPdf(saved, paper, evidence);
-    const file: FileRecord = {
-      ...evidence,
-      path: input.existing ? inputPath : name,
-      sha256: hash,
-      origin: input.existing ? 'existing' : input.url ? 'public' : 'provided',
-      source: input.url ?? inputPath,
-      decision: evidence.draft ? (previous?.decision ?? 'pending') : null,
-    };
-    if (previous) row.files[row.files.indexOf(previous)] = file;
-    else row.files.push(file);
+    const file = verifiedRecord(input, inputPath, copy.name, hash, evidence, previous);
+    putRecord(row, previous, file);
     delete row.failure;
-    return created;
+    return copy.created;
   } catch (error) {
-    if (created) await rm(created, { force: true });
+    if (copy.created) await rm(copy.created, { force: true });
     throw error;
   }
 }
@@ -286,75 +324,109 @@ export async function sourceCollection(root: string, alreadyLocked = false) {
   // Release the metadata lock before parsing PDFs. Writers may then start the next snapshot.
   return report(root, snapshot.book, snapshot.topic);
 }
-export async function runCollection([action = '', ...args]: string[]) {
-  if (args.includes('--help') || args.includes('-h')) {
-    console.log(help);
-    return;
+// A source URL must be http(s) and carry no credentials.
+function checkSourceUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return invalid(help);
   }
-  const { values: v } = parseArgs({ args, options });
+  if (!/^https?:$/.test(url.protocol) || url.username || url.password) invalid(help);
+}
+
+// Returns the parsed options and the checked topic folder.
+function parseCollectionArguments(action: string, args: string[]) {
+  const { values } = parseArgs({ args, options });
   if (
-    !v.dir ||
-    Object.entries(v).some(
+    !values.dir ||
+    Object.entries(values).some(
       ([k, value]) => !value?.trim() || (k !== 'dir' && !allowed[action]?.includes(k)),
     )
   )
     invalid(help);
-  if (v.url) {
-    let url: URL;
-    try {
-      url = new URL(v.url);
-    } catch {
-      return invalid(help);
-    }
-    if (!/^https?:$/.test(url.protocol) || url.username || url.password) invalid(help);
+  if (values.url) checkSourceUrl(values.url);
+  return { values, dir: values.dir };
+}
+type CollectionOptions = ReturnType<typeof parseCollectionArguments>['values'];
+
+// Finds the selected paper and its source row, adding an empty row on first use.
+function selectionRow(
+  topic: Awaited<ReturnType<typeof selectedTopic>>,
+  book: Book,
+  values: CollectionOptions,
+) {
+  const paper = topic.selected.find(
+    (selected) => selected.number === Number(values.id) && selected.round === Number(values.round),
+  );
+  if (!paper) invalid('Check the currently selected paper number and selection round.');
+  const row: Row = findRow(book, paper) ?? { key: paper.key, round: paper.round, files: [] };
+  if (!book.rows.includes(row)) book.rows.push(row);
+  return { paper, row };
+}
+
+function markUnavailable(row: Row, paper: SelectedPaper, values: CollectionOptions) {
+  if (!values.reason) invalid(help);
+  row.failure = { source: values.url ?? paper.source, reason: values.reason };
+}
+
+function draftToDecide(row: Row, values: CollectionOptions) {
+  const file = row.files.find((candidate) => candidate.draft && candidate.sha256 === values.sha);
+  if (!file || !['accept', 'decline'].includes(values.answer ?? ''))
+    invalid('Check the displayed draft hash and response.');
+  return file;
+}
+
+// editionEvidence has already checked that exactly one of --pdf and --existing is given.
+function collectInput(values: CollectionOptions) {
+  const source = values.existing ?? values.pdf!;
+  const input: Input = { path: source, existing: !!values.existing, url: values.url };
+  return { source, input };
+}
+
+function editionEvidence(values: CollectionOptions): Edition {
+  const page = Number(values.page ?? 1);
+  if (
+    !!values.pdf === !!values.existing ||
+    !values.edition ||
+    !values.proof ||
+    !Number.isSafeInteger(page) ||
+    page < 1 ||
+    !['published', 'draft'].includes(values.kind ?? '')
+  )
+    invalid(help);
+  return { edition: values.edition, proof: values.proof, page, draft: values.kind === 'draft' };
+}
+
+export async function runCollection([action = '', ...args]: string[]): Promise<undefined> {
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(help);
+    return;
   }
-  const root = await realpath(v.dir);
+  const { values, dir } = parseCollectionArguments(action, args);
+  const root = await realpath(dir);
   const path = join(root, 'sources.json');
   const unlock = action === 'sources' ? undefined : await workspaceLock(root);
   try {
     const topic = await selectedTopic(root);
     const book = await readBook(root, path);
     if (action !== 'sources') {
-      const paper = topic.selected.find(
-        (p) => p.number === Number(v.id) && p.round === Number(v.round),
-      );
-      if (!paper) invalid('Check the currently selected paper number and selection round.');
-      const row: Row = findRow(book, paper) ?? { key: paper.key, round: paper.round, files: [] };
-      if (!book.rows.includes(row)) book.rows.push(row);
+      const { paper, row } = selectionRow(topic, book, values);
       let created: string | undefined;
       if (action === 'unavailable') {
-        if (!v.reason) invalid(help);
-        row.failure = { source: v.url ?? paper.source, reason: v.reason };
+        markUnavailable(row, paper, values);
       } else if (action === 'decide') {
-        const file = row.files.find((f) => f.draft && f.sha256 === v.sha);
-        if (!file || !['accept', 'decline'].includes(v.answer ?? ''))
-          invalid('Check the displayed draft hash and response.');
+        const file = draftToDecide(row, values);
         if (!(await stillVerified(root, paper, file)))
           invalid('Check the draft file and edition again.');
-        file.decision = v.answer === 'accept' ? 'accepted' : 'declined';
+        file.decision = values.answer === 'accept' ? 'accepted' : 'declined';
       } else {
-        const page = Number(v.page ?? 1);
-        if (
-          !!v.pdf === !!v.existing ||
-          !v.edition ||
-          !v.proof ||
-          !Number.isSafeInteger(page) ||
-          page < 1 ||
-          !['published', 'draft'].includes(v.kind ?? '')
-        )
-          invalid(help);
-        const source = v.existing ?? v.pdf!;
+        const evidence = editionEvidence(values);
+        const { source, input } = collectInput(values);
         try {
-          created = await collect(
-            root,
-            book,
-            row,
-            paper,
-            { path: source, existing: !!v.existing, url: v.url },
-            { edition: v.edition, proof: v.proof, page, draft: v.kind === 'draft' },
-          );
+          created = await collect(root, book, row, paper, input, evidence);
         } catch (error) {
-          row.failure = { source: v.url ?? source, reason: (error as Error).message };
+          row.failure = { source: values.url ?? source, reason: (error as Error).message };
         }
       }
       try {

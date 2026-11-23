@@ -86,16 +86,11 @@ async function readSmall(path: string) {
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
 }
 
-export async function relationState(
-  relation: Relation,
-  cards: Map<string, Card>,
-  currentRefs: Set<string>,
-) {
-  const source = cards.get(relation.source);
-  const target = cards.get(relation.target);
-  if (!source || !target || source === target) {
-    invalid('Check both Paper endpoints and the relation direction.');
-  }
+type EvidenceRef = Relation['evidence_refs'][number];
+type SourceState = Awaited<ReturnType<typeof readSourceState>>;
+
+// A source relation needs evidence from the source paper and the checker identity and time.
+function rejectUncheckedSourceRelation(relation: Relation) {
   if (
     relation.status === 'source-checked' &&
     (relation.origin !== 'source' ||
@@ -108,26 +103,37 @@ export async function relationState(
       'A source relation requires checked evidence from the source paper and the checker identity and time.',
     );
   }
+}
 
-  const papers = [...cards.values()].map((card) => ({
+function originLabel(relation: Relation) {
+  if (relation.origin === 'ai') return 'AI proposal';
+  return relation.status === 'source-checked' ? 'Source relation' : 'Source proposal · unchecked';
+}
+
+function claimIndex(cards: Map<string, Card>) {
+  return [...cards.values()].map((card) => ({
     paper_id: card.data.id,
     claims: card.data.type === 'paper' ? (card.data.claims ?? []) : [],
   }));
-  // Only explicit qualified refs establish dependencies.
-  const refs = relation.evidence_refs;
-  const originLabel =
-    relation.origin === 'ai'
-      ? 'AI proposal'
-      : relation.status === 'source-checked'
-        ? 'Source relation'
-        : 'Source proposal · unchecked';
-  const prior = relation.snapshots.dependencies;
-  const missing = refs.filter(
+}
+type ClaimIndex = ReturnType<typeof claimIndex>;
+
+function missingRefs(refs: EvidenceRef[], papers: ClaimIndex) {
+  return refs.filter(
     (ref) =>
       !papers
         .find((paper) => paper.paper_id === ref.paper_id)
         ?.claims.some((claim) => claim.id === ref.claim_id),
   );
+}
+
+// A missing claim is allowed only when the relation pinned it before, so it was withdrawn.
+function rejectUnregisteredRefs(
+  relation: Relation,
+  refs: EvidenceRef[],
+  missing: EvidenceRef[],
+  prior: RelationDependencies | undefined,
+) {
   const refersOutsideEndpoints = refs.some(
     (ref) => ![relation.source, relation.target].includes(ref.paper_id),
   );
@@ -141,19 +147,16 @@ export async function relationState(
   ) {
     invalid('The relation references an unregistered claim.');
   }
-  // A previously pinned claim can be withdrawn without blocking unrelated evidence.
-  if (missing.length) {
-    return {
-      ...relation,
-      origin_label: originLabel,
-      needs_recheck: true,
-      current_dependencies: null,
-    };
-  }
+}
 
-  const endpoints = [source, target];
-  const sourceStates = await Promise.all(endpoints.map(readSourceState));
-  const current: RelationDependencies = {
+function currentDependencies(
+  relation: Relation,
+  refs: EvidenceRef[],
+  endpoints: Card[],
+  sourceStates: SourceState[],
+  papers: ClaimIndex,
+): RelationDependencies {
+  return {
     format: 'relation-dependencies-1',
     relation_sha256: relationFingerprint(relation),
     sources: endpoints.map((card, index) => ({
@@ -166,24 +169,68 @@ export async function relationState(
       return { ...ref, sha256: claimFingerprint(claim) };
     }),
   };
+}
 
-  const sameDependencies = (a: unknown[], b: unknown[]) =>
-    canonical(a.map(canonical).sort()) === canonical(b.map(canonical).sort());
-  const stale =
+const sameDependencies = (a: unknown[], b: unknown[]) =>
+  canonical(a.map(canonical).sort()) === canonical(b.map(canonical).sort());
+
+function dependenciesStale(
+  refs: EvidenceRef[],
+  prior: RelationDependencies | undefined,
+  sourceStates: SourceState[],
+  currentRefs: Set<string>,
+  current: RelationDependencies,
+) {
+  return (
     sourceStates.some((state) => !state.available) ||
     refs.some((ref) => !currentRefs.has(canonical([ref.paper_id, ref.claim_id]))) ||
     !prior ||
     prior.relation_sha256 !== current.relation_sha256 ||
     !sameDependencies(prior.sources, current.sources) ||
-    !sameDependencies(prior.claims, current.claims);
+    !sameDependencies(prior.claims, current.claims)
+  );
+}
+
+export async function relationState(
+  relation: Relation,
+  cards: Map<string, Card>,
+  currentRefs: Set<string>,
+) {
+  const source = cards.get(relation.source);
+  const target = cards.get(relation.target);
+  if (!source || !target || source === target) {
+    invalid('Check both Paper endpoints and the relation direction.');
+  }
+  rejectUncheckedSourceRelation(relation);
+
+  const papers = claimIndex(cards);
+  // Only explicit qualified refs establish dependencies.
+  const refs = relation.evidence_refs;
+  const label = originLabel(relation);
+  const prior = relation.snapshots.dependencies;
+  const missing = missingRefs(refs, papers);
+  rejectUnregisteredRefs(relation, refs, missing, prior);
+  // A previously pinned claim can be withdrawn without blocking unrelated evidence.
+  if (missing.length) {
+    return {
+      ...relation,
+      origin_label: label,
+      needs_recheck: true,
+      current_dependencies: null,
+    };
+  }
+
+  const endpoints = [source, target];
+  const sourceStates = await Promise.all(endpoints.map(readSourceState));
+  const current = currentDependencies(relation, refs, endpoints, sourceStates, papers);
+  const stale = dependenciesStale(refs, prior, sourceStates, currentRefs, current);
   return {
     ...relation,
-    origin_label: originLabel,
+    origin_label: label,
     needs_recheck: stale,
     current_dependencies: current,
   };
 }
-
 async function readComparisonConfig(root: string, input: ComparisonInput) {
   const path = await writableFile(root, join(root, 'comparison.json'));
   const config: unknown = JSON.parse(await readSmall(path));
