@@ -110,7 +110,8 @@ ${ws.warnings.join('\n')}\n`;
     output =
       format === 'json'
         ? prettyJson(rows)
-        : rows.map((r) => `${r.id}\t${r.type}\t${r.status}\t${r.title}`).join('\n') + '\n';
+        : rows.map((row) => `${row.id}\t${row.type}\t${row.status}\t${row.title}`).join('\n') +
+          '\n';
   } else if (command === 'show') {
     const card = getCard(
       ws,
@@ -150,7 +151,7 @@ main().catch((error) => {
   const structured =
     process.argv.includes('--json') ||
     process.argv.includes('--format=json') ||
-    process.argv.some((x, i, a) => x === '--format' && a[i + 1] === 'json');
+    process.argv.some((arg, i, argv) => arg === '--format' && argv[i + 1] === 'json');
   const known = error instanceof DanseoError;
   const detail = { code: known ? error.code : 'CLI_ERROR', message: (error as Error).message };
   process.stderr.write(
