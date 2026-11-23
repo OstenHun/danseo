@@ -40,7 +40,7 @@ function validateConcept(concept, sources) {
   concept.body.forEach((paragraph, i) => text(paragraph, `concept.${concept.id}.body[${i}]`));
   ids(concept.evidence, sources, `concept.${concept.id}.evidence`);
 }
-// A source relation must cite only agent-checked sources; the same edge may appear once.
+// A source relation must cite only agent-checked sources; the same endpoints and label may appear once.
 function validateRelation(relation, i, concepts, sources, seen) {
   object(relation, ['from', 'to', 'label', 'origin', 'evidence'], `relation[${i}]`);
   if (!concepts.has(relation.from) || !concepts.has(relation.to) || relation.from === relation.to)

@@ -118,9 +118,9 @@ export default defineConfig([
   {
     // Files already cleaned up: readability rules are errors here so warnings cannot return.
     // ESLint ignores a path that matches nothing, so update this list when one of these files moves.
-    // Every skill script except tests is covered, including scripts added later.
+    // Every skill script except tests is covered, including scripts added later in subfolders.
     files: [
-      'skills/*/scripts/*.mjs',
+      'skills/*/scripts/**/*.mjs',
       'src/cli.ts',
       'src/core/analysis.ts',
       'src/core/claim-state.ts',

@@ -21,7 +21,7 @@ const paragraphs = (value, at) => {
   list(value, at);
   value.forEach((item, i) => text(item, `${at}[${i}]`));
 };
-// The last instant of a year, a month or a day, as written.
+// The last instant of a written year or month; an exact date stays at its midnight UTC start.
 function periodEnd(value, year, month, date) {
   if (value.length === 4) return Date.UTC(year + 1, 0, 1) - 1;
   if (value.length === 7) return Date.UTC(year, month, 1) - 1;
@@ -499,6 +499,7 @@ function firstMapSummary(candidate, ui, hasBackgrounds) {
     ? escape(focal.title) +
       (focal.publication ? ' (' + escape(focal.publication.date.slice(0, 4)) + ')' : '')
     : null;
+  // Everything above is computed even without backgrounds, as the page always did.
   if (!hasBackgrounds) return '';
   return [
     ...(focalLabel ? [focalLabel] : []),
