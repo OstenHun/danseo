@@ -23,39 +23,48 @@
   function isComparison(data: MapData): data is import('../web/browser-types.js').ComparisonView {
     return data.mode === 'research-comparison';
   }
-  function build(data: MapData, scene: MapScene): MapElement[] {
-    const elements: MapElement[] = [];
+  type NodeType = 'paper' | 'criterion' | 'application' | 'topic';
+  type AddNode = (
+    type: NodeType,
+    item: NodeItem,
+    index: number,
+    count: number,
+    column?: number,
+  ) => MapElement;
+
+  // Context scenes snake through three columns; project maps put papers left and applications
+  // right; other maps use a pair or a ring.
+  function nodePosition(
+    scene: MapScene,
+    project: boolean,
+    index: number,
+    count: number,
+    column?: number,
+  ) {
+    if (scene === 'context') {
+      const cols = Math.min(3, count);
+      const row = Math.floor(index / cols);
+      const col = row % 2 ? cols - 1 - (index % cols) : index % cols;
+      return { x: 110 + col * 240, y: 70 + row * 155 };
+    }
+    if (project) return { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
+    if (count === 2) return { x: 170 + index * 380, y: 190 };
+    return {
+      x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
+      y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
+    };
+  }
+  function stateLabel(data: MapData, type: NodeType, item: NodeItem) {
+    if (data.mode === 'research-comparison') return '';
+    if (type === 'paper') return '\nPaper review · ' + item.review_status;
+    if (type === 'application')
+      return '\n' + item.decision?.status + ' · ' + (item.decision?.action ?? 'Unspecified');
+    return '';
+  }
+  function nodeAdder(data: MapData, scene: MapScene, elements: MapElement[]): AddNode {
     const project = data.mode === 'project-application';
-    const addNode = (
-      type: 'paper' | 'criterion' | 'application' | 'topic',
-      item: NodeItem,
-      index: number,
-      count: number,
-      column?: number,
-    ): MapElement => {
-      let position;
-      if (scene === 'context') {
-        const cols = Math.min(3, count);
-        const row = Math.floor(index / cols);
-        const col = row % 2 ? cols - 1 - (index % cols) : index % cols;
-        position = { x: 110 + col * 240, y: 70 + row * 155 };
-      } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
-      else
-        position =
-          count === 2
-            ? { x: 170 + index * 380, y: 190 }
-            : {
-                x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
-                y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
-              };
-      const stateLabel =
-        data.mode === 'research-comparison'
-          ? ''
-          : type === 'paper'
-            ? '\nPaper review · ' + item.review_status
-            : type === 'application'
-              ? '\n' + item.decision?.status + ' · ' + (item.decision?.action ?? 'Unspecified')
-              : '';
+    return (type, item, index, count, column) => {
+      const position = nodePosition(scene, project, index, count, column);
       const node: MapElement = {
         group: 'nodes',
         data: {
@@ -65,7 +74,7 @@
           label:
             (scene === 'context' ? String(index + 1).padStart(2, '0') + '  ' : '') +
             (item.short_title ?? item.title) +
-            stateLabel,
+            stateLabel(data, type, item),
           state: item.review_status ?? item.decision?.status ?? 'context',
         },
         position,
@@ -73,123 +82,137 @@
       elements.push(node);
       return node;
     };
-    if (isComparison(data)) {
-      data.papers.forEach((item, i, all) => {
-        const node = addNode('paper', item, i, all.length);
-        node.position = { x: 150, y: 90 + i * 170 };
-      });
-      data.criteria.forEach((item, i, all) => {
-        const node = addNode('criterion', item, i, all.length);
-        node.position = { x: 520, y: 90 + i * 170 };
-        item.groups.forEach((group) => {
-          const paper = data.papers.find((candidate) => candidate.key === group.key);
-          if (!paper) throw new Error('The comparison criterion has no matching paper.');
-          if (group.claims.length)
-            elements.push({
-              group: 'edges',
-              data: {
-                id: 'group:' + item.id + ':' + paper.id,
-                source: 'paper:' + paper.id,
-                target: 'criterion:' + item.id,
-                type: 'grouping',
-                recordId: item.id,
-                label: '',
-                origin: 'ai',
-                state: 'proposed',
-              },
-            });
-        });
-      });
-      const edgesByDirection = new Map<string, number>();
-      for (const relation of data.relations) {
-        const direction = JSON.stringify([relation.source, relation.target]);
-        const peerIndex = edgesByDirection.get(direction) ?? 0;
-        edgesByDirection.set(direction, peerIndex + 1);
-        elements.push({
-          group: 'edges',
-          data: {
-            id: 'relation:' + relation.id,
-            source: 'paper:' + relation.source,
-            target: 'paper:' + relation.target,
-            type: 'relation',
-            recordId: relation.id,
-            label: (kind[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label,
-            bend: 180 + 240 * peerIndex,
-            label_offset_y: peerIndex % 2 ? 20 : -20,
-            origin: relation.origin,
-            state: relation.status,
-          },
-        });
-      }
-    } else if (scene === 'context') {
-      if (!data.project_context) throw new Error('Project context is missing.');
-      data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
-      data.project_context.links.forEach((link, i) =>
-        elements.push({
-          group: 'edges',
-          data: {
-            id: 'context:' + i,
-            source: 'topic:' + link.source,
-            target: 'topic:' + link.target,
-            type: 'context-link',
-            recordId: String(i),
-            label: '',
-            origin: 'ai',
-            state: 'proposed',
-          },
-        }),
-      );
-    } else {
-      data.papers.forEach((item, i, all) => addNode('paper', item, i, all.length, 0));
-      if (data.mode === 'project-application') {
-        if (!data.applications) throw new Error('The project application list is missing.');
-        data.applications.forEach((item, i, all) => {
-          addNode('application', item, i, all.length, 1);
-          for (const paper of data.papers) {
-            const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
-            if (refs.length)
-              elements.push({
-                group: 'edges',
-                data: {
-                  id: 'reference:' + item.id + ':' + paper.id,
-                  source: 'paper:' + paper.id,
-                  target: 'application:' + item.id,
-                  type: 'reference',
-                  recordId: item.id,
-                  paperId: paper.id,
-                  label: 'Evidence reference · ' + refs.length + ' claims',
-                  origin: 'reference',
-                  state: item.decision.status,
-                },
-              });
-          }
-        });
-      } else {
-        if (!data.relations) throw new Error('The paper relation list is missing.');
-        data.relations.forEach((relation, i) =>
+  }
+  type ComparisonView = import('../web/browser-types.js').ComparisonView;
+  type LegacyMapData = import('../web/browser-types.js').LegacyMapData;
+  function addComparisonElements(data: ComparisonView, addNode: AddNode, elements: MapElement[]) {
+    data.papers.forEach((item, i, all) => {
+      const node = addNode('paper', item, i, all.length);
+      node.position = { x: 150, y: 90 + i * 170 };
+    });
+    data.criteria.forEach((item, i, all) => {
+      const node = addNode('criterion', item, i, all.length);
+      node.position = { x: 520, y: 90 + i * 170 };
+      item.groups.forEach((group) => {
+        const paper = data.papers.find((candidate) => candidate.key === group.key);
+        if (!paper) throw new Error('The comparison criterion has no matching paper.');
+        if (group.claims.length)
           elements.push({
             group: 'edges',
             data: {
-              id: 'relation:' + relation.id,
-              source: 'paper:' + relation.source,
-              target: 'paper:' + relation.target,
-              type: 'relation',
-              recordId: relation.id,
-              label:
-                String(i + 1).padStart(2, '0') +
-                ' · ' +
-                kind[relation.kind] +
-                (relation.needs_recheck
-                  ? ' · ' +
-                    (relation.origin === 'ai' ? 'AI proposal' : 'Source record') +
-                    ' · recheck'
-                  : ''),
-              origin: relation.origin,
-              state: relation.needs_recheck ? 'needs-recheck' : relation.status,
+              id: 'group:' + item.id + ':' + paper.id,
+              source: 'paper:' + paper.id,
+              target: 'criterion:' + item.id,
+              type: 'grouping',
+              recordId: item.id,
+              label: '',
+              origin: 'ai',
+              state: 'proposed',
             },
-          }),
-        );
+          });
+      });
+    });
+    // Parallel relations in one direction bend further apart and alternate their labels.
+    const edgesByDirection = new Map<string, number>();
+    for (const relation of data.relations) {
+      const direction = JSON.stringify([relation.source, relation.target]);
+      const peerIndex = edgesByDirection.get(direction) ?? 0;
+      edgesByDirection.set(direction, peerIndex + 1);
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'relation:' + relation.id,
+          source: 'paper:' + relation.source,
+          target: 'paper:' + relation.target,
+          type: 'relation',
+          recordId: relation.id,
+          label: (kind[relation.kind] ?? relation.kind) + ' · ' + relation.origin_label,
+          bend: 180 + 240 * peerIndex,
+          label_offset_y: peerIndex % 2 ? 20 : -20,
+          origin: relation.origin,
+          state: relation.status,
+        },
+      });
+    }
+  }
+  function addContextElements(data: LegacyMapData, addNode: AddNode, elements: MapElement[]) {
+    if (!data.project_context) throw new Error('Project context is missing.');
+    data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
+    data.project_context.links.forEach((link, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'context:' + i,
+          source: 'topic:' + link.source,
+          target: 'topic:' + link.target,
+          type: 'context-link',
+          recordId: String(i),
+          label: '',
+          origin: 'ai',
+          state: 'proposed',
+        },
+      }),
+    );
+  }
+  function addApplicationElements(data: LegacyMapData, addNode: AddNode, elements: MapElement[]) {
+    if (!data.applications) throw new Error('The project application list is missing.');
+    data.applications.forEach((item, i, all) => {
+      addNode('application', item, i, all.length, 1);
+      for (const paper of data.papers) {
+        const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
+        if (refs.length)
+          elements.push({
+            group: 'edges',
+            data: {
+              id: 'reference:' + item.id + ':' + paper.id,
+              source: 'paper:' + paper.id,
+              target: 'application:' + item.id,
+              type: 'reference',
+              recordId: item.id,
+              paperId: paper.id,
+              label: 'Evidence reference · ' + refs.length + ' claims',
+              origin: 'reference',
+              state: item.decision.status,
+            },
+          });
       }
+    });
+  }
+  function relationLabel(relation: NonNullable<LegacyMapData['relations']>[number], index: number) {
+    const recheck = relation.needs_recheck
+      ? ' · ' + (relation.origin === 'ai' ? 'AI proposal' : 'Source record') + ' · recheck'
+      : '';
+    return String(index + 1).padStart(2, '0') + ' · ' + kind[relation.kind] + recheck;
+  }
+  function addRelationElements(data: LegacyMapData, elements: MapElement[]) {
+    if (!data.relations) throw new Error('The paper relation list is missing.');
+    data.relations.forEach((relation, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'relation:' + relation.id,
+          source: 'paper:' + relation.source,
+          target: 'paper:' + relation.target,
+          type: 'relation',
+          recordId: relation.id,
+          label: relationLabel(relation, i),
+          origin: relation.origin,
+          state: relation.needs_recheck ? 'needs-recheck' : relation.status,
+        },
+      }),
+    );
+  }
+  function build(data: MapData, scene: MapScene): MapElement[] {
+    const elements: MapElement[] = [];
+    const addNode = nodeAdder(data, scene, elements);
+    if (isComparison(data)) {
+      addComparisonElements(data, addNode, elements);
+    } else if (scene === 'context') {
+      addContextElements(data, addNode, elements);
+    } else {
+      data.papers.forEach((item, i, all) => addNode('paper', item, i, all.length, 0));
+      if (data.mode === 'project-application') addApplicationElements(data, addNode, elements);
+      else addRelationElements(data, elements);
     }
     return elements;
   }
@@ -214,6 +237,158 @@
       (!('paperId' in value) || typeof value.paperId === 'string')
     );
   }
+  type Stylesheet = import('cytoscape').StylesheetJson;
+  // Comparison maps bend parallel relations apart and offset their labels.
+  function comparisonStyle(data: MapData): Stylesheet {
+    if (data.mode !== 'research-comparison') return [];
+    return [
+      {
+        selector: 'edge[type="relation"]',
+        style: {
+          'curve-style': 'unbundled-bezier',
+          'control-point-distances': 'data(bend)',
+          'control-point-weights': 0.5,
+          'text-margin-y': (edge: import('cytoscape').EdgeSingular) =>
+            Number(edge.data('label_offset_y')),
+        },
+      },
+    ];
+  }
+  function mapStyle(extra: Stylesheet): Stylesheet {
+    return [...nodeStyle(), ...edgeStyle(), ...selectionStyle(), ...extra];
+  }
+  function nodeStyle(): Stylesheet {
+    return [
+      {
+        selector: 'node',
+        style: {
+          shape: 'round-rectangle',
+          width: 176,
+          height: 74,
+          'background-color': '#ffffff',
+          'border-width': 1.5,
+          'border-color': '#9aa9c5',
+          label: 'data(label)',
+          color: '#202631',
+          'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
+          'font-size': 18,
+          'font-weight': 600,
+          'text-wrap': 'wrap',
+          'text-max-width': '152px',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          padding: '8px',
+        },
+      },
+      {
+        selector: 'node[type="application"]',
+        style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
+      },
+      {
+        selector: 'node[type="criterion"]',
+        style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
+      },
+    ];
+  }
+  function edgeStyle(): Stylesheet {
+    return [
+      {
+        selector: 'edge',
+        style: {
+          width: 2,
+          'curve-style': 'bezier',
+          'control-point-step-size': 110,
+          'target-arrow-shape': 'triangle',
+          'arrow-scale': 1,
+          'line-color': '#89958b',
+          'target-arrow-color': '#89958b',
+          label: 'data(label)',
+          'font-family': 'Malgun Gothic, sans-serif',
+          'font-size': 13,
+          'text-background-color': '#f7f8fb',
+          'text-background-opacity': 1,
+          'text-background-padding': '5px',
+          'text-rotation': 'none',
+          color: '#606b7d',
+        },
+      },
+      {
+        selector: 'edge[origin="source"][state="source-checked"]',
+        style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
+      },
+      {
+        selector: 'edge[origin="ai"]',
+        style: {
+          'line-color': '#7c659d',
+          'target-arrow-color': '#7c659d',
+          'line-style': 'dashed',
+          color: '#6f508d',
+        },
+      },
+      {
+        selector: 'edge[state="needs-recheck"]',
+        style: {
+          'line-color': '#a77d2e',
+          'target-arrow-color': '#a77d2e',
+          'line-style': 'dashed',
+        },
+      },
+      {
+        selector: 'edge[type="reference"]',
+        style: {
+          'line-color': '#64776c',
+          'target-arrow-color': '#64776c',
+          'line-style': 'dotted',
+        },
+      },
+    ];
+  }
+  // The selection highlight comes after the base styles so it wins.
+  function selectionStyle(): Stylesheet {
+    return [
+      {
+        selector: '.active',
+        style: {
+          'border-width': 3,
+          'border-color': '#315be8',
+          'background-color': '#edf1ff',
+          width: 4,
+        },
+      },
+      { selector: 'node.active', style: { width: 176 } },
+      { selector: 'edge.active', style: { width: 4 } },
+    ];
+  }
+  // A reference edge is identified by its application and paper; other elements by record ID.
+  function isSelected(
+    item: import('cytoscape').SingularElementArgument,
+    type: string,
+    id: string,
+    paperId?: string,
+  ) {
+    if (item.data('type') !== type) return false;
+    if (type === 'reference')
+      return (
+        id === item.data('recordId') + ':' + item.data('paperId') &&
+        item.data('paperId') === paperId
+      );
+    return item.data('recordId') === id;
+  }
+  type Core = import('cytoscape').Core;
+  // Fit the whole map, but never zoom in past 125% for a small map.
+  function fitView(cy: Core): void {
+    cy.resize();
+    cy.fit(undefined, 32);
+    if (cy.zoom() > 1.25)
+      cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
+  // Zoom around the view centre within the map's zoom limits.
+  function zoomBy(cy: Core, factor: number): void {
+    cy.zoom({
+      level: Math.max(0.25, Math.min(2.2, cy.zoom() * factor)),
+      renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
+    });
+  }
   function mount(
     container: HTMLElement,
     data: MapData,
@@ -221,127 +396,17 @@
     onSelect: (selection: MapSelection) => void,
   ): MapController | null {
     if (typeof cytoscape !== 'function') return null;
-    const comparisonStyle: import('cytoscape').StylesheetJson =
-      data.mode === 'research-comparison'
-        ? [
-            {
-              selector: 'edge[type="relation"]',
-              style: {
-                'curve-style': 'unbundled-bezier',
-                'control-point-distances': 'data(bend)',
-                'control-point-weights': 0.5,
-                'text-margin-y': (edge: import('cytoscape').EdgeSingular) =>
-                  Number(edge.data('label_offset_y')),
-              },
-            },
-          ]
-        : [];
+    const extraStyle = comparisonStyle(data);
     const cy = cytoscape({
       container,
       elements: build(data, scene),
       layout: { name: 'preset', fit: true, padding: 32 },
       minZoom: 0.25,
       maxZoom: 2.2,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            shape: 'round-rectangle',
-            width: 176,
-            height: 74,
-            'background-color': '#ffffff',
-            'border-width': 1.5,
-            'border-color': '#9aa9c5',
-            label: 'data(label)',
-            color: '#202631',
-            'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
-            'font-size': 18,
-            'font-weight': 600,
-            'text-wrap': 'wrap',
-            'text-max-width': '152px',
-            'text-valign': 'center',
-            'text-halign': 'center',
-            padding: '8px',
-          },
-        },
-        {
-          selector: 'node[type="application"]',
-          style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
-        },
-        {
-          selector: 'node[type="criterion"]',
-          style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 2,
-            'curve-style': 'bezier',
-            'control-point-step-size': 110,
-            'target-arrow-shape': 'triangle',
-            'arrow-scale': 1,
-            'line-color': '#89958b',
-            'target-arrow-color': '#89958b',
-            label: 'data(label)',
-            'font-family': 'Malgun Gothic, sans-serif',
-            'font-size': 13,
-            'text-background-color': '#f7f8fb',
-            'text-background-opacity': 1,
-            'text-background-padding': '5px',
-            'text-rotation': 'none',
-            color: '#606b7d',
-          },
-        },
-        {
-          selector: 'edge[origin="source"][state="source-checked"]',
-          style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
-        },
-        {
-          selector: 'edge[origin="ai"]',
-          style: {
-            'line-color': '#7c659d',
-            'target-arrow-color': '#7c659d',
-            'line-style': 'dashed',
-            color: '#6f508d',
-          },
-        },
-        {
-          selector: 'edge[state="needs-recheck"]',
-          style: {
-            'line-color': '#a77d2e',
-            'target-arrow-color': '#a77d2e',
-            'line-style': 'dashed',
-          },
-        },
-        {
-          selector: 'edge[type="reference"]',
-          style: {
-            'line-color': '#64776c',
-            'target-arrow-color': '#64776c',
-            'line-style': 'dotted',
-          },
-        },
-        {
-          selector: '.active',
-          style: {
-            'border-width': 3,
-            'border-color': '#315be8',
-            'background-color': '#edf1ff',
-            width: 4,
-          },
-        },
-        { selector: 'node.active', style: { width: 176 } },
-        { selector: 'edge.active', style: { width: 4 } },
-        ...comparisonStyle,
-      ],
+      style: mapStyle(extraStyle),
     });
     let interacted = false;
-    const fit = (): void => {
-      cy.resize();
-      cy.fit(undefined, 32);
-      if (cy.zoom() > 1.25)
-        cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-    };
+    const fit = (): void => fitView(cy);
     const wheel = () => {
       interacted = true;
     };
@@ -370,22 +435,12 @@
       },
       zoom(factor) {
         interacted = true;
-        cy.zoom({
-          level: Math.max(0.25, Math.min(2.2, cy.zoom() * factor)),
-          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
-        });
+        zoomBy(cy, factor);
       },
       select(type, id, paperId) {
         cy.elements().removeClass('active');
         cy.elements()
-          .filter(
-            (item) =>
-              item.data('type') === type &&
-              (type === 'reference'
-                ? id === item.data('recordId') + ':' + item.data('paperId') &&
-                  item.data('paperId') === paperId
-                : item.data('recordId') === id),
-          )
+          .filter((item) => isSelected(item, type, id, paperId))
           .addClass('active');
       },
       destroy() {
