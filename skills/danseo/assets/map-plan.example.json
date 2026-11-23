@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "title": {
+    "text": "What does the synthetic two-pass paper claim?",
+    "performance": { "kind": "non-performance", "reason": "A question, with no result." }
+  },
+  "language": "en",
+  "start": "P.TwoPass",
+  "focal_paper_id": "P.TwoPass",
+  "readings": ["readings/two-pass.json"],
+  "sources": [],
+  "relations": [],
+  "completion": null
+}
