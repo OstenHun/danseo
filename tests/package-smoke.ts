@@ -136,6 +136,8 @@ const portableOutput = path.join(consumer, 'graph.html');
 const portable = parseJson<{ papers: { topic?: string }[] } & Record<string, unknown>>(
   readFileSync(path.join(standalone, 'assets/paper-relations.v2.example.json'), 'utf8'),
 );
+// A long Korean topic must render intact; it means
+// "answer citation and faithfulness evaluation of retrieved evidence". The repeated letter is one Hangul syllable.
 required(portable.papers[0]).topic = '검색 결과 근거의 답변 인용과 충실도 평가';
 const renderPortable = (...args: string[]) =>
   execFileSync(
@@ -195,6 +197,7 @@ for (const language of ['en', 'ko']) {
     readFileSync(path.join(standaloneReading, 'assets/learning-view.example.json'), 'utf8'),
   );
   learning.language = language;
+  // A source title is never translated; the Korean means "source title".
   learning.title = '원문 제목 · original title';
   const input = path.join(consumer, `learning-${language}.json`),
     output = path.join(consumer, `learning-${language}.html`);
@@ -225,6 +228,8 @@ console.log(
 );
 
 // Exercise the installed CLI from a consumer outside the source tree.
+// Non-ASCII paths here and below: "Korean topic folder", "directly provided paper" and
+// "shared cards".
 const topicDir = path.join(consumer, '한글 주제 폴더');
 function topic<Action extends keyof TopicOutputs>(
   action: Action,
@@ -409,7 +414,7 @@ put(path.join(topicDir, 'comparison.json'), {
   criteria: [
     {
       id: 'evaluation',
-      title: '평가 조건',
+      title: 'Evaluation conditions',
       rationale: 'Synthetic AI grouping only',
       refs: [{ key: 'a', claim_id: 'c1' }],
     },

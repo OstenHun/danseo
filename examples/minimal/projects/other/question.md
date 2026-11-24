@@ -1,5 +1,5 @@
-# 다른 합성 프로젝트
+# Another synthetic project
 
-요약: 같은 논문을 읽더라도 프로젝트의 조건과 판단은 별도로 관리한다.
+Summary: Even when projects read the same paper, each keeps its own conditions and judgment.
 
-여기서는 표본 조건을 맞출 수 없어 현재 적용을 보류하는 가상 상황이다.
+In this fictional situation the sample conditions cannot be matched, so application is deferred for now.

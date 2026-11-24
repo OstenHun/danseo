@@ -110,7 +110,7 @@ A table's `quote` is matched by the [table format](performance-verification.md#e
 
 ### Dates
 
-`publication.source_id` names the one source that states both dates. Write each `date` as `YYYY`, `YYYY-MM` or `YYYY-MM-DD` and quote the passage that states it. The gate reads these written forms in the quote: `2017-06-12` or `2017/06/12`, `12 Jun 2017`, `June 12, 2017`, `June 2017` and `2017년 6월 12일`, with month names in full or as three letters. A year-only date needs the year as a whole word. A quote may be more precise than the date you record, never less. The gate compares a date with its quote only in the complete check; the plain check accepts a date its quote does not state. The [completion rules](evidence-gate.md#finish-source-checking-before-normal-delivery) say which dates a complete map needs.
+`publication.source_id` names the one source that states both dates. Write each `date` as `YYYY`, `YYYY-MM` or `YYYY-MM-DD` and quote the passage that states it. The gate reads these written forms in the quote: `2017-06-12` or `2017/06/12`, `12 Jun 2017`, `June 12, 2017`, `June 2017` and `2017년 6월 12일` (12 June 2017), with month names in full or as three letters. A year-only date needs the year as a whole word. A quote may be more precise than the date you record, never less. The gate compares a date with its quote only in the complete check; the plain check accepts a date its quote does not state. The [completion rules](evidence-gate.md#finish-source-checking-before-normal-delivery) say which dates a complete map needs.
 
 ### Tables that fit
 
@@ -173,6 +173,6 @@ An error in an input's shape starts with the input file and field, for example `
 
 ## Limits
 
-- Record or pair counts that need a [count binding](evidence-gate.md#evidence-format) are not supported in reading results. In a paper's `notes` and `reading_reason`, a claim's `statement`, `conditions` and `limitations`, and concept and background text, the gate treats a number followed by "record", "records", "pair" or "pairs", or by the Korean `레코드`, `기록` or `쌍`, as such a count. A counter such as `개` or a short parenthesis may stand between the number and the unit. A document count alone is not one, and a table-comparison report may repeat a count from its own table block. The assembler writes `counts: []`, so the gate rejects any other such sentence. Report the sentence instead of rewording the number away.
+- Record or pair counts that need a [count binding](evidence-gate.md#evidence-format) are not supported in reading results. In a paper's `notes` and `reading_reason`, a claim's `statement`, `conditions` and `limitations`, and concept and background text, the gate treats a number followed by "record", "records", "pair" or "pairs", or by the Korean `레코드` or `기록` (record) or `쌍` (pair), as such a count. A Korean counter word such as `개` or a short parenthesis may stand between the number and the unit. A document count alone is not one, and a table-comparison report may repeat a count from its own table block. The assembler writes `counts: []`, so the gate rejects any other such sentence. Report the sentence instead of rewording the number away.
 - The skill does not extract page text from a PDF. Prepare `pages.json` with the host's tools and keep the text as extracted.
 - The format is version 1 and may change before a formal release.

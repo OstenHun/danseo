@@ -16,6 +16,8 @@ test('English viewer guidance preserves supplied Korean and English research pro
     '../skills/danseo/assets/project-application.v2.example.json',
     import.meta.url,
   );
+  // Research prose keeps its language: the Korean means "Preserve the explanation of a Korean
+  // request. Source quotation:", and the quoted Korean means "verbatim".
   for (const [name, prose] of [
     ['ko', '한국어 요청의 설명을 보존합니다. 원문 인용: "Original source".'],
     ['en', 'Preserve the requested English explanation. Original quotation: "원문 그대로".'],

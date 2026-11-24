@@ -19,6 +19,8 @@ test('English, Korean and legacy UI preserve all authored data and navigation', 
     const data = fresh();
     if (language === undefined) delete data.language;
     else data.language = language;
+    // Authored text is never translated. The Korean title words mean "source title"; the
+    // quoted word means "original text".
     data.concepts[0].title = '원문 제목 <original>';
     data.concepts[0].body = ['Keep this exact quotation: 원문'];
     const html = renderCandidate(data),
@@ -141,14 +143,14 @@ test('cycles and more than eight concepts do not force a misleading chain or tru
   data.relations.push({
     from: 'prediction',
     to: 'scores',
-    label: '설명용 피드백',
+    label: 'Feedback for explanation',
     origin: 'ai',
     evidence: [],
   });
   for (let i = 0; i < 20; i++) {
     const concept = structuredClone(data.concepts[0]);
     concept.id = `extra-${i}`;
-    concept.title = '긴 제목에서 여러 어절이 차례로 이어지는 개념 ' + i;
+    concept.title = 'A concept whose long title runs through several words in turn ' + i;
     data.concepts.push(concept);
     data.reading_order.push(concept.id);
   }
@@ -300,6 +302,7 @@ test('relation-only evidence keeps locator, checked scope and independent-review
   const text = page.elements.get('sources').textContent;
   assert.ok(text.includes('RELATION-ONLY-LOCATION'));
   assert.ok(text.includes('RELATION-ONLY-SCOPE'));
+  // Korean UI labels: "relation evidence" and "independent review".
   assert.ok(text.includes('관계 근거'));
   assert.ok(text.includes('독립 검토'));
 });

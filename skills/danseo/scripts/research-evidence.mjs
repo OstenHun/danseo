@@ -11,6 +11,18 @@ const normalize = (value) => value.normalize('NFKC').replace(/\s+/g, ' ').trim()
 // Canonical overview
 // ---------------------------------------------------------------------------
 
+// The overview is written into the candidate, not the page, so its Korean text stays
+// out of the browser language pack.
+const koreanOverview = JSON.parse(
+  readFileSync(new URL('../assets/research-overview.ko.json', import.meta.url), 'utf8'),
+);
+const uiText = (language, text) =>
+  language === 'ko' && Object.hasOwn(koreanOverview, text) ? koreanOverview[text] : text;
+const uiFormat = (language, text, values) =>
+  uiText(language, text).replace(/\{(\w+)\}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key]) : match,
+  );
+
 const isCurrentSourceCheckedRelation = (relation) =>
   relation.origin === 'source' && relation.status === 'source-checked' && !relation.needs_recheck;
 
@@ -23,41 +35,36 @@ export function overviewFor(candidate) {
   const countReadings = () =>
     candidate.backgrounds.reduce((total, background) => total + background.readings.length, 0);
 
-  if (candidate.language === 'ko') {
-    const relationCounts = [
-      `논문 ${candidate.papers.length}편`,
-      `원문 확인 연결 ${checkedCount}개`,
-      `추천 연결 ${suggestedCount}개`,
-      `미확인 연결 ${uncheckedCount}개.`,
-    ].join(' · ');
-    const backgroundCounts = backgroundCount
-      ? ` 개념 배경 ${backgroundCount}개 · 추천 자료 ${countReadings()}개.`
-      : '';
-    return {
-      description: relationCounts + backgroundCounts,
-      view_reason: '원문에서 확인한 관계와 추천 연결을 구분해 살펴보세요.',
-      scope:
-        '입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. ' +
-        '원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다.',
-    };
-  }
-
+  const language = candidate.language;
+  const relationCounts = uiFormat(
+    language,
+    'Papers: {papers} · source-checked relations: {checked} · suggested connections: {suggested} · unchecked relations: {unchecked}.',
+    {
+      papers: candidate.papers.length,
+      checked: checkedCount,
+      suggested: suggestedCount,
+      unchecked: uncheckedCount,
+    },
+  );
   const backgroundCounts = backgroundCount
-    ? ` Concept backgrounds: ${backgroundCount} · Suggested readings: ${countReadings()}.`
+    ? ' ' +
+      uiFormat(language, 'Concept backgrounds: {backgrounds} · Suggested readings: {readings}.', {
+        backgrounds: backgroundCount,
+        readings: countReadings(),
+      })
     : '';
-  const relationCounts = [
-    `Papers: ${candidate.papers.length}`,
-    `source-checked relations: ${checkedCount}`,
-    `suggested connections: ${suggestedCount}`,
-    `unchecked relations: ${uncheckedCount}.`,
-  ].join(' · ');
   return {
     description: relationCounts + backgroundCounts,
-    view_reason: 'Explore source-checked relations and suggested connections separately.',
-    scope:
+    view_reason: uiText(
+      language,
+      'Explore source-checked relations and suggested connections separately.',
+    ),
+    scope: uiText(
+      language,
       'Only input papers and relations are shown. ' +
-      'Check each evidence scope for source coverage and unknowns. ' +
-      'Source checking does not establish reproduction or reader understanding.',
+        'Check each evidence scope for source coverage and unknowns. ' +
+        'Source checking does not establish reproduction or reader understanding.',
+    ),
   };
 }
 
@@ -94,6 +101,8 @@ const COUNT_UNIT_LABELS = { records: 'Records', documents: 'Documents', pairs: '
 // Explicitly supported numeric count forms only. No claims about arbitrary quantities.
 const NOT_INSIDE_A_NUMBER_OR_WORD = '(?<![\\w.,])';
 const COUNT_VALUE = '([0-9]+(?:,[0-9]{3})*)';
+// The Korean counter is a generic counter word. The Korean units mean record (two words),
+// document and (query) pair, in that order.
 const OPTIONAL_KOREAN_COUNTER = '(?:개\\s*)?';
 const OPTIONAL_PARENTHESIZED_NOTE = '(?:\\([^)]{1,30}\\)\\s*)?';
 const COUNT_UNIT_WORD = '(records?\\b|documents?\\b|pairs?\\b|레코드|기록|문서|(?:질의\\s*)?쌍)';
@@ -354,6 +363,7 @@ const MONTH_NUMBERS = new Map(
 );
 
 const ISO_OR_SLASH_DATE = /\b([1-9]\d{3})[-/](\d{1,2})(?:[-/](\d{1,2}))?\b/g;
+// Korean dates write year, month and optional day, each followed by its unit word.
 const KOREAN_DATE = /([1-9]\d{3})년\s*(\d{1,2})월(?:\s*(\d{1,2})일)?/g;
 const DAY_MONTH_YEAR = /\b(\d{1,2})\s+([A-Za-z]+)\s+([1-9]\d{3})\b/g;
 const MONTH_DAY_YEAR = /\b([A-Za-z]+)\s+(?:(\d{1,2}),?\s+)?([1-9]\d{3})\b/g;

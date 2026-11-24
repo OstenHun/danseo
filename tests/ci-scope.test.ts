@@ -61,6 +61,7 @@ test('CI scope uses real PR diffs and falls back to full checks', () => {
     write('docs/old.md');
     write('docs/rules.md');
     const base = commit();
+    // Non-ASCII file name; the Korean means "Korean guide".
     const changes: Array<[string[], 'docs' | 'full']> = [
       [['README.md', 'README.en.md', 'docs/한글 안내.md', 'assets/readme/demo.jpg'], 'docs'],
       [['src/new.ts'], 'full'],

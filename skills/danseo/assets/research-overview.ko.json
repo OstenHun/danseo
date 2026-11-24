@@ -1,0 +1,6 @@
+{
+  "Papers: {papers} · source-checked relations: {checked} · suggested connections: {suggested} · unchecked relations: {unchecked}.": "논문 {papers}편 · 원문 확인 연결 {checked}개 · 추천 연결 {suggested}개 · 미확인 연결 {unchecked}개.",
+  "Concept backgrounds: {backgrounds} · Suggested readings: {readings}.": "개념 배경 {backgrounds}개 · 추천 자료 {readings}개.",
+  "Explore source-checked relations and suggested connections separately.": "원문에서 확인한 관계와 추천 연결을 구분해 살펴보세요.",
+  "Only input papers and relations are shown. Check each evidence scope for source coverage and unknowns. Source checking does not establish reproduction or reader understanding.": "입력된 논문과 연결만 표시합니다. 원문 범위와 미확인 부분은 각 근거에서 확인하세요. 원문 확인은 재현이나 독자의 이해 완료를 뜻하지 않습니다."
+}
