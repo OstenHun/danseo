@@ -123,6 +123,7 @@ export default defineConfig([
       'skills/*/scripts/**/*.mjs',
       'skills/danseo-reading/assets/learning-view.js',
       'skills/danseo/assets/graph-presentation.js',
+      'skills/danseo/assets/research-map.js',
       'src/cli.ts',
       'src/core/analysis.ts',
       'src/core/claim-state.ts',
