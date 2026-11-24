@@ -113,6 +113,7 @@ test('the universal superiority assertion is contradicted by both exceptions, be
 });
 test('legacy overclaim in a relation rationale is blocked even with empty counts', (t) => {
   const f = fixture(t);
+  // "Combines the methods." and "Both generators consistently outperform on all four evaluations."
   f.c.papers[0].claims[0].statement = '방법을 결합한다.';
   f.c.relations[0].rationale = '두 생성기 모두 네 평가에서 일관되게 능가한다.';
   f.e.version = 1;
@@ -128,6 +129,7 @@ test('legacy overclaim in a relation rationale is blocked even with empty counts
 });
 test('performance cannot hide as non-performance or append a broader conclusion', (t) => {
   const f = fixture(t);
+  // "Superior under every condition." and, below, "Therefore always superior."
   f.c.papers[0].claims[0].statement = '모든 조건에서 우월하다.';
   f.screen();
   f.e.performance[0].kind = 'non-performance';
@@ -228,7 +230,7 @@ for (const cell of ['.7', '-', '—'])
 test('short labels and topics cannot carry unchecked superiority claims', (t) => {
   const f = fixture(t);
   f.c.papers[0].short_title = 'Always better';
-  f.c.papers[0].topic = '모든 조건에서 우월';
+  f.c.papers[0].topic = '모든 조건에서 우월'; // "superior under every condition"
   f.screen();
   assert.throws(() => verifyEvidence(f.c, f.e, f.dir), /cannot be exempted/);
 });
@@ -343,6 +345,7 @@ test('out-of-range decimals cannot round distinct source values into a tie', (t)
 });
 test('common Korean and English superiority paraphrases cannot be exempted', (t) => {
   const f = fixture(t);
+  // "A excels B", "A is ahead of B" and "A is better".
   for (const claim of [
     'A가 B보다 뛰어나다',
     'A가 B보다 앞선다',
@@ -375,7 +378,8 @@ test('a rejected exemption quotes the wording that was matched', (t) => {
     );
   // "A is ahead of B" and two order statements, "cites earlier work" and "extends
   // a model published earlier". The check reads the word, not the meaning, so all
-  // three are stopped and the message shows which word did it.
+  // three are stopped and the message shows which word did it. The fourth reads
+  // "greatly improves accuracy".
   for (const [claim, matched] of [
     ['A가 B보다 앞선다', '앞선'],
     ['앞선 연구를 인용한다', '앞선'],

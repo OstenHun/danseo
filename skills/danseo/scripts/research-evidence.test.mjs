@@ -75,7 +75,7 @@ test('source-bound counts render; receipt never certifies semantics; no overwrit
 for (const key of ['description', 'view_reason', 'scope'])
   test(`contradictory ${key} blocks output`, (t) => {
     const f = fixture(t);
-    f.candidate[key] = '원문 기반 확장 관계';
+    f.candidate[key] = '원문 기반 확장 관계'; // "source-based extension relation"
     f.save();
     assert.throws(
       () => run([f.input, '--evidence', f.sidecar, '--out', f.output]),
@@ -217,6 +217,7 @@ test('current checked relations require every linked claim source; historical re
   assert.throws(() => verifyEvidence(f.candidate, f.evidence, f.dir), /original claim references/);
 });
 
+// Korean count forms: "17 records = 15 documents, 60 pairs" and "17 records equal 15 documents".
 for (const bad of [
   '17개 레코드=15개 문서, 60개 쌍',
   '17개 레코드는 15개 문서와 같다',

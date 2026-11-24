@@ -6,6 +6,11 @@ const korean = JSON.parse(
 );
 export const uiText = (language, text) =>
   language === 'ko' && Object.hasOwn(korean, text) ? korean[text] : text;
+// Same placeholder rule as window.DanseoText below.
+export const uiFormat = (language, text, values) =>
+  uiText(language, text).replace(/\{(\w+)\}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key]) : match,
+  );
 export function languageScript(language) {
   const labels = JSON.stringify(language === 'ko' ? korean : {}).replace(
     /[<>&\u2028\u2029]/g,

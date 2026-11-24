@@ -26,6 +26,7 @@ function run(ws: string, args: string[]) {
 async function setup(t: TestContext) {
   const root = await mkdtemp(join(tmpdir(), 'danseo-'));
   t.after(() => rm(root, { recursive: true, force: true }));
+  // Non-ASCII path; the Korean means "Korean materials".
   const ws = join(root, '한글 자료 space');
   await cp(fixture, ws, { recursive: true });
   return ws;
@@ -175,6 +176,7 @@ test('manifest duplicates, missing files and no accidental recursive discovery',
 
 test('unknown fields, comments, BOM, CRLF and embedded fences survive export', async (t) => {
   const ws = await setup(t);
+  // Non-ASCII fenced text; the Korean means "code inside the material".
   await edit(
     ws,
     'papers/synthetic.md',
@@ -200,6 +202,7 @@ test('question path cannot escape the declared project root', async (t) => {
 
 test('large bundles fail without truncating or writing', async (t) => {
   const ws = await setup(t);
+  // Multibyte filler sized in UTF-8 bytes; the Korean means "long body".
   await edit(ws, 'papers/synthetic.md', (s) => s + '\n' + '긴 본문'.repeat(50000));
   const result = run(ws, [...exportArgs, '--json']);
   assert.equal(result.status, 2);
@@ -240,7 +243,7 @@ test('question selection preserves exact nested section, fences and provenance, 
   const content =
     '# Private\r\nDO NOT SHARE\r\n\r\n## Target ##\r\nbody\r\n### Child\r\nchild\r\n```md\r\n## Target\r\n```\r\n~~~\r\n# Fake\r\n~~~\r\n## Other\r\nOTHER PRIVATE\r\n';
   await writeFile(join(ws, 'projects/demo/question.md'), content);
-  await edit(ws, 'workspace.json', (s) => s.replace('합성 프로젝트 질문', 'Target'));
+  await edit(ws, 'workspace.json', (s) => s.replace('Synthetic project question', 'Target'));
   const r = run(ws, [...exportArgs, '--json']);
   assert.equal(r.status, 0, r.stderr);
   const q = parseJson<Bundle>(r.stdout).question;
@@ -263,7 +266,7 @@ test('missing, ambiguous or absent question selector never falls back to whole f
   const ws = await setup(t);
   for (const content of [
     '# Missing\nprivate',
-    '# 합성 프로젝트 질문\nA\n# 합성 프로젝트 질문\nB',
+    '# Synthetic project question\nA\n# Synthetic project question\nB',
   ]) {
     await writeFile(join(ws, 'projects/demo/question.md'), content);
     const r = run(ws, [...exportArgs, '--json', '--out', join(ws, 'must-not-exist.md')]);
@@ -273,7 +276,7 @@ test('missing, ambiguous or absent question selector never falls back to whole f
     await assert.rejects(readFile(join(ws, 'must-not-exist.md')));
   }
   await edit(ws, 'workspace.json', (s) =>
-    s.replace(/,?\s*"question_section": "합성 프로젝트 질문"/, ''),
+    s.replace(/,?\s*"question_section": "Synthetic project question"/, ''),
   );
   const r = run(ws, [...exportArgs, '--json']);
   assert.equal(r.status, 2, r.stderr);

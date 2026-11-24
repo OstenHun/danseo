@@ -12,8 +12,8 @@ decision:
   status: proposed
   action: test
 ---
-# 합성 적용 · 조건 비교 제안
+# Synthetic application · condition comparison proposal
 
-요약: 두 주장의 조건과 불일치를 먼저 읽고 비교 방법을 검토한다. 실제 채택이나 실험은 아니다.
+Summary: Read the conditions and inconsistency of the two claims first, then review how to compare them. This is not an actual adoption or experiment.
 
-[현재 질문](question.md)을 먼저 읽는다. 입력 조건을 확인하기 전에는 효과를 예상하지 않는다.
+Read the [current question](question.md) first. Do not predict an effect before checking the input conditions.

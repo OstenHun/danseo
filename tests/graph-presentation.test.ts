@@ -140,7 +140,7 @@ test('explorer preserves filter controls and counts without rebuilding hidden se
 test('twelve papers have deterministic nonoverlapping topic positions and unknown topics remain visible', () => {
   const papers = Array.from({ length: 12 }, (_, i) => ({
     id: 'p' + i,
-    topic: ['검색', '융합', '추론', '검증'][i % 4]!,
+    topic: ['Retrieval', 'Fusion', 'Reasoning', 'Verification'][i % 4]!,
   }));
   const layout = view.topicLayout(papers);
   assert.equal(Object.keys(layout.positions).length, 12);
@@ -155,6 +155,7 @@ test('twelve papers have deterministic nonoverlapping topic positions and unknow
     }
   assert.equal(view.topicLayout([{ id: 'isolated' }]).headings[0]!.title, 'Uncategorized');
   assert.equal(Object.keys(view.topicLayout([]).positions).length, 0);
+  // Korean heading wrapping: "answer citation and faithfulness evaluation of retrieved evidence".
   const longTitle = '검색 결과 근거의 답변 인용과 충실도 평가';
   const wrapped = view.topicLayout([{ id: 'wrapped', topic: longTitle }]);
   assert.equal(wrapped.headings[0]!.title, longTitle);
@@ -162,7 +163,7 @@ test('twelve papers have deterministic nonoverlapping topic positions and unknow
     wrapped.headings[0]!.y + 48 + 12 <= wrapped.positions.wrapped!.y - view.card.height / 2,
   );
   const fiveTopics = view.topicLayout(
-    Array.from({ length: 12 }, (_, i) => ({ id: 'p' + i, topic: '주제 ' + (i % 5) })),
+    Array.from({ length: 12 }, (_, i) => ({ id: 'p' + i, topic: 'Topic ' + (i % 5) })),
   );
   assert.equal(
     new Set(fiveTopics.headings.map((h) => h.y)).size,

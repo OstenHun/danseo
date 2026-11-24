@@ -60,6 +60,7 @@ export const answer = (overrides: Partial<FixtureAnswer> = {}): FixtureAnswer =>
 export const comparisonTopicQuestion = 'How did the two studies evaluate results?';
 
 export function setup(t: Pick<TestContext, 'after'>) {
+  // Non-ASCII paths: "Danseo analysis", "one topic" and "shared cards".
   const root = mkdtempSync(join(tmpdir(), '단서 분석 test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const topic = join(root, '주제 하나'),

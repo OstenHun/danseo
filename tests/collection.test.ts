@@ -15,6 +15,7 @@ import { runNode } from './helpers/run-node.js';
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
 
 function fixture(t: TestContext) {
+  // Non-ASCII path; the Korean means "Danseo source".
   const dir = mkdtempSync(join(tmpdir(), '단서 원문 collection-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(...args: string[]) {
