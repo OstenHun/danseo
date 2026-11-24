@@ -1,5 +1,7 @@
 (() => {
   'use strict';
+  // Terms used below: a "first map" is a paper map with concept backgrounds, where cards show
+  // why and where to read; "recipe" concepts (training, data, evaluation) are folded out of it.
   const t = window.DanseoText ?? ((text) => text);
   const byId = (id) => document.getElementById(id);
   const data = JSON.parse(byId('candidate').textContent);
@@ -412,6 +414,7 @@
   }
   // A source title, or a link to it, followed by where to read and, when names repeat, its address.
   function appendSourceEntry(reading, { source, location, name }, showAddress, paperTitle) {
+    // Relation evidence has no paper title and lists every source by name.
     const relationEvidence = paperTitle === null;
     if (source.url === null) {
       reading.append(node('p', '', source.title));
@@ -537,7 +540,8 @@
     }
   }
   const nav = new Map();
-  // Paper maps with venue data get a ranking guide below the map status or the legend.
+  // Paper maps with venue data get a ranking guide below the map status or the legend; returns
+  // the guide, or null.
   function placeVenueGuide() {
     const guide = !projectMode && hasVenueMetadata ? venueGuide() : null;
     if (guide) byId(linkedConcepts.size ? 'map-status' : 'map-legend').after(guide);
@@ -591,8 +595,6 @@
       nav.set('concept:' + id, link);
     }
   }
-  // Scene texts: the list's kind and accessible name, the map heading, notice and legend, and the
-  // heading of the matching links.
   function nodeKindLabel() {
     if (scene === 'context') return t('Concepts');
     if (projectMode) return t('Projects · papers');
@@ -637,6 +639,8 @@
     if (projectMode) return t('Corresponding evidence references');
     return t('Corresponding relations');
   }
+  // Scene texts: the list's kind and accessible name, the map heading, notice and legend. Each
+  // comes from one function above; linksHeading names the link list below the map.
   function describeScene(listed, legend) {
     byId('count').textContent = t('{count} items', { count: listed.length + linkedConcepts.size });
     byId('node-kind').textContent = nodeKindLabel();
@@ -782,7 +786,7 @@
       }
     }
   }
-  // Map selections become hash routes; relation filters hide the matching links in the list.
+  // Map selections become hash routes; the relation filter hides list links to relations it rules out.
   function mountSceneMap() {
     map = window.DanseoMap?.mount(
       byId('research-map'),
@@ -1122,7 +1126,7 @@
   let selected;
   // An application: its decision, the project conditions, the paper claims it cites (only one
   // paper's when onlyPaper is set), and the interpretation, observations, checks and decision record.
-  function showApplication(item, onlyPaper, meta, content) {
+  function appendApplicationDetail(item, onlyPaper, meta, content) {
     if (onlyPaper) {
       byId('item-title').textContent =
         paperName(onlyPaper) + t(' · evidence linked to this question');
@@ -1305,7 +1309,7 @@
   }
   // A paper: publication and edition, why and where to read it, how it was reached (a background
   // reading or the concepts that suggest it), its connections, metrics and claim records.
-  function showPaperDetail(item, backgroundReading, meta, content) {
+  function appendPaperDetail(item, backgroundReading, meta, content) {
     // First maps answer "why and where to read" first; edition provenance stays one click away.
     const firstMap = backgrounds.size > 0 && scene === 'papers';
     appendEditionDetails(meta, item, firstMap);
@@ -1337,8 +1341,8 @@
       content = byId('content');
     meta.replaceChildren();
     content.replaceChildren();
-    if (projectMode) showApplication(item, onlyPaper, meta, content);
-    else showPaperDetail(item, backgroundReading, meta, content);
+    if (projectMode) appendApplicationDetail(item, onlyPaper, meta, content);
+    else appendPaperDetail(item, backgroundReading, meta, content);
     byId('previous').disabled = index === 0;
     byId('next').disabled = index === items.length - 1;
     byId('current-count').textContent = index + 1 + ' / ' + items.length;
@@ -1626,7 +1630,7 @@
     });
     if (focus) byId('item-title').focus();
   }
-  // The route in the hash: its type, and its decoded ID or '' when the ID is malformed.
+  // The route in the hash: its type, and its decoded ID, or '' when there is no route or the ID is malformed.
   function hashRoute() {
     const match = /^#([a-z-]+)=(.*)$/.exec(location.hash);
     let id;
@@ -1637,8 +1641,8 @@
     }
     return { type: match?.[1], id };
   }
-  // Concept, background and project-context routes. Each returns false when the ID names nothing.
-  function showConceptRoute(type, id, focus) {
+  // Concept, background, topic and context-link routes; false when the ID names nothing.
+  function showGuideRoute(type, id, focus) {
     if (['concept', 'concept-need', 'background'].includes(type) && showConcept(id, focus, type))
       return true;
     if (
@@ -1650,7 +1654,7 @@
     return (
       type === 'context-link' &&
       /^\d+$/.test(id) &&
-      Boolean(data.project_context?.links[Number(id)]) &&
+      !!data.project_context?.links[Number(id)] &&
       showTopic('', focus, Number(id))
     );
   }
@@ -1663,7 +1667,7 @@
     highlight('reference', id, paperId);
     return true;
   }
-  // Relation, reference, paper and application routes.
+  // Relation, reference, paper and application routes; false when the ID names nothing.
   function showRecordRoute(type, id, focus) {
     if (type === 'relation' && showRelation(id, focus)) return true;
     if (type === 'reference' && projectMode && showReference(id, focus)) return true;
@@ -1677,7 +1681,7 @@
   }
   function followHash(focus = false) {
     const { type, id } = hashRoute();
-    if (showConceptRoute(type, id, focus) || showRecordRoute(type, id, focus)) return;
+    if (showGuideRoute(type, id, focus) || showRecordRoute(type, id, focus)) return;
     if (projectMode && data.map_view === 'context') {
       showTopic(data.project_context.start, focus);
     } else if (projectMode || !location.hash) {
