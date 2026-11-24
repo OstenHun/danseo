@@ -68,44 +68,50 @@
     );
     return { concepts, papers };
   }
-  function build(data, scene, backgroundId) {
-    const elements = [],
-      project = data.mode === 'project-application';
-    const addNode = (type, item, index, count, column) => {
-      let position;
-      if (scene === 'background') {
-        position = { x: 140 + column * 330, y: 100 + index * 165 };
-      } else if (scene === 'context') {
-        const cols = Math.min(3, count),
-          row = Math.floor(index / cols),
-          col = row % 2 ? cols - 1 - (index % cols) : index % cols;
-        position = { x: 110 + col * 240, y: 70 + row * 155 };
-      } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
-      else
-        position =
-          count === 2
-            ? { x: 170 + index * 380, y: 190 }
-            : {
-                x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
-                y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
-              };
+  // Background scenes set the focal paper, its concept and the readings in three columns; context
+  // scenes snake through three columns; project maps put papers left and applications right; other
+  // maps use a pair or a ring.
+  function nodePosition(scene, project, index, count, column) {
+    if (scene === 'background') return { x: 140 + column * 330, y: 100 + index * 165 };
+    if (scene === 'context') {
+      const cols = Math.min(3, count),
+        row = Math.floor(index / cols),
+        col = row % 2 ? cols - 1 - (index % cols) : index % cols;
+      return { x: 110 + col * 240, y: 70 + row * 155 };
+    }
+    if (project) return { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
+    if (count === 2) return { x: 170 + index * 380, y: 190 };
+    return {
+      x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
+      y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
+    };
+  }
+  // The lines under a node's title: a concept tag, a paper's year and review note, or an
+  // application's decision.
+  function stateLabel(type, item) {
+    if (type === 'concept') return t('\nConcept');
+    if (type === 'paper')
+      return (
+        '\n' +
+        (item.publication?.date.slice(0, 4) ?? t('Publication year unknown')) +
+        (item.review_status === 'needs-recheck' ? '\n' + t('Evidence needs rechecking') : '')
+      );
+    if (type === 'application')
+      return '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified'));
+    return '';
+  }
+  // Context scenes number their topics; a background scene marks the focal paper.
+  function labelPrefix(scene, index, focal) {
+    if (scene === 'context') return String(index + 1).padStart(2, '0') + '  ';
+    if (scene === 'background' && focal) return t('Focal paper') + '\n';
+    return '';
+  }
+  function nodeAdder(data, scene, project, elements) {
+    return (type, item, index, count, column) => {
+      const position = nodePosition(scene, project, index, count, column);
       const focal = type === 'paper' && data.focal_paper_id === item.id;
-      const stateLabel =
-        type === 'concept'
-          ? t('\nConcept')
-          : type === 'paper'
-            ? '\n' +
-              (item.publication?.date.slice(0, 4) ?? t('Publication year unknown')) +
-              (item.review_status === 'needs-recheck' ? '\n' + t('Evidence needs rechecking') : '')
-            : type === 'application'
-              ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified'))
-              : '';
-      const prefix =
-        scene === 'context'
-          ? String(index + 1).padStart(2, '0') + '  '
-          : scene === 'background' && focal
-            ? t('Focal paper') + '\n'
-            : '';
+      const statusLine = stateLabel(type, item);
+      const prefix = labelPrefix(scene, index, focal);
       elements.push({
         group: 'nodes',
         data: {
@@ -113,109 +119,135 @@
           recordId: item.id,
           type,
           focal,
-          label: prefix + (item.short_title ?? item.title) + stateLabel,
+          label: prefix + (item.short_title ?? item.title) + statusLine,
           state: item.review_status ?? item.decision?.status ?? 'context',
         },
         position,
       });
     };
-    if (scene === 'background') {
-      const background = data.backgrounds.find((item) => item.id === backgroundId);
-      const concept = data.concepts.find((item) => item.id === background.concept_id);
+  }
+  // One background: the focal paper, the concept it needs, and that concept's readings.
+  function addBackgroundScene(data, backgroundId, addNode, elements) {
+    const background = data.backgrounds.find((item) => item.id === backgroundId);
+    const concept = data.concepts.find((item) => item.id === background.concept_id);
+    addNode(
+      'paper',
+      data.papers.find((item) => item.id === background.paper_id),
+      0,
+      1,
+      0,
+    );
+    addNode('concept', concept, 0, 1, 1);
+    background.readings.forEach((reading, i, all) => {
       addNode(
         'paper',
-        data.papers.find((item) => item.id === background.paper_id),
-        0,
-        1,
-        0,
+        data.papers.find((item) => item.id === reading.paper_id),
+        i,
+        all.length,
+        2,
       );
-      addNode('concept', concept, 0, 1, 1);
-      background.readings.forEach((reading, i, all) => {
-        addNode(
-          'paper',
-          data.papers.find((item) => item.id === reading.paper_id),
-          i,
-          all.length,
-          2,
-        );
-      });
+    });
+    elements.push(...backgroundEdges(background));
+  }
+  function addContextElements(data, addNode, elements) {
+    data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
+    data.project_context.links.forEach((link, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'context:' + i,
+          source: 'topic:' + link.source,
+          target: 'topic:' + link.target,
+          type: 'context-link',
+          recordId: String(i),
+          label: '',
+          origin: 'ai',
+          state: 'proposed',
+        },
+      }),
+    );
+  }
+  function addApplicationElements(data, addNode, elements) {
+    data.applications.forEach((item, i, all) => {
+      addNode('application', item, i, all.length, 1);
+      for (const paper of data.papers) {
+        const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
+        if (refs.length)
+          elements.push({
+            group: 'edges',
+            data: {
+              id: 'reference:' + item.id + ':' + paper.id,
+              source: 'paper:' + paper.id,
+              target: 'application:' + item.id,
+              type: 'reference',
+              recordId: item.id,
+              paperId: paper.id,
+              label: t('Evidence reference · ') + refs.length + t(' claims'),
+              origin: 'reference',
+              state: item.decision.status,
+            },
+          });
+      }
+    });
+  }
+  function relationLabel(relation, index) {
+    return (
+      String(index + 1).padStart(2, '0') +
+      ' · ' +
+      kind[relation.kind] +
+      (relation.needs_recheck
+        ? ' · ' +
+          (relation.origin === 'ai' ? t('Suggested connection') : t('Source record')) +
+          t(' · recheck')
+        : '')
+    );
+  }
+  function addRelationElements(data, elements) {
+    data.relations.forEach((relation, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'relation:' + relation.id,
+          source: 'paper:' + relation.source,
+          target: 'paper:' + relation.target,
+          type: 'relation',
+          recordId: relation.id,
+          label: relationLabel(relation, i),
+          origin: relation.origin,
+          state: relation.needs_recheck ? 'needs-recheck' : relation.status,
+        },
+      }),
+    );
+  }
+  // Concepts that a background links to, unless folded away, and the edges of their backgrounds.
+  function addConceptElements(data, hidden, addNode, elements) {
+    const linkedConcepts = new Set((data.backgrounds ?? []).map((item) => item.concept_id));
+    data.concepts
+      ?.filter((item) => linkedConcepts.has(item.id) && !hidden.concepts.has(item.id))
+      .forEach((item, i, all) => addNode('concept', item, i, all.length));
+    for (const background of data.backgrounds ?? []) {
+      if (hidden.concepts.has(background.concept_id)) continue;
       elements.push(...backgroundEdges(background));
+    }
+  }
+  function build(data, scene, backgroundId) {
+    const elements = [],
+      project = data.mode === 'project-application';
+    const addNode = nodeAdder(data, scene, project, elements);
+    if (scene === 'background') {
+      addBackgroundScene(data, backgroundId, addNode, elements);
     } else if (scene === 'context') {
-      data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
-      data.project_context.links.forEach((link, i) =>
-        elements.push({
-          group: 'edges',
-          data: {
-            id: 'context:' + i,
-            source: 'topic:' + link.source,
-            target: 'topic:' + link.target,
-            type: 'context-link',
-            recordId: String(i),
-            label: '',
-            origin: 'ai',
-            state: 'proposed',
-          },
-        }),
-      );
+      addContextElements(data, addNode, elements);
     } else {
       const hidden = project ? { concepts: new Set(), papers: new Set() } : folded(data);
       data.papers
         .filter((item) => !hidden.papers.has(item.id))
         .forEach((item, i, all) => addNode('paper', item, i, all.length, 0));
       if (project) {
-        data.applications.forEach((item, i, all) => {
-          addNode('application', item, i, all.length, 1);
-          for (const paper of data.papers) {
-            const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
-            if (refs.length)
-              elements.push({
-                group: 'edges',
-                data: {
-                  id: 'reference:' + item.id + ':' + paper.id,
-                  source: 'paper:' + paper.id,
-                  target: 'application:' + item.id,
-                  type: 'reference',
-                  recordId: item.id,
-                  paperId: paper.id,
-                  label: t('Evidence reference · ') + refs.length + t(' claims'),
-                  origin: 'reference',
-                  state: item.decision.status,
-                },
-              });
-          }
-        });
+        addApplicationElements(data, addNode, elements);
       } else {
-        data.relations.forEach((relation, i) =>
-          elements.push({
-            group: 'edges',
-            data: {
-              id: 'relation:' + relation.id,
-              source: 'paper:' + relation.source,
-              target: 'paper:' + relation.target,
-              type: 'relation',
-              recordId: relation.id,
-              label:
-                String(i + 1).padStart(2, '0') +
-                ' · ' +
-                kind[relation.kind] +
-                (relation.needs_recheck
-                  ? ' · ' +
-                    (relation.origin === 'ai' ? t('Suggested connection') : t('Source record')) +
-                    t(' · recheck')
-                  : ''),
-              origin: relation.origin,
-              state: relation.needs_recheck ? 'needs-recheck' : relation.status,
-            },
-          }),
-        );
-        const linkedConcepts = new Set((data.backgrounds ?? []).map((item) => item.concept_id));
-        data.concepts
-          ?.filter((item) => linkedConcepts.has(item.id) && !hidden.concepts.has(item.id))
-          .forEach((item, i, all) => addNode('concept', item, i, all.length));
-        for (const background of data.backgrounds ?? []) {
-          if (hidden.concepts.has(background.concept_id)) continue;
-          elements.push(...backgroundEdges(background));
-        }
+        addRelationElements(data, elements);
+        addConceptElements(data, hidden, addNode, elements);
       }
     }
     return elements;
