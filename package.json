@@ -43,6 +43,7 @@
     "build": "npm run build:tools && tsc && tsc -p tsconfig.browser.json && node build-tools/build-browser.js && node build-tools/copy-comparison.js",
     "test": "npm run build:tests && node --test build/*.test.js && npm run test:research-evidence",
     "check:docs": "npm run build:tools && node build-tools/check-docs.js",
+    "check:language": "npm run build:tools && node build-tools/check-language.js",
     "format": "prettier --write \"**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
     "lint": "eslint .",
     "check:format": "prettier --check \"**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}\"",
