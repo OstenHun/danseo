@@ -606,8 +606,8 @@
       style['source-endpoint'] = points[0][0] - start.x + 'px ' + edge.source().height() / 2 + 'px';
     edge.style(style);
   }
-  function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
-    const presentation = window.DanseoGraph;
+  // Elements, card sizes, reading plan and layout of a paper map, computed before cytoscape starts.
+  function paperMapModel(data, scene, presentation) {
     const elements = build(data, scene);
     const hasCitationCounts = data.papers.some((paper) => paper.citations !== undefined);
     const nodeSizes = new Map(
@@ -632,88 +632,104 @@
     const layout = concepts.length
       ? conceptLayout(plan, paperOrder, nodeSizes)
       : presentation.topicLayout(paperOrder);
-    // The concept a reading card hangs under, for tree lines; other links to it become free routes.
-    const treeParent = (paperId) =>
-      plan.owner.has(paperId) ? 'concept:' + plan.owner.get(paperId) : undefined;
-    for (const item of elements) {
-      if (item.data.type === 'concept') {
-        item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.id];
-        Object.assign(item.data, layout.sizes?.get(item.data.id) ?? { width: 168, height: 62 });
-      } else if (item.group === 'nodes') {
-        item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
-        Object.assign(
-          item.data,
-          layout.sizes?.get(item.data.id) ?? nodeSizes.get(item.data.recordId),
-        );
-      } else if (
-        item.data.type === 'background-reading' &&
-        concepts.length &&
-        treeParent(item.data.target.slice('paper:'.length)) !== item.data.source
-      ) {
-        // A reading placed under another concept or topic keeps a free curve instead of a misleading tree line.
-        item.data.free = true;
-      } else if (item.data.type === 'relation') {
-        const relation = relations.get(item.data.recordId);
-        item.data.category = presentation.category(relation);
-        item.data.number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
-        item.data.label =
-          String(data.relations.indexOf(relation) + 1).padStart(2, '0') +
-          ' · ' +
-          presentation.kindNames[relation.kind];
-      }
-    }
-    container.classList.add('paper-map');
-    const cy = cytoscape({
-      container,
+    return {
+      data,
+      presentation,
       elements,
-      layout: { name: 'preset' },
-      minZoom: 0.25,
-      maxZoom: 2.5,
-      wheelSensitivity: 0.2,
-      boxSelectionEnabled: false,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            shape: 'roundrectangle',
-            width: 'data(width)',
-            height: 'data(height)',
-            'background-opacity': 0,
-            'border-width': 0,
-            label: '',
-            'overlay-opacity': 0,
-          },
+      nodeSizes,
+      relations,
+      plan,
+      concepts,
+      shownPapers,
+      layout,
+    };
+  }
+  // The concept a reading card hangs under, for tree lines; other links to it become free routes.
+  function treeParent(plan, paperId) {
+    return plan.owner.has(paperId) ? 'concept:' + plan.owner.get(paperId) : undefined;
+  }
+  function isFreeReading(map, item) {
+    return (
+      item.data.type === 'background-reading' &&
+      map.concepts.length &&
+      treeParent(map.plan, item.data.target.slice('paper:'.length)) !== item.data.source
+    );
+  }
+  function labelRelation(map, item) {
+    const { data, presentation } = map;
+    const relation = map.relations.get(item.data.recordId);
+    item.data.category = presentation.category(relation);
+    item.data.number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
+    item.data.label =
+      String(data.relations.indexOf(relation) + 1).padStart(2, '0') +
+      ' · ' +
+      presentation.kindNames[relation.kind];
+  }
+  // Gives each node its position (a saved one first) and size, and each edge its route kind or label.
+  function placeElement(map, item, paperState) {
+    const { layout } = map;
+    if (item.data.type === 'concept') {
+      item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.id];
+      Object.assign(item.data, layout.sizes?.get(item.data.id) ?? { width: 168, height: 62 });
+    } else if (item.group === 'nodes') {
+      item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
+      Object.assign(
+        item.data,
+        layout.sizes?.get(item.data.id) ?? map.nodeSizes.get(item.data.recordId),
+      );
+    } else if (isFreeReading(map, item)) {
+      // A reading placed under another concept or topic keeps a free curve instead of a misleading tree line.
+      item.data.free = true;
+    } else if (item.data.type === 'relation') {
+      labelRelation(map, item);
+    }
+  }
+  // Nodes are invisible hit areas; the HTML cards above them carry the text.
+  function paperMapStyle(presentation) {
+    return [
+      {
+        selector: 'node',
+        style: {
+          shape: 'roundrectangle',
+          width: 'data(width)',
+          height: 'data(height)',
+          'background-opacity': 0,
+          'border-width': 0,
+          label: '',
+          'overlay-opacity': 0,
         },
-        { selector: 'node[type="concept"]', style: { shape: 'round-rectangle' } },
-        ...presentation.edgeStyles(),
-        {
-          selector: 'edge[type="concept-need"]',
-          style: { 'control-point-step-size': 80, 'line-dash-pattern': [10, 6] },
+      },
+      { selector: 'node[type="concept"]', style: { shape: 'round-rectangle' } },
+      ...presentation.edgeStyles(),
+      {
+        selector: 'edge[type="concept-need"]',
+        style: { 'control-point-step-size': 80, 'line-dash-pattern': [10, 6] },
+      },
+      {
+        selector: 'edge[type="background-reading"]',
+        style: { 'control-point-step-size': 80, 'line-dash-pattern': [4, 4] },
+      },
+      {
+        selector: 'edge[type="concept-need"].faded, edge[type="background-reading"].faded',
+        style: { opacity: 1 },
+      },
+      {
+        selector: 'edge[type="concept-need"].connected, edge[type="background-reading"].connected',
+        style: { width: 2 },
+      },
+      {
+        selector: 'edge[type="background-reading"][!free]',
+        style: {
+          'target-arrow-shape': 'none',
+          'line-style': 'solid',
+          'line-color': '#b8acd0',
+          width: 1.5,
         },
-        {
-          selector: 'edge[type="background-reading"]',
-          style: { 'control-point-step-size': 80, 'line-dash-pattern': [4, 4] },
-        },
-        {
-          selector: 'edge[type="concept-need"].faded, edge[type="background-reading"].faded',
-          style: { opacity: 1 },
-        },
-        {
-          selector:
-            'edge[type="concept-need"].connected, edge[type="background-reading"].connected',
-          style: { width: 2 },
-        },
-        {
-          selector: 'edge[type="background-reading"][!free]',
-          style: {
-            'target-arrow-shape': 'none',
-            'line-style': 'solid',
-            'line-color': '#b8acd0',
-            width: 1.5,
-          },
-        },
-      ],
-    });
+      },
+    ];
+  }
+  // Cards and topic headings sit in an HTML layer over the canvas that follows the viewport.
+  function decorationLayer(container) {
     const layer = document.createElement('div');
     layer.className = 'graph-decorations';
     layer.setAttribute('aria-hidden', 'true');
@@ -721,8 +737,11 @@
     world.className = 'graph-world';
     layer.append(world);
     container.append(layer);
-    const cards = new Map();
-    for (const paper of shownPapers) {
+    return { layer, world };
+  }
+  function drawPaperCards(map, world, cards, venueRanks) {
+    const { data, presentation, plan, concepts, layout, nodeSizes } = map;
+    for (const paper of map.shownPapers) {
       const venueRank = venueRanks?.get(paper.id);
       const card = presentation.paperCard(
         {
@@ -741,177 +760,187 @@
       cards.set('paper:' + paper.id, card);
       world.append(card);
     }
-    concepts.forEach((item, index) => {
-      const card = document.createElement('div');
-      card.className = 'graph-concept';
-      const title = data.concepts.find((concept) => concept.id === item.data.recordId).title;
-      const label = document.createElement('span');
-      label.textContent = title;
-      const order = document.createElement('b');
-      order.className = 'graph-concept-order';
-      order.textContent = String(index + 1);
-      card.append(order, label);
-      card.title = title;
-      if (plan.unread.has(item.data.recordId)) {
-        // A required concept whose primary reading could not be secured: shown, but marked as a gap.
-        const text = document.createElement('span');
-        text.className = 'graph-concept-gap';
-        card.append(text);
-        text.textContent = t('No reading secured');
-        card.classList.add('is-unread');
-        card.title = title + ' · ' + t('No reading secured');
-      }
-      card.style.width = item.data.width + 'px';
-      card.style.height = item.data.height + 'px';
+  }
+  function conceptCard(map, item, index) {
+    const card = document.createElement('div');
+    card.className = 'graph-concept';
+    const title = map.data.concepts.find((concept) => concept.id === item.data.recordId).title;
+    const label = document.createElement('span');
+    label.textContent = title;
+    const order = document.createElement('b');
+    order.className = 'graph-concept-order';
+    order.textContent = String(index + 1);
+    card.append(order, label);
+    card.title = title;
+    if (map.plan.unread.has(item.data.recordId)) {
+      // A required concept whose primary reading could not be secured: shown, but marked as a gap.
+      const text = document.createElement('span');
+      text.className = 'graph-concept-gap';
+      card.append(text);
+      text.textContent = t('No reading secured');
+      card.classList.add('is-unread');
+      card.title = title + ' · ' + t('No reading secured');
+    }
+    card.style.width = item.data.width + 'px';
+    card.style.height = item.data.height + 'px';
+    return card;
+  }
+  function drawConceptCards(map, world, cards) {
+    map.concepts.forEach((item, index) => {
+      const card = conceptCard(map, item, index);
       cards.set(item.data.id, card);
       world.append(card);
     });
-    presentation.drawTopics(world, layout.headings);
-    // Measure after the cards are in the document, and again once web fonts settle.
-    presentation.fitTitles(cards.values());
-    document.fonts?.ready.then(() => presentation.fitTitles(cards.values()));
-    if (concepts.length) {
-      cy.edges().forEach(routeEdge);
-      cy.on('position', 'node', (event) => event.target.connectedEdges().forEach(routeEdge));
+  }
+  function freeEdgeIsRelevant(edge, selection) {
+    switch (selection?.type) {
+      case 'concept':
+        return edge.data('source') === 'concept:' + selection.id;
+      case 'paper':
+        return edge.data('target') === 'paper:' + selection.id;
+      case 'background-reading':
+        return edge.data('recordId') === selection.id;
+      case 'concept-need':
+        return edge.data('backgroundId') === selection.id;
+      default:
+        return false;
     }
-    const host = document.createElement('div');
-    if (concepts.length) (container.nextElementSibling ?? container).after(host);
-    else container.before(host);
-    let selection = null;
-    const explorer = presentation.explorer(
-      host,
-      () => {
-        if (
-          selection?.type === 'relation' &&
-          !presentation.matchesRelation(relations.get(selection.id), explorer.filters)
-        ) {
-          selection = null;
-          onSelect({ type: 'overview', recordId: 'all' });
-        }
-        applyDisplay();
-        onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
-      },
-      paperState?.filters,
+  }
+  // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
+  function summarizedRelations(session) {
+    const { map, explorer } = session;
+    const { data, presentation } = map;
+    return map.concepts.length &&
+      explorer.filters.mode === 'focus' &&
+      session.selection?.type === 'paper' &&
+      session.selection.id === data.focal_paper_id
+      ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
+        data.relations.filter(
+          (edge) =>
+            edge.source === session.selection.id &&
+            presentation.matchesRelation(edge, explorer.filters),
+        )
+      : [];
+  }
+  // A paper's concept readings stay outlined even when their free link is hidden,
+  // the same way summarized relations keep their emphasis without a line.
+  function withOwnReadings(cy, eligible) {
+    const ownBackgrounds = new Set(
+      eligible.filter('[type="concept-need"]').map((edge) => edge.data('backgroundId')),
     );
-    function freeEdgeIsRelevant(edge) {
-      switch (selection?.type) {
-        case 'concept':
-          return edge.data('source') === 'concept:' + selection.id;
-        case 'paper':
-          return edge.data('target') === 'paper:' + selection.id;
-        case 'background-reading':
-          return edge.data('recordId') === selection.id;
-        case 'concept-need':
-          return edge.data('backgroundId') === selection.id;
-        default:
-          return false;
-      }
-    }
-    function applyDisplay() {
-      // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
-      const summarized =
-        concepts.length &&
-        explorer.filters.mode === 'focus' &&
-        selection?.type === 'paper' &&
-        selection.id === data.focal_paper_id
-          ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
-            data.relations.filter(
-              (edge) =>
-                edge.source === selection.id &&
-                presentation.matchesRelation(edge, explorer.filters),
-            )
-          : [];
-      cy.edges('[type="relation"]').forEach((edge) => {
-        const relation = relations.get(edge.data('recordId'));
-        edge.toggleClass(
-          'display-hidden',
-          summarized.includes(relation) ||
-            !presentation.shownRelation(relation, explorer.filters, selection),
-        );
-      });
-      // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
-      cy.edges('[type="background-reading"][?free]').forEach((edge) =>
-        edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge)),
+    return eligible.union(
+      cy
+        .edges('[type="background-reading"]')
+        .filter((edge) => ownBackgrounds.has(edge.data('backgroundId'))),
+    );
+  }
+  function highlightSelection(session, summarized) {
+    const { cy, map } = session;
+    cy.elements().removeClass('selected connected faded');
+    const item =
+      session.selection && cy.getElementById(session.selection.type + ':' + session.selection.id);
+    if (!item?.length) return;
+    item.addClass('selected');
+    let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
+    if (session.selection.type === 'paper') eligible = withOwnReadings(cy, eligible);
+    // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
+    const summaryNodes = cy
+      .edges('[type="relation"]')
+      .filter((edge) => summarized.includes(map.relations.get(edge.data('recordId'))))
+      .connectedNodes();
+    const connected = item.isNode()
+      ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
+      : item.connectedNodes().union(item);
+    connected.difference(item).addClass('connected');
+    cy.elements().difference(connected).addClass('faded');
+  }
+  function applyDisplay(session) {
+    const { cy, map, explorer } = session;
+    const { data, presentation, relations } = map;
+    const summarized = summarizedRelations(session);
+    cy.edges('[type="relation"]').forEach((edge) => {
+      const relation = relations.get(edge.data('recordId'));
+      edge.toggleClass(
+        'display-hidden',
+        summarized.includes(relation) ||
+          !presentation.shownRelation(relation, explorer.filters, session.selection),
       );
-      explorer.update(data.papers, data.relations, selection, summarized.length);
-      cy.elements().removeClass('selected connected faded');
-      const item = selection && cy.getElementById(selection.type + ':' + selection.id);
-      if (item?.length) {
-        item.addClass('selected');
-        let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
-        if (selection.type === 'paper') {
-          // A paper's concept readings stay outlined even when their free link is hidden,
-          // the same way summarized relations keep their emphasis without a line.
-          const ownBackgrounds = new Set(
-            eligible.filter('[type="concept-need"]').map((edge) => edge.data('backgroundId')),
-          );
-          eligible = eligible.union(
-            cy
-              .edges('[type="background-reading"]')
-              .filter((edge) => ownBackgrounds.has(edge.data('backgroundId'))),
-          );
-        }
-        // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
-        const summaryNodes = cy
-          .edges('[type="relation"]')
-          .filter((edge) => summarized.includes(relations.get(edge.data('recordId'))))
-          .connectedNodes();
-        const connected = item.isNode()
-          ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
-          : item.connectedNodes().union(item);
-        connected.difference(item).addClass('connected');
-        cy.elements().difference(connected).addClass('faded');
-      }
-      sync();
+    });
+    // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
+    cy.edges('[type="background-reading"][?free]').forEach((edge) =>
+      edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge, session.selection)),
+    );
+    explorer.update(data.papers, data.relations, session.selection, summarized.length);
+    highlightSelection(session, summarized);
+    session.sync();
+  }
+  // A filter change drops a selected relation the filters now hide, then redraws.
+  function explorerChanged(session) {
+    const { map, explorer, onSelect, onFilter } = session;
+    const { presentation } = map;
+    if (
+      session.selection?.type === 'relation' &&
+      !presentation.matchesRelation(map.relations.get(session.selection.id), explorer.filters)
+    ) {
+      session.selection = null;
+      onSelect({ type: 'overview', recordId: 'all' });
     }
-    let frame = null,
-      interacted = !!paperState;
-    const sync = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        const pan = cy.pan();
-        world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
-        for (const [id, card] of cards) presentation.syncCard(card, cy.getElementById(id));
+    applyDisplay(session);
+    onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
+  }
+  // Moves the card layer with the viewport and copies node states to the cards, once per frame.
+  function syncDecorations(session) {
+    if (session.frame !== null) return;
+    session.frame = requestAnimationFrame(() => {
+      session.frame = null;
+      const { cy, world, cards, map } = session;
+      const pan = cy.pan();
+      world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
+      for (const [id, card] of cards) map.presentation.syncCard(card, cy.getElementById(id));
+    });
+  }
+  function fitPaperMap(session, { initial = false } = {}) {
+    const { cy, map } = session;
+    const { concepts } = map;
+    cy.resize();
+    cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
+    if (
+      initial &&
+      concepts.length &&
+      cy.width() < view.narrowWidth &&
+      cy.zoom() < view.narrowZoom
+    ) {
+      // A phone opens on the start paper at a readable size.
+      const node = cy.getElementById('paper:' + map.data.start),
+        start = node.position(),
+        zoom = view.narrowZoom;
+      const centerY = Math.max(
+        cy.height() / 4,
+        (node.height() / 2 - tree.headingTop + tree.gap) * zoom,
+      );
+      cy.viewport({
+        zoom,
+        pan: { x: cy.width() * 0.3 - start.x * zoom, y: centerY - start.y * zoom },
       });
-    };
-    const fit = ({ initial = false } = {}) => {
-      cy.resize();
-      cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
-      if (
-        initial &&
-        concepts.length &&
-        cy.width() < view.narrowWidth &&
-        cy.zoom() < view.narrowZoom
-      ) {
-        // A phone opens on the start paper at a readable size.
-        const node = cy.getElementById('paper:' + data.start),
-          start = node.position(),
-          zoom = view.narrowZoom;
-        const centerY = Math.max(
-          cy.height() / 4,
-          (node.height() / 2 - tree.headingTop + tree.gap) * zoom,
-        );
-        cy.viewport({
-          zoom,
-          pan: { x: cy.width() * 0.3 - start.x * zoom, y: centerY - start.y * zoom },
-        });
-      } else if (initial && concepts.length && cy.zoom() < view.firstMapMinZoom) {
-        // A large first map opens readable at its top-left (focal paper and first concepts); "Fit all" still shows everything.
-        const box = cy.nodes().boundingBox(),
-          zoom = view.firstMapMinZoom;
-        cy.viewport({
-          zoom,
-          pan: { x: view.padding - box.x1 * zoom, y: view.padding - box.y1 * zoom },
-        });
-      } else if (cy.zoom() > 1) {
-        cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-      }
-      sync();
-    };
+    } else if (initial && concepts.length && cy.zoom() < view.firstMapMinZoom) {
+      // A large first map opens readable at its top-left (focal paper and first concepts); "Fit all" still shows everything.
+      const box = cy.nodes().boundingBox(),
+        zoom = view.firstMapMinZoom;
+      cy.viewport({
+        zoom,
+        pan: { x: view.padding - box.x1 * zoom, y: view.padding - box.y1 * zoom },
+      });
+    } else if (cy.zoom() > 1) {
+      cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+    }
+    session.sync();
+  }
+  function bindPaperEvents(session) {
+    const { container, cy, onSelect, sync } = session;
     const wheel = () => {
-      interacted = true;
+      session.interacted = true;
     };
+    session.wheel = wheel;
     container.addEventListener('wheel', wheel, { passive: true });
     cy.on('mousedown touchstart', wheel);
     cy.on('render', sync);
@@ -929,24 +958,16 @@
       container.style.cursor = '';
       sync();
     });
-    const observer =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
-            if (interacted) cy.resize();
-            else fit({ initial: true });
-          })
-        : null;
-    observer?.observe(container);
-    applyDisplay();
-    if (paperState) {
-      cy.zoom(paperState.zoom);
-      cy.pan(paperState.pan);
-      sync();
-      onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
-    } else fit({ initial: true });
+    session.observer = watchSize(container, () => {
+      if (session.interacted) cy.resize();
+      else session.fit({ initial: true });
+    });
+  }
+  function paperControls(session) {
+    const { container, cy, map, layer } = session;
     return {
       snapshot: () => ({
-        filters: { ...explorer.filters },
+        filters: { ...session.explorer.filters },
         zoom: cy.zoom(),
         pan: { ...cy.pan() },
         positions: Object.fromEntries(
@@ -954,33 +975,89 @@
         ),
       }),
       fit: () => {
-        interacted = true;
-        fit();
+        session.interacted = true;
+        session.fit();
       },
       zoom: (factor) => {
-        interacted = true;
-        cy.zoom({
-          level: Math.max(0.25, Math.min(2.5, cy.zoom() * factor)),
-          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
-        });
+        session.interacted = true;
+        zoomBy(cy, factor, 2.5);
       },
       select(type, id) {
-        selection = type && id ? { type, id } : null;
-        if (type === 'relation' && relations.has(id)) explorer.reveal(relations.get(id));
-        applyDisplay();
+        session.selection = type && id ? { type, id } : null;
+        if (type === 'relation' && map.relations.has(id))
+          session.explorer.reveal(map.relations.get(id));
+        applyDisplay(session);
       },
       destroy() {
-        observer?.disconnect();
-        container.removeEventListener('wheel', wheel);
-        if (frame !== null) cancelAnimationFrame(frame);
+        session.observer?.disconnect();
+        container.removeEventListener('wheel', session.wheel);
+        if (session.frame !== null) cancelAnimationFrame(session.frame);
         cy.destroy();
-        explorer.destroy();
-        host.remove();
+        session.explorer.destroy();
+        session.host.remove();
         layer.remove();
         container.classList.remove('paper-map');
         container.style.cursor = '';
       },
     };
+  }
+  // The explorer, selection, viewport and events of a mounted paper map. The session object holds
+  // the state its helpers share: the selection, the pending frame and whether the user moved the view.
+  function paperController(session) {
+    const { container, cy, map, paperState, onFilter } = session;
+    const host = document.createElement('div');
+    if (map.concepts.length) (container.nextElementSibling ?? container).after(host);
+    else container.before(host);
+    session.host = host;
+    session.selection = null;
+    session.explorer = map.presentation.explorer(
+      host,
+      () => explorerChanged(session),
+      paperState?.filters,
+    );
+    session.frame = null;
+    session.interacted = !!paperState;
+    session.sync = () => syncDecorations(session);
+    session.fit = (options) => fitPaperMap(session, options);
+    bindPaperEvents(session);
+    applyDisplay(session);
+    if (paperState) {
+      cy.zoom(paperState.zoom);
+      cy.pan(paperState.pan);
+      session.sync();
+      onFilter((edge) => map.presentation.matchesRelation(edge, session.explorer.filters));
+    } else session.fit({ initial: true });
+    return paperControls(session);
+  }
+  function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
+    const presentation = window.DanseoGraph;
+    const map = paperMapModel(data, scene, presentation);
+    for (const item of map.elements) placeElement(map, item, paperState);
+    container.classList.add('paper-map');
+    const cy = cytoscape({
+      container,
+      elements: map.elements,
+      layout: { name: 'preset' },
+      minZoom: 0.25,
+      maxZoom: 2.5,
+      wheelSensitivity: 0.2,
+      boxSelectionEnabled: false,
+      style: paperMapStyle(presentation),
+    });
+    const { layer, world } = decorationLayer(container);
+    const cards = new Map();
+    drawPaperCards(map, world, cards, venueRanks);
+    drawConceptCards(map, world, cards);
+    presentation.drawTopics(world, map.layout.headings);
+    // Measure after the cards are in the document, and again once web fonts settle.
+    presentation.fitTitles(cards.values());
+    document.fonts?.ready.then(() => presentation.fitTitles(cards.values()));
+    if (map.concepts.length) {
+      cy.edges().forEach(routeEdge);
+      cy.on('position', 'node', (event) => event.target.connectedEdges().forEach(routeEdge));
+    }
+    const session = { container, cy, map, layer, world, cards, onSelect, onFilter, paperState };
+    return paperController(session);
   }
   window.DanseoMap = { build, mount, folded };
 })();
