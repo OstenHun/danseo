@@ -93,7 +93,7 @@
     if (text !== undefined) el.textContent = text;
     return el;
   }
-  const p = (value) => node('p', '', value);
+  const paragraph = (value) => node('p', '', value);
   function section(title, cls = '') {
     const el = node('section', 'research-section ' + cls);
     el.append(node('h3', '', title));
@@ -104,7 +104,13 @@
   }
   function paragraphs(parent, values, empty) {
     if (!values.length) parent.append(node('p', 'empty-note', empty));
-    else for (const value of values) parent.append(p(value));
+    else for (const value of values) parent.append(paragraph(value));
+  }
+  // The check state shown after a source title.
+  function sourceCheckLabel(source) {
+    if (source.verification === 'agent-checked') return t(' · Recorded source check');
+    if (data.version === 2) return t(' · No source check in this run');
+    return t(' · Source unchecked');
   }
   function evidence(parent, evidenceIds, { bibliographic = false } = {}) {
     if (!evidenceIds.length) {
@@ -116,21 +122,15 @@
     for (const id of evidenceIds) {
       const source = sources.get(id),
         detail = node('details', 'source');
-      const status = bibliographic
-        ? ''
-        : source.verification === 'agent-checked'
-          ? t(' · Recorded source check')
-          : data.version === 2
-            ? t(' · No source check in this run')
-            : t(' · Source unchecked');
+      const status = bibliographic ? '' : sourceCheckLabel(source);
       detail.append(
         node('summary', '', source.title + status),
-        p(t('Location: ') + source.locator),
-        p(t('Check scope: ') + source.scope),
+        paragraph(t('Location: ') + source.locator),
+        paragraph(t('Check scope: ') + source.scope),
       );
       if (!bibliographic)
         detail.append(
-          p(
+          paragraph(
             t(
               'Check status is declared by the recorder. It does not establish full-paper reading, independent review or reproduction.',
             ),
@@ -146,7 +146,10 @@
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
         detail.append(link);
-      } else detail.append(p(t('No external link recorded · use the specified local original.')));
+      } else
+        detail.append(
+          paragraph(t('No external link recorded · use the specified local original.')),
+        );
       parent.append(detail);
     }
   }
@@ -160,7 +163,7 @@
   function appendReadingReason(parent, paper) {
     if (!paper.reading_reason) return;
     const reason = section(t('Why read this paper'));
-    reason.append(p(paper.reading_reason));
+    reason.append(paragraph(paper.reading_reason));
     parent.append(reason);
   }
   function appendRankLabel(parent, ranking) {
@@ -169,17 +172,17 @@
       node('span', '', ranking.scheme + ' ' + ranking.edition),
       presentation.venueBadge(ranking, { includeScheme: false }),
     );
-    parent.append(p(ranking.venue), label);
+    parent.append(paragraph(ranking.venue), label);
     if (presentation.isJcr(ranking.scheme)) {
       parent.append(
-        p(
+        paragraph(
           ranking.category
             ? t('JCR subject category · {category}', { category: ranking.category })
             : t('JCR subject category unreported'),
         ),
       );
     } else if (ranking.category)
-      parent.append(p(t('Subject category · {category}', { category: ranking.category })));
+      parent.append(paragraph(t('Subject category · {category}', { category: ranking.category })));
   }
   function rankingLink(ranking) {
     const link = node('a', '', t('Open ranking source ↗'));
@@ -197,8 +200,8 @@
       appendRankLabel(entry, ranking);
       const source = sources.get(ranking.source_id);
       entry.append(
-        p(source.title + ' · ' + source.locator),
-        p(t('Check scope: ') + source.scope),
+        paragraph(source.title + ' · ' + source.locator),
+        paragraph(t('Check scope: ') + source.scope),
         rankingLink(ranking),
       );
       if (
@@ -211,6 +214,17 @@
     }
     parent.append(disclosure);
   }
+  function appendCitations(metrics, citations) {
+    if (citations) {
+      const count = new Intl.NumberFormat(data.language ?? 'en').format(citations.count);
+      metrics.append(
+        paragraph(t('Citations · {count} · checked {date}', { count, date: citations.checked_on })),
+      );
+      evidence(metrics, [citations.source_id], { bibliographic: true });
+    } else if (hasCitationCounts || projectMode) {
+      metrics.append(paragraph(t('Citation count unavailable')));
+    }
+  }
   function appendPaperMetrics(parent, paper) {
     const citations = paper.citations,
       ranking = venueRanks.get(paper.id);
@@ -221,33 +235,26 @@
     const metrics = section(
       t(hasCitationCounts || projectMode ? 'Citations and venue ranking' : 'Venue ranking'),
     );
-    if (citations) {
-      const count = new Intl.NumberFormat(data.language ?? 'en').format(citations.count);
-      metrics.append(
-        p(t('Citations · {count} · checked {date}', { count, date: citations.checked_on })),
-      );
-      evidence(metrics, [citations.source_id], { bibliographic: true });
-    } else if (hasCitationCounts || projectMode) {
-      metrics.append(p(t('Citation count unavailable')));
-    }
+    appendCitations(metrics, citations);
     if (ranking) {
       appendRankLabel(metrics, ranking);
-      if (ranking.top_tier) metrics.append(p(t('Top tier in this ranking')));
+      if (ranking.top_tier) metrics.append(paragraph(t('Top tier in this ranking')));
       evidence(metrics, [...new Set([ranking.venue_source_id, ranking.source_id])], {
         bibliographic: true,
       });
     } else if (!projectMode || paper.venue_rank) {
-      if (additionalRanks.length) metrics.append(p(t('Representative rank unverified')));
+      if (additionalRanks.length) metrics.append(paragraph(t('Representative rank unverified')));
       else
         metrics.append(
           presentation.venueBadge(),
-          p(t('Publication and ranking sources are required for a venue rank.')),
+          paragraph(t('Publication and ranking sources are required for a venue rank.')),
         );
     }
     appendAdditionalRanks(metrics, additionalRanks, ranking);
     parent.append(metrics);
   }
-  function venueGuide() {
+  // The first ranking seen for each grade, grouped by ranking scheme and edition.
+  function groupVenueRanks() {
     const groups = new Map();
     for (const ranking of venueRanks.values()) {
       const key = ranking.scheme.toLowerCase() + '\0' + ranking.edition;
@@ -255,11 +262,55 @@
       const grades = groups.get(key);
       if (!grades.has(ranking.rank)) grades.set(ranking.rank, ranking);
     }
+    return groups;
+  }
+  // One scheme's table: every grade of a known scale with its meaning, then grades on this map
+  // that the scale does not list.
+  function venueGuideTable(ranks, first, scale) {
+    const table = node('table', ''),
+      head = node('thead', ''),
+      headings = node('tr', '');
+    for (const label of ['Rank', scale ? 'Meaning' : 'Source on this map']) {
+      const header = node('th', '', t(label));
+      header.setAttribute('scope', 'col');
+      headings.append(header);
+    }
+    head.append(headings);
+    table.append(head);
+    const body = node('tbody', '');
+    function row(ranking, ...contents) {
+      const tr = node('tr', ''),
+        grade = node('td', ''),
+        description = node('td', '');
+      grade.append(presentation.venueBadge(ranking, { includeScheme: false }));
+      description.append(...contents);
+      tr.append(grade, description);
+      body.append(tr);
+    }
+    if (scale) {
+      for (const [rank, meaning] of scale.grades) {
+        const observed = scale.linkObservedGrades ? ranks.get(rank) : undefined;
+        const guideRanking = observed ?? { ...first, rank };
+        if (observed) row(guideRanking, node('div', '', t(meaning)), rankingLink(observed));
+        else row(guideRanking, t(meaning));
+      }
+    }
+    for (const ranking of ranks.values()) {
+      if (scale?.grades.has(ranking.rank)) continue;
+      const meaning = scale?.otherGrades?.get(ranking.rank);
+      if (meaning) row(ranking, node('div', '', t(meaning)), rankingLink(ranking));
+      else row(ranking, rankingLink(ranking));
+    }
+    table.append(body);
+    return table;
+  }
+  function venueGuide() {
+    const groups = groupVenueRanks();
     const guide = node('details', 'venue-guide');
     guide.id = 'venue-guide';
     guide.append(
       node('summary', '', t('Venue ranking guide')),
-      p(
+      paragraph(
         t(
           'Badges describe publication venues. Compare grades within the same ranking scheme. The ranking edition and the paper’s publication date are separate.',
         ),
@@ -269,42 +320,8 @@
       const first = ranks.values().next().value;
       const scale = presentation.venueRankScale(first.scheme);
       guide.append(node('h3', '', first.scheme + ' ' + first.edition));
-      if (scale?.description) guide.append(p(t(scale.description)));
-      const table = node('table', ''),
-        head = node('thead', ''),
-        headings = node('tr', '');
-      for (const label of ['Rank', scale ? 'Meaning' : 'Source on this map']) {
-        const header = node('th', '', t(label));
-        header.setAttribute('scope', 'col');
-        headings.append(header);
-      }
-      head.append(headings);
-      table.append(head);
-      const body = node('tbody', '');
-      function row(ranking, ...contents) {
-        const tr = node('tr', ''),
-          grade = node('td', ''),
-          description = node('td', '');
-        grade.append(presentation.venueBadge(ranking, { includeScheme: false }));
-        description.append(...contents);
-        tr.append(grade, description);
-        body.append(tr);
-      }
-      if (scale) {
-        for (const [rank, meaning] of scale.grades) {
-          const observed = scale.linkObservedGrades ? ranks.get(rank) : undefined;
-          const guideRanking = observed ?? { ...first, rank };
-          if (observed) row(guideRanking, node('div', '', t(meaning)), rankingLink(observed));
-          else row(guideRanking, t(meaning));
-        }
-      }
-      for (const ranking of ranks.values()) {
-        if (scale?.grades.has(ranking.rank)) continue;
-        const meaning = scale?.otherGrades?.get(ranking.rank);
-        if (meaning) row(ranking, node('div', '', t(meaning)), rankingLink(ranking));
-        else row(ranking, rankingLink(ranking));
-      }
-      table.append(body);
+      if (scale?.description) guide.append(paragraph(t(scale.description)));
+      const table = venueGuideTable(ranks, first, scale);
       guide.append(table);
       if (scale) {
         const link = node('a', '', t(scale.sourceLabel));
@@ -315,7 +332,7 @@
       }
     }
     if (venueRanks.size < data.papers.length) {
-      const note = p('');
+      const note = paragraph('');
       note.append(
         presentation.venueBadge(),
         ' ',
@@ -337,11 +354,8 @@
     return [...bySource.values()];
   }
 
-  function appendSourceLinks(parent, evidenceIds, { paperTitle = null, compact = false } = {}) {
-    const relationEvidence = paperTitle === null;
-    const groupedSources = groupSourceLocations(evidenceIds, relationEvidence);
-    if (!groupedSources.length) return;
-    const locations = groupedSources.map(({ source, locators }) => {
+  function sourceLocations(groupedSources) {
+    return groupedSources.map(({ source, locators }) => {
       const location = t('Read at: {locations}', { locations: [...locators].join(' / ') });
       return {
         source,
@@ -350,79 +364,99 @@
         name: source.title + ' · ' + location,
       };
     });
-    // First maps show two locations up front; the rest stay one click away.
-    let more = null;
+  }
+  // How often each linked source name repeats; a repeated name also shows its address.
+  function countLinkNames(locations) {
     const linkNameCounts = new Map();
-    if (relationEvidence || compact) {
-      for (const { source, name } of locations) {
-        if (source.url !== null) linkNameCounts.set(name, (linkNameCounts.get(name) ?? 0) + 1);
-      }
+    for (const { source, name } of locations) {
+      if (source.url !== null) linkNameCounts.set(name, (linkNameCounts.get(name) ?? 0) + 1);
     }
-    const reading = relationEvidence
-      ? node('div', 'paper-source-links')
-      : section(t('Read the paper'), 'paper-source-links');
-    for (const [index, { source, location, locators, name }] of locations.entries()) {
-      const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
-      if (compact && !relationEvidence) {
-        // First-map rows: where to read on the left, one short link on the right; the section title already says "read".
-        const row = node('div', 'source-row');
-        row.append(
-          node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')),
-        );
-        if (source.url !== null) {
-          const link = node('a', '', t('Open original source ↗'));
-          link.href = source.url;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          const label = t('{paper} · {source} · open original source · new tab', {
+    return linkNameCounts;
+  }
+  // First-map rows: where to read on the left, one short link on the right; the section title already says "read".
+  function compactSourceRow({ source, location, locators }, showAddress, paperTitle) {
+    const row = node('div', 'source-row');
+    row.append(
+      node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')),
+    );
+    if (source.url !== null) {
+      const link = node('a', '', t('Open original source ↗'));
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const label = t('{paper} · {source} · open original source · new tab', {
+        paper: paperTitle,
+        source: source.title,
+      });
+      link.setAttribute(
+        'aria-label',
+        label + ' · ' + location + (showAddress ? ' · ' + source.url : ''),
+      );
+      row.append(link);
+    }
+    return row;
+  }
+  // A source title, or a link to it, followed by where to read and, when names repeat, its address.
+  function appendSourceEntry(reading, { source, location, name }, showAddress, paperTitle) {
+    const relationEvidence = paperTitle === null;
+    if (source.url === null) {
+      reading.append(node('p', '', source.title));
+    } else {
+      const label = relationEvidence ? source.title + ' ↗' : t('Open original source ↗');
+      const link = node('a', 'map-item', label);
+      link.href = source.url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const accessibleName = relationEvidence
+        ? name + (showAddress ? ' · ' + source.url : '') + t(' · open original source · new tab')
+        : t('{paper} · {source} · open original source · new tab', {
             paper: paperTitle,
             source: source.title,
           });
-          link.setAttribute(
-            'aria-label',
-            label + ' · ' + location + (showAddress ? ' · ' + source.url : ''),
-          );
-          row.append(link);
-        }
-        if (index >= 2 && !more) {
-          more = node('details', 'source-more');
-          more.append(
-            node(
-              'summary',
-              '',
-              t('{count} more source locations', { count: locations.length - 2 }),
-            ),
-          );
-          reading.append(more);
-        }
-        (more ?? reading).append(row);
+      link.setAttribute('aria-label', accessibleName);
+      reading.append(link);
+    }
+    reading.append(node('p', 'section-note', location));
+    if (showAddress) reading.append(node('p', 'section-note', source.url));
+  }
+  function appendSourceLinks(parent, evidenceIds, { paperTitle = null, compact = false } = {}) {
+    const relationEvidence = paperTitle === null;
+    const groupedSources = groupSourceLocations(evidenceIds, relationEvidence);
+    if (!groupedSources.length) return;
+    const locations = sourceLocations(groupedSources);
+    // First maps show two locations up front; the rest stay one click away.
+    let more = null;
+    const linkNameCounts = relationEvidence || compact ? countLinkNames(locations) : new Map();
+    const reading = relationEvidence
+      ? node('div', 'paper-source-links')
+      : section(t('Read the paper'), 'paper-source-links');
+    for (const [index, location] of locations.entries()) {
+      const { source, name } = location;
+      const showAddress = source.url !== null && linkNameCounts.get(name) > 1;
+      if (!compact || relationEvidence) {
+        appendSourceEntry(reading, location, showAddress, paperTitle);
         continue;
       }
-      if (source.url === null) {
-        reading.append(node('p', '', source.title));
-      } else {
-        const label = relationEvidence ? source.title + ' ↗' : t('Open original source ↗');
-        const link = node('a', 'map-item', label);
-        link.href = source.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        const accessibleName = relationEvidence
-          ? name + (showAddress ? ' · ' + source.url : '') + t(' · open original source · new tab')
-          : t('{paper} · {source} · open original source · new tab', {
-              paper: paperTitle,
-              source: source.title,
-            });
-        link.setAttribute('aria-label', accessibleName);
-        reading.append(link);
+      const row = compactSourceRow(location, showAddress, paperTitle);
+      if (index >= 2 && !more) {
+        more = node('details', 'source-more');
+        more.append(
+          node('summary', '', t('{count} more source locations', { count: locations.length - 2 })),
+        );
+        reading.append(more);
       }
-      reading.append(node('p', 'section-note', location));
-      if (showAddress) reading.append(node('p', 'section-note', source.url));
+      (more ?? reading).append(row);
     }
     parent.append(reading);
   }
   function referencedClaim({ paper_id, claim_id }) {
     const paper = papers.get(paper_id);
     return { paper, claim: paper.claims.find((claim) => claim.id === claim_id) };
+  }
+  function reviewStateSuffix(state) {
+    if (state === 'stale') return t(' · Needs rechecking');
+    if (state === 'unknown') return t(' · Current validity unknown');
+    return '';
   }
   function claims(parent, refs) {
     for (const ref of refs) {
@@ -433,8 +467,8 @@
       block.append(
         node('p', 'claim-id', paper.id + ' / ' + claim.id),
         node('h4', '', paper.title),
-        p(t('Edition: ') + (paper.edition ?? t('Not recorded'))),
-        p(claim.statement),
+        paragraph(t('Edition: ') + (paper.edition ?? t('Not recorded'))),
+        paragraph(claim.statement),
       );
       if (claim.conditions.length) {
         const conditions = section(t('Paper conditions'));
@@ -462,22 +496,16 @@
         const record = node('div', 'review-record');
         record.append(
           badge(
-            t('Claim review · ') +
-              review.verdict +
-              (review.state === 'stale'
-                ? t(' · Needs rechecking')
-                : review.state === 'unknown'
-                  ? t(' · Current validity unknown')
-                  : ''),
+            t('Claim review · ') + review.verdict + reviewStateSuffix(review.state),
             review.state !== 'current',
           ),
-          p(review.reason),
+          paragraph(review.reason),
         );
         const more = node('details');
         more.append(
           node('summary', '', t('Source evidence and review record')),
-          p(review.scope),
-          p(review.reviewer + ' · ' + review.reviewed_at + ' · ' + review.review_type),
+          paragraph(review.scope),
+          paragraph(review.reviewer + ' · ' + review.reviewed_at + ' · ' + review.review_type),
         );
         record.append(more);
         block.append(record);
@@ -913,12 +941,12 @@
   }
   function appendBackgroundReadings(content, background, readingRoute) {
     const reason = section(t('Why explore this concept from ') + paperName(background.paper_id));
-    reason.append(p(background.rationale));
+    reason.append(paragraph(background.rationale));
     content.append(reason);
     for (const reading of background.readings) {
       const block = section(t('Representative reading · ') + paperName(reading.paper_id));
       block.append(
-        p(reading.rationale),
+        paragraph(reading.rationale),
         localLink(
           readingRoute,
           background.id + ':' + reading.paper_id,
@@ -931,10 +959,10 @@
       });
       for (const sourceId of reading.evidence) {
         const source = sources.get(sourceId);
-        if (source.url === null) block.append(p(t('Read at: ') + source.locator));
+        if (source.url === null) block.append(paragraph(t('Read at: ') + source.locator));
       }
       evidence(block, reading.evidence);
-      block.append(p(t('Return and compare: ') + reading.return_question));
+      block.append(paragraph(t('Return and compare: ') + reading.return_question));
       content.append(block);
     }
   }
@@ -955,7 +983,7 @@
     // A required concept recorded without an accessible primary reading says so before its explanation.
     if (linked.every((context) => !context.readings.length))
       meta.append(badge(t('No reading secured'), true));
-    content.append(p(concept.summary));
+    content.append(paragraph(concept.summary));
     if (type !== 'background') content.append(node('p', 'origin-note', backgroundNotice));
     for (const context of linked) {
       appendBackgroundReadings(
@@ -1028,7 +1056,7 @@
   if (!projectMode)
     byId('scene-controls').append(localLink('overview', 'all', t('Relation overview'), 'map-item'));
   for (const item of data.provenance ?? [])
-    byId('provenance').append(p(item.name + ' · SHA-256 ' + item.sha256));
+    byId('provenance').append(paragraph(item.name + ' · SHA-256 ' + item.sha256));
   let selected;
   function select(id, focus = false, onlyPaper, backgroundReading) {
     if (scene === 'context') mountMap(projectMode ? 'applications' : 'papers');
@@ -1070,7 +1098,7 @@
         item.claim_refs.filter((ref) => !onlyPaper || ref.paper_id === onlyPaper),
       );
       const interpretation = section(t('Project interpretation'), 'interpretation');
-      interpretation.append(p(item.interpretation));
+      interpretation.append(paragraph(item.interpretation));
       const observation = section(t('Project observations'), 'observation');
       paragraphs(
         observation,
@@ -1081,13 +1109,13 @@
       paragraphs(checks, item.next_checks, t('No next-check proposals recorded'));
       const decision = section(t('Adoption decision record'), 'decision');
       decision.append(
-        p(
+        paragraph(
           t('Status: ') +
             item.decision.status +
             t(' · action: ') +
             (item.decision.action ?? t('Unspecified')),
         ),
-        p(item.decision.rationale),
+        paragraph(item.decision.rationale),
         node(
           'p',
           'section-note',
@@ -1139,13 +1167,13 @@
         const inMainMap = scene === 'papers';
         if (inMainMap) {
           const locations = section(t('Background reading'));
-          locations.append(p(reading.rationale));
+          locations.append(paragraph(reading.rationale));
           appendSourceLinks(locations, reading.evidence, { paperTitle: item.title });
           evidence(locations, reading.evidence);
           content.append(locations);
         }
         returning.append(
-          p(reading.return_question),
+          paragraph(reading.return_question),
           localLink(
             'paper',
             background.paper_id,
@@ -1182,7 +1210,9 @@
         }
         appendConceptChoices(content, item);
       }
-      const incident = data.relations.filter((r) => r.source === item.id || r.target === item.id);
+      const incident = data.relations.filter(
+        (relation) => relation.source === item.id || relation.target === item.id,
+      );
       const connections = section(t('Connections for this paper'));
       if (!incident.length)
         connections.append(
@@ -1325,7 +1355,7 @@
     meta.append(badge(t('Learning guidance')));
     if (relation) {
       content.append(
-        p(relation.label),
+        paragraph(relation.label),
         node('p', 'origin-note', data.project_context.notice),
         localLink(
           'topic',
@@ -1338,9 +1368,9 @@
       );
     }
     content.append(node('p', 'lead', topic.summary));
-    topic.body.forEach((value) => content.append(p(value)));
+    topic.body.forEach((value) => content.append(paragraph(value)));
     const example = section(t('Explore an example'), 'example');
-    example.append(p(topic.example));
+    example.append(paragraph(topic.example));
     content.append(example);
     const refs = section(
       (relation ? topic.title + t(' · destination concept') : t('This concept')) +
@@ -1434,19 +1464,19 @@
       );
 
     const direction = section(t('Relation direction'));
-    direction.append(p(paperName(relation.source) + ' → ' + paperName(relation.target)));
+    direction.append(paragraph(paperName(relation.source) + ' → ' + paperName(relation.target)));
     const reason = section(t('Why these records are connected'));
-    reason.append(p(relation.rationale));
+    reason.append(paragraph(relation.rationale));
     content.append(direction, reason);
     appendRelationEvidence(content, relation);
 
     const history = node('details', 'source');
     history.append(
       node('summary', '', t('Relation authorship and source-check record')),
-      p(relation.created_by),
+      paragraph(relation.created_by),
     );
     if (relation.review)
-      history.append(p(relation.review.checked_by + ' · ' + relation.review.checked_at));
+      history.append(paragraph(relation.review.checked_by + ' · ' + relation.review.checked_at));
     content.append(history);
 
     selectedType = 'relation';
@@ -1473,14 +1503,14 @@
       badge(data.papers.length + t(' papers · ') + data.relations.length + t(' relations')),
     );
     content.append(
-      p(
+      paragraph(
         t(
           'Select an edge or the corresponding relation below to inspect the claims and conditions connecting the two papers.',
         ),
       ),
     );
     content.append(
-      p(
+      paragraph(
         t(
           'Select a paper to highlight its relations. Open the relation overview or press Escape to clear the selection.',
         ),
