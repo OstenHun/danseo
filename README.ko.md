@@ -32,11 +32,13 @@ Danseo는 AI 에이전트로 찾은 논문을 지도에 보여 줍니다. 논문
 
 ## 스킬 설치
 
-논문 지도를 HTML 파일로 만들려면 **Node.js 22 또는 24 LTS**와 `skills/danseo` 폴더가 필요합니다. npm 패키지 설치나 빌드 없이 폴더를 복사해 씁니다. 생성한 지도는 브라우저에서 바로 열립니다.
+**Node.js 24.x 또는 22.x LTS**가 필요합니다. 로그인한 AI 에이전트가 내 컴퓨터의 파일을 읽고 셸 명령을 실행할 수 있어야 합니다. 논문 제목에서 시작하려면 에이전트가 웹에서 논문을 찾고 출처를 열 수 있어야 하고, 이미 가진 논문으로 만들려면 로컬 PDF를 읽을 수 있어야 합니다.
 
-Codex, Claude Code 또는 Antigravity CLI에 로그인한 뒤 에이전트가 내 컴퓨터의 파일을 읽고 Node 명령을 실행할 수 있는지 확인하세요.
+지도 스킬은 복사한 폴더에서 바로 실행됩니다. npm 설치, 빌드, 서버가 필요 없습니다.
 
-### 1. GitHub에서 내려받기
+### 1. 소스 내려받기
+
+Git이 있다면 터미널에서 실행하세요.
 
 ```sh
 git clone https://github.com/OstenHun/danseo.git
@@ -44,34 +46,35 @@ cd danseo
 node --version
 ```
 
-Git이 없으면 저장소에서 **Code → Download ZIP**을 눌러 내려받으세요. 압축을 풀고 `README.md`와 `skills`가 보이는 폴더에서 터미널을 열면 됩니다. 생성기와 화면에 필요한 파일도 함께 쓰므로 `danseo` 폴더 전체를 복사합니다.
+GitHub에서 **Code → Download ZIP**으로 받아도 됩니다. 압축을 풀고 `README.md`와 `skills/`가 보이는 폴더에서 터미널을 연 뒤 `node --version`을 실행하세요. `v24.`나 `v22.`로 시작하는 버전이 나와야 합니다.
 
-### 2. 사용할 에이전트에 설치하기
+### 2. 에이전트와 운영체제 고르기
 
-아래 경로에 설치하면 어느 프로젝트에서든 쓸 수 있습니다. `~`는 홈 폴더를 뜻합니다. Antigravity CLI에서 Argon을 쓰고 싶다면 `agy models`로 선택할 수 있는 모델을 확인하세요.
+내려받은 소스 폴더에서 운영체제에 맞는 블록을 실행하고, 쓰는 에이전트에 맞는 값을 입력하세요. 스킬 폴더 전체를 홈 폴더로 복사하므로 어느 프로젝트에서든 Danseo를 쓸 수 있습니다.
 
-- **Codex** · `~/.agents/skills/danseo`
-- **Claude Code** · `~/.claude/skills/danseo`
-- **Antigravity CLI** · `~/.gemini/config/skills/danseo`
-
-[Codex 설치 안내](https://developers.openai.com/codex/skills/) · [Claude Code 설치 안내](https://code.claude.com/docs/en/skills) · [Antigravity 설치 안내](https://antigravity.google/docs/skills/)
-
-운영체제에 맞는 예시를 펼쳐 설치 경로 한 줄을 고른 뒤 실행하세요. 같은 경로에 이미 설치했다면 명령이 멈춥니다. Codex의 `~/.codex/skills/danseo`나 프로젝트 폴더에 이전 설치본이 있다면, 어느 쪽을 읽고 있는지 먼저 확인하세요.
+- [Codex](https://developers.openai.com/codex/skills/)는 `codex`
+- [Claude Code](https://code.claude.com/docs/en/skills)는 `claude`
+- [Antigravity CLI](https://antigravity.google/docs/skills/)는 `agy`
 
 <details>
 <summary><strong>Windows · PowerShell</strong></summary>
 
-내려받은 저장소 폴더에서 실행하세요. 기본 경로는 Codex용입니다. Claude Code나 Antigravity CLI라면 주석에 나온 경로를 골라 `$danseoTarget` 한 줄을 바꾸면 됩니다.
-
 ```powershell
-$danseoTarget = Join-Path $HOME '.agents/skills/danseo'
-# Claude Code: Join-Path $HOME '.claude/skills/danseo'
-# Argon (agy): Join-Path $HOME '.gemini/config/skills/danseo'
+& {
+    $danseoHost = Read-Host 'codex, claude, agy 중 하나를 입력하세요'
+    $danseoLocations = @{
+        codex  = '.agents/skills/danseo'
+        claude = '.claude/skills/danseo'
+        agy    = '.gemini/config/skills/danseo'
+    }
+    if (-not $danseoLocations.ContainsKey($danseoHost)) { throw 'codex, claude, agy 중 하나를 입력하세요.' }
 
-if (Test-Path -LiteralPath $danseoTarget) { throw "기존 설치를 확인하세요: $danseoTarget" }
-New-Item -ItemType Directory -Force -Path (Split-Path $danseoTarget -Parent) | Out-Null
-Copy-Item -LiteralPath './skills/danseo' -Destination $danseoTarget -Recurse -ErrorAction Stop
-node --test "$danseoTarget/scripts/research-evidence.test.mjs"
+    $danseoTarget = Join-Path $HOME $danseoLocations[$danseoHost]
+    if (Test-Path -LiteralPath $danseoTarget) { throw "이미 설치되어 있습니다: $danseoTarget" }
+    New-Item -ItemType Directory -Force -Path (Split-Path $danseoTarget -Parent) -ErrorAction Stop | Out-Null
+    Copy-Item -LiteralPath './skills/danseo' -Destination $danseoTarget -Recurse -ErrorAction Stop
+    Write-Output "Danseo 설치 위치: $danseoTarget"
+}
 ```
 
 </details>
@@ -79,39 +82,46 @@ node --test "$danseoTarget/scripts/research-evidence.test.mjs"
 <details>
 <summary><strong>macOS·Linux · Bash 또는 Zsh</strong></summary>
 
-여기서도 내려받은 저장소 폴더에서 실행하세요. Codex 외에는 주석을 보고 `danseo_target` 한 줄을 바꿉니다.
-
 ```sh
-danseo_target="$HOME/.agents/skills/danseo"
-# Claude Code: danseo_target="$HOME/.claude/skills/danseo"
-# Argon (agy): danseo_target="$HOME/.gemini/config/skills/danseo"
+{
+  printf 'codex, claude, agy 중 하나를 입력하세요: '
+  read -r danseohost
+  case "$danseohost" in
+    codex)  danseotarget="$HOME/.agents/skills/danseo" ;;
+    claude) danseotarget="$HOME/.claude/skills/danseo" ;;
+    agy)    danseotarget="$HOME/.gemini/config/skills/danseo" ;;
+    *)      danseotarget='' ;;
+  esac
 
-if [ -e "$danseo_target" ] || [ -L "$danseo_target" ]; then
-  printf '기존 설치를 확인하세요: %s\n' "$danseo_target"
-else
-  mkdir -p "$(dirname "$danseo_target")" &&
-    cp -R ./skills/danseo "$danseo_target" &&
-    node --test "$danseo_target/scripts/research-evidence.test.mjs"
-fi
+  if [ -z "$danseotarget" ]; then
+    printf '%s\n' 'codex, claude, agy 중 하나를 입력하세요.'
+  elif [ -e "$danseotarget" ] || [ -L "$danseotarget" ]; then
+    printf '이미 설치되어 있습니다: %s\n' "$danseotarget"
+  else
+    mkdir -p "$(dirname "$danseotarget")" &&
+      cp -R ./skills/danseo "$danseotarget" &&
+      printf 'Danseo 설치 위치: %s\n' "$danseotarget"
+  fi
+}
 ```
 
 </details>
 
-테스트 출력에서 `fail 0`을 확인하세요. 복사한 검증기가 예제 입력을 처리한다는 뜻입니다. 설치한 스킬을 찾아 쓰는지는 아래처럼 새 채팅에서 확인할 수 있습니다.
+설치가 끝나면 `Danseo 설치 위치:` 뒤에 스킬 폴더 경로가 나옵니다. 복사한 폴더가 동작하는지 보려면 `<설치 경로>`를 출력된 경로로 바꿔 `node --test "<설치 경로>/scripts/research-evidence.test.mjs"`를 실행하고 `fail 0`을 확인하세요.
 
-### 3. 새 채팅에서 확인하기
-
-파일을 저장할 수 있는 폴더에서 새 채팅을 열고 [지도 요청 예시](#논문-그래프-생성-요청)를 보내 보세요. 에이전트가 스킬을 고르지 않으면 Codex에서는 스킬 선택 메뉴나 `$danseo`를, Claude Code와 Antigravity CLI에서는 `/danseo`를 쓰면 됩니다.
-
-목록에 Danseo가 없다면 앱이나 CLI를 다시 열어 보세요. 설치 폴더에 `SKILL.md`, `scripts`, `references`, `assets`가 함께 있는지도 확인합니다. 끝까지 못 찾거나 이름이 같은 다른 복사본을 읽으면, 쓰려는 `SKILL.md`의 절대 경로를 알려 주세요.
-
-업데이트할 때는 GitHub에서 최신 소스를 받습니다. 기존 `danseo`를 스킬 검색 경로 밖에 백업하고, 새 폴더 전체를 복사한 뒤 테스트를 한 번 더 실행하세요.
+이미 Danseo를 설치했다면 에이전트가 어느 복사본을 읽는지 먼저 확인하세요. 업데이트할 때는 기존 복사본을 에이전트의 스킬 폴더 밖으로 옮겨 백업한 뒤 위 복사 명령을 다시 실행합니다.
 
 ## 논문 그래프 생성 요청
 
-제목만 알고 있다면 이렇게 요청해 보세요. 관련 논문까지 찾아보려면 에이전트가 웹에서 논문을 검색하고 출처를 열 수 있어야 합니다.
+### 3. 첫 지도 만들고 열기
+
+에이전트가 파일을 저장할 수 있는 폴더에서 새 채팅을 열고 이렇게 요청해 보세요.
 
 > Attention Is All You Need를 읽으려고 해. 관련 있는 선행·후속 논문을 찾아 한국어로 논문 지도를 만들어 줘. 각 논문을 읽을 이유와 확인한 출처를 남기고, 최초 공개일과 지도에서 다룬 판본의 날짜도 확인할 수 있으면 넣어 줘. 이 폴더에 `attention-paper-graph.html`로 저장하고 파일 위치를 알려 줘.
+
+에이전트가 Danseo를 고르지 않으면 Codex에서는 스킬 선택 메뉴를 쓰거나 메시지를 `$danseo`로 시작하세요. Claude Code와 Antigravity CLI에서는 메시지를 `/danseo`로 시작합니다.
+
+Danseo가 보이지 않으면 에이전트를 다시 시작하고, 설치 폴더에 `SKILL.md`, `scripts/`, `references/`, `assets/`가 모두 있는지 확인하세요. 설치한 `SKILL.md`의 절대 경로를 알려 주고 그 스킬을 쓰라고 요청해도 됩니다.
 
 개념부터 살펴볼 때는 “Danseo로 어텐션을 알아보고 싶어”라고 요청해 보세요. Danseo가 대표 논문을 고르고, 핵심 개념과 배경 논문, 원문에서 확인한 논문 간 관계를 첫 지도에 함께 담습니다.
 
@@ -150,7 +160,7 @@ macOS에서는 `/Users/me/research/my-topic/papers`, Linux에서는 `/home/me/re
 
 검색 내역이나 논문 메모를 다음 채팅에서도 이어가고 싶다면 CLI를 준비하세요. CLI로 논문을 기록한 Paper 카드와 프로젝트별 적용 결과도 관리할 수 있습니다. 지도만 만들려면 위에서 설치한 스킬을 쓰면 됩니다.
 
-**Node.js 22 또는 24 LTS와 npm**이 필요합니다. 새로 설치한다면 Node.js 24의 최신 패치를 권장합니다. [GitHub에서 내려받은 소스](#1-github에서-내려받기)로 설치하세요. Danseo는 아직 npm에 게시되지 않았습니다.
+**Node.js 22 또는 24 LTS와 npm**이 필요합니다. 새로 설치한다면 Node.js 24의 최신 패치를 권장합니다. [내려받은 소스](#1-소스-내려받기)로 설치하세요. Danseo는 아직 npm에 게시되지 않았습니다.
 
 내려받은 소스 폴더에서 아래 명령을 실행합니다.
 
@@ -209,6 +219,19 @@ node ./dist/cli.js export --workspace ./examples/minimal --project demo --applic
 - 개인 PDF, 주제 기록, 카드는 소스 코드와 다른 폴더에 보관하세요. 내보낸 파일에는 카드 전문과 내 컴퓨터의 절대 경로가 담기므로 공유하기 전에 살펴보세요.
 - CLI 자체는 모델 키나 DB 없이 로컬에서 동작하며 외부로 요청을 보내지 않습니다. 비교 화면을 열 때만 읽기 전용 서버를 실행하며, 터미널에서 `Ctrl+C`를 누르면 끝납니다. 에이전트가 웹에서 검색하거나 파일을 받거나 자료를 모델에 보낼 때는 그 도구의 권한과 설정이 적용됩니다.
 - 저자의 주장, AI의 해석, 프로젝트에서 관찰한 결과, 실제 채택 결정은 따로 기록합니다. 구조 검사와 원문 대조를 마친 뒤에도 결과를 재현할 수 있는지, 내가 논문을 이해했는지는 각각 확인해야 합니다.
+
+## 프로젝트 구조
+
+Danseo는 TypeScript/Node.js 패키지와 에이전트용 스킬로 이루어져 있습니다. 주제 폴더에는 연구 질문 하나를 위해 고른 논문, 모은 원문, 메모가 남습니다. 별도의 `workspace.json`에는 여러 프로젝트에서 다시 쓰는 Paper 기록과 프로젝트별 Application 기록을 등록합니다. 그래서 여러 프로젝트가 같은 근거를 인용하면서도 각자 다른 판단을 내릴 수 있습니다.
+
+```text
+src/                     CLI, 파일 기반 core, 비교 서버와 브라우저 화면
+schemas/                 카드, workspace, 관계 스키마
+skills/                  논문 지도, 논문 학습, 프로젝트 적용
+examples/minimal/        검증과 내보내기용 합성 workspace
+tests/                   CLI, 원문, 패키지 검사
+docs/                    사용 안내, 데이터 형식, 개발 참고 자료
+```
 
 ## 문서
 
