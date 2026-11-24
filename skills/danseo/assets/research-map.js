@@ -68,44 +68,50 @@
     );
     return { concepts, papers };
   }
-  function build(data, scene, backgroundId) {
-    const elements = [],
-      project = data.mode === 'project-application';
-    const addNode = (type, item, index, count, column) => {
-      let position;
-      if (scene === 'background') {
-        position = { x: 140 + column * 330, y: 100 + index * 165 };
-      } else if (scene === 'context') {
-        const cols = Math.min(3, count),
-          row = Math.floor(index / cols),
-          col = row % 2 ? cols - 1 - (index % cols) : index % cols;
-        position = { x: 110 + col * 240, y: 70 + row * 155 };
-      } else if (project) position = { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
-      else
-        position =
-          count === 2
-            ? { x: 170 + index * 380, y: 190 }
-            : {
-                x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
-                y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
-              };
+  // Background scenes set the paper that needs a concept, the concept and its readings in three
+  // columns; context scenes snake through three columns; project maps put papers left and
+  // applications right; other maps use a pair or a ring.
+  function nodePosition(scene, project, index, count, column) {
+    if (scene === 'background') return { x: 140 + column * 330, y: 100 + index * 165 };
+    if (scene === 'context') {
+      const cols = Math.min(3, count),
+        row = Math.floor(index / cols),
+        col = row % 2 ? cols - 1 - (index % cols) : index % cols;
+      return { x: 110 + col * 240, y: 70 + row * 155 };
+    }
+    if (project) return { x: column === 0 ? 150 : 510, y: 100 + index * 165 };
+    if (count === 2) return { x: 170 + index * 380, y: 190 };
+    return {
+      x: 360 + Math.cos((index / count) * 2 * Math.PI) * 245,
+      y: 230 + Math.sin((index / count) * 2 * Math.PI) * 165,
+    };
+  }
+  // The lines under a node's title: a concept tag, a paper's year and review note, or an
+  // application's decision.
+  function stateLabel(type, item) {
+    if (type === 'concept') return t('\nConcept');
+    if (type === 'paper')
+      return (
+        '\n' +
+        (item.publication?.date.slice(0, 4) ?? t('Publication year unknown')) +
+        (item.review_status === 'needs-recheck' ? '\n' + t('Evidence needs rechecking') : '')
+      );
+    if (type === 'application')
+      return '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified'));
+    return '';
+  }
+  // Context scenes number their topics; a background scene marks the focal paper.
+  function labelPrefix(scene, index, focal) {
+    if (scene === 'context') return String(index + 1).padStart(2, '0') + '  ';
+    if (scene === 'background' && focal) return t('Focal paper') + '\n';
+    return '';
+  }
+  function nodeAdder(data, scene, project, elements) {
+    return (type, item, index, count, column) => {
+      const position = nodePosition(scene, project, index, count, column);
       const focal = type === 'paper' && data.focal_paper_id === item.id;
-      const stateLabel =
-        type === 'concept'
-          ? t('\nConcept')
-          : type === 'paper'
-            ? '\n' +
-              (item.publication?.date.slice(0, 4) ?? t('Publication year unknown')) +
-              (item.review_status === 'needs-recheck' ? '\n' + t('Evidence needs rechecking') : '')
-            : type === 'application'
-              ? '\n' + item.decision.status + ' · ' + (item.decision.action ?? t('Unspecified'))
-              : '';
-      const prefix =
-        scene === 'context'
-          ? String(index + 1).padStart(2, '0') + '  '
-          : scene === 'background' && focal
-            ? t('Focal paper') + '\n'
-            : '';
+      const statusLine = stateLabel(type, item);
+      const prefix = labelPrefix(scene, index, focal);
       elements.push({
         group: 'nodes',
         data: {
@@ -113,112 +119,283 @@
           recordId: item.id,
           type,
           focal,
-          label: prefix + (item.short_title ?? item.title) + stateLabel,
+          label: prefix + (item.short_title ?? item.title) + statusLine,
           state: item.review_status ?? item.decision?.status ?? 'context',
         },
         position,
       });
     };
-    if (scene === 'background') {
-      const background = data.backgrounds.find((item) => item.id === backgroundId);
-      const concept = data.concepts.find((item) => item.id === background.concept_id);
+  }
+  // One background: the paper that needs a concept, the concept, and that concept's readings.
+  function addBackgroundScene(data, backgroundId, addNode, elements) {
+    const background = data.backgrounds.find((item) => item.id === backgroundId);
+    const concept = data.concepts.find((item) => item.id === background.concept_id);
+    addNode(
+      'paper',
+      data.papers.find((item) => item.id === background.paper_id),
+      0,
+      1,
+      0,
+    );
+    addNode('concept', concept, 0, 1, 1);
+    background.readings.forEach((reading, i, all) => {
       addNode(
         'paper',
-        data.papers.find((item) => item.id === background.paper_id),
-        0,
-        1,
-        0,
+        data.papers.find((item) => item.id === reading.paper_id),
+        i,
+        all.length,
+        2,
       );
-      addNode('concept', concept, 0, 1, 1);
-      background.readings.forEach((reading, i, all) => {
-        addNode(
-          'paper',
-          data.papers.find((item) => item.id === reading.paper_id),
-          i,
-          all.length,
-          2,
-        );
-      });
+    });
+    elements.push(...backgroundEdges(background));
+  }
+  function addContextElements(data, addNode, elements) {
+    data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
+    data.project_context.links.forEach((link, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'context:' + i,
+          source: 'topic:' + link.source,
+          target: 'topic:' + link.target,
+          type: 'context-link',
+          recordId: String(i),
+          label: '',
+          origin: 'ai',
+          state: 'proposed',
+        },
+      }),
+    );
+  }
+  function addApplicationElements(data, addNode, elements) {
+    data.applications.forEach((item, i, all) => {
+      addNode('application', item, i, all.length, 1);
+      for (const paper of data.papers) {
+        const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
+        if (refs.length)
+          elements.push({
+            group: 'edges',
+            data: {
+              id: 'reference:' + item.id + ':' + paper.id,
+              source: 'paper:' + paper.id,
+              target: 'application:' + item.id,
+              type: 'reference',
+              recordId: item.id,
+              paperId: paper.id,
+              label: t('Evidence reference · ') + refs.length + t(' claims'),
+              origin: 'reference',
+              state: item.decision.status,
+            },
+          });
+      }
+    });
+  }
+  function relationLabel(relation, index) {
+    return (
+      String(index + 1).padStart(2, '0') +
+      ' · ' +
+      kind[relation.kind] +
+      (relation.needs_recheck
+        ? ' · ' +
+          (relation.origin === 'ai' ? t('Suggested connection') : t('Source record')) +
+          t(' · recheck')
+        : '')
+    );
+  }
+  function addRelationElements(data, elements) {
+    data.relations.forEach((relation, i) =>
+      elements.push({
+        group: 'edges',
+        data: {
+          id: 'relation:' + relation.id,
+          source: 'paper:' + relation.source,
+          target: 'paper:' + relation.target,
+          type: 'relation',
+          recordId: relation.id,
+          label: relationLabel(relation, i),
+          origin: relation.origin,
+          state: relation.needs_recheck ? 'needs-recheck' : relation.status,
+        },
+      }),
+    );
+  }
+  // Concepts that a background links to, unless folded away, and the edges of their backgrounds.
+  function addConceptElements(data, hidden, addNode, elements) {
+    const linkedConcepts = new Set((data.backgrounds ?? []).map((item) => item.concept_id));
+    data.concepts
+      ?.filter((item) => linkedConcepts.has(item.id) && !hidden.concepts.has(item.id))
+      .forEach((item, i, all) => addNode('concept', item, i, all.length));
+    for (const background of data.backgrounds ?? []) {
+      if (hidden.concepts.has(background.concept_id)) continue;
       elements.push(...backgroundEdges(background));
+    }
+  }
+  function build(data, scene, backgroundId) {
+    const elements = [],
+      project = data.mode === 'project-application';
+    const addNode = nodeAdder(data, scene, project, elements);
+    if (scene === 'background') {
+      addBackgroundScene(data, backgroundId, addNode, elements);
     } else if (scene === 'context') {
-      data.project_context.items.forEach((item, i, all) => addNode('topic', item, i, all.length));
-      data.project_context.links.forEach((link, i) =>
-        elements.push({
-          group: 'edges',
-          data: {
-            id: 'context:' + i,
-            source: 'topic:' + link.source,
-            target: 'topic:' + link.target,
-            type: 'context-link',
-            recordId: String(i),
-            label: '',
-            origin: 'ai',
-            state: 'proposed',
-          },
-        }),
-      );
+      addContextElements(data, addNode, elements);
     } else {
       const hidden = project ? { concepts: new Set(), papers: new Set() } : folded(data);
       data.papers
         .filter((item) => !hidden.papers.has(item.id))
         .forEach((item, i, all) => addNode('paper', item, i, all.length, 0));
       if (project) {
-        data.applications.forEach((item, i, all) => {
-          addNode('application', item, i, all.length, 1);
-          for (const paper of data.papers) {
-            const refs = item.claim_refs.filter((ref) => ref.paper_id === paper.id);
-            if (refs.length)
-              elements.push({
-                group: 'edges',
-                data: {
-                  id: 'reference:' + item.id + ':' + paper.id,
-                  source: 'paper:' + paper.id,
-                  target: 'application:' + item.id,
-                  type: 'reference',
-                  recordId: item.id,
-                  paperId: paper.id,
-                  label: t('Evidence reference · ') + refs.length + t(' claims'),
-                  origin: 'reference',
-                  state: item.decision.status,
-                },
-              });
-          }
-        });
+        addApplicationElements(data, addNode, elements);
       } else {
-        data.relations.forEach((relation, i) =>
-          elements.push({
-            group: 'edges',
-            data: {
-              id: 'relation:' + relation.id,
-              source: 'paper:' + relation.source,
-              target: 'paper:' + relation.target,
-              type: 'relation',
-              recordId: relation.id,
-              label:
-                String(i + 1).padStart(2, '0') +
-                ' · ' +
-                kind[relation.kind] +
-                (relation.needs_recheck
-                  ? ' · ' +
-                    (relation.origin === 'ai' ? t('Suggested connection') : t('Source record')) +
-                    t(' · recheck')
-                  : ''),
-              origin: relation.origin,
-              state: relation.needs_recheck ? 'needs-recheck' : relation.status,
-            },
-          }),
-        );
-        const linkedConcepts = new Set((data.backgrounds ?? []).map((item) => item.concept_id));
-        data.concepts
-          ?.filter((item) => linkedConcepts.has(item.id) && !hidden.concepts.has(item.id))
-          .forEach((item, i, all) => addNode('concept', item, i, all.length));
-        for (const background of data.backgrounds ?? []) {
-          if (hidden.concepts.has(background.concept_id)) continue;
-          elements.push(...backgroundEdges(background));
-        }
+        addRelationElements(data, elements);
+        addConceptElements(data, hidden, addNode, elements);
       }
     }
     return elements;
+  }
+  function nodeStyle() {
+    return [
+      {
+        selector: 'node',
+        style: {
+          shape: 'round-rectangle',
+          width: 176,
+          height: 74,
+          'background-color': '#ffffff',
+          'border-width': 1.5,
+          'border-color': '#9aa9c5',
+          label: 'data(label)',
+          color: '#202631',
+          'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
+          'font-size': 18,
+          'font-weight': 600,
+          'text-wrap': 'wrap',
+          'text-max-width': 152,
+          'text-valign': 'center',
+          'text-halign': 'center',
+          padding: 8,
+        },
+      },
+      {
+        selector: 'node[type="application"]',
+        style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
+      },
+      {
+        selector: 'node[type="concept"]',
+        style: { shape: 'ellipse', 'background-color': '#f4effa', 'border-color': '#7c659d' },
+      },
+      {
+        selector: 'node[?focal]',
+        style: {
+          height: 98,
+          'underlay-shape': 'round-rectangle',
+          'underlay-opacity': 1,
+          'underlay-color': '#27416b',
+          'underlay-padding': 4,
+        },
+      },
+    ];
+  }
+  function edgeStyle() {
+    return [
+      {
+        selector: 'edge',
+        style: {
+          width: 2,
+          'curve-style': 'bezier',
+          'control-point-step-size': 110,
+          'target-arrow-shape': 'triangle',
+          'arrow-scale': 1,
+          'line-color': '#89958b',
+          'target-arrow-color': '#89958b',
+          label: 'data(label)',
+          'font-family': 'Malgun Gothic, sans-serif',
+          'font-size': 13,
+          'text-background-color': '#f7f8fb',
+          'text-background-opacity': 1,
+          'text-background-padding': 5,
+          'text-rotation': 'none',
+          color: '#606b7d',
+        },
+      },
+      {
+        selector: 'edge[origin="source"][state="source-checked"]',
+        style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
+      },
+      {
+        selector: 'edge[origin="ai"]',
+        style: {
+          'line-color': '#7c659d',
+          'target-arrow-color': '#7c659d',
+          'line-style': 'dashed',
+          color: '#6f508d',
+        },
+      },
+      {
+        selector: 'edge[state="needs-recheck"]',
+        style: {
+          'line-color': '#a77d2e',
+          'target-arrow-color': '#a77d2e',
+          'line-style': 'dashed',
+        },
+      },
+      {
+        selector: 'edge[type="reference"]',
+        style: {
+          'line-color': '#64776c',
+          'target-arrow-color': '#64776c',
+          'line-style': 'dotted',
+        },
+      },
+    ];
+  }
+  // The selection highlight comes after the base styles so it wins.
+  function selectionStyle() {
+    return [
+      {
+        selector: '.active',
+        style: {
+          'border-width': 3,
+          'border-color': '#315be8',
+          'background-color': '#edf1ff',
+          width: 4,
+        },
+      },
+      { selector: 'node.active', style: { width: 176 } },
+      { selector: 'edge.active', style: { width: 4 } },
+    ];
+  }
+  function mapStyle() {
+    return [...nodeStyle(), ...edgeStyle(), ...selectionStyle()];
+  }
+  // A reference edge is identified by its application and paper; other elements by record ID.
+  function isSelected(item, type, id, paperId) {
+    return (
+      item.data('type') === type &&
+      (type === 'reference'
+        ? id === item.data('recordId') + ':' + item.data('paperId') &&
+          item.data('paperId') === paperId
+        : item.data('recordId') === id)
+    );
+  }
+  // Fit the whole map, but never zoom in past 125% for a small map.
+  function fitView(cy) {
+    cy.resize();
+    cy.fit(undefined, 32);
+    if (cy.zoom() > 1.25)
+      cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
+  // Zoom around the view centre within the map's zoom limits.
+  function zoomBy(cy, factor, maxZoom) {
+    cy.zoom({
+      level: Math.max(0.25, Math.min(maxZoom, cy.zoom() * factor)),
+      renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
+    });
+  }
+  // Calls onResize whenever the container changes size, where the browser supports it.
+  function watchSize(container, onResize) {
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
+    observer?.observe(container);
+    return observer;
   }
   function mount(
     container,
@@ -239,115 +416,10 @@
       layout: { name: 'preset', fit: true, padding: 32 },
       minZoom: 0.25,
       maxZoom: 2.2,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            shape: 'round-rectangle',
-            width: 176,
-            height: 74,
-            'background-color': '#ffffff',
-            'border-width': 1.5,
-            'border-color': '#9aa9c5',
-            label: 'data(label)',
-            color: '#202631',
-            'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
-            'font-size': 18,
-            'font-weight': 600,
-            'text-wrap': 'wrap',
-            'text-max-width': 152,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            padding: 8,
-          },
-        },
-        {
-          selector: 'node[type="application"]',
-          style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
-        },
-        {
-          selector: 'node[type="concept"]',
-          style: { shape: 'ellipse', 'background-color': '#f4effa', 'border-color': '#7c659d' },
-        },
-        {
-          selector: 'node[?focal]',
-          style: {
-            height: 98,
-            'underlay-shape': 'round-rectangle',
-            'underlay-opacity': 1,
-            'underlay-color': '#27416b',
-            'underlay-padding': 4,
-          },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 2,
-            'curve-style': 'bezier',
-            'control-point-step-size': 110,
-            'target-arrow-shape': 'triangle',
-            'arrow-scale': 1,
-            'line-color': '#89958b',
-            'target-arrow-color': '#89958b',
-            label: 'data(label)',
-            'font-family': 'Malgun Gothic, sans-serif',
-            'font-size': 13,
-            'text-background-color': '#f7f8fb',
-            'text-background-opacity': 1,
-            'text-background-padding': 5,
-            'text-rotation': 'none',
-            color: '#606b7d',
-          },
-        },
-        {
-          selector: 'edge[origin="source"][state="source-checked"]',
-          style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
-        },
-        {
-          selector: 'edge[origin="ai"]',
-          style: {
-            'line-color': '#7c659d',
-            'target-arrow-color': '#7c659d',
-            'line-style': 'dashed',
-            color: '#6f508d',
-          },
-        },
-        {
-          selector: 'edge[state="needs-recheck"]',
-          style: {
-            'line-color': '#a77d2e',
-            'target-arrow-color': '#a77d2e',
-            'line-style': 'dashed',
-          },
-        },
-        {
-          selector: 'edge[type="reference"]',
-          style: {
-            'line-color': '#64776c',
-            'target-arrow-color': '#64776c',
-            'line-style': 'dotted',
-          },
-        },
-        {
-          selector: '.active',
-          style: {
-            'border-width': 3,
-            'border-color': '#315be8',
-            'background-color': '#edf1ff',
-            width: 4,
-          },
-        },
-        { selector: 'node.active', style: { width: 176 } },
-        { selector: 'edge.active', style: { width: 4 } },
-      ],
+      style: mapStyle(),
     });
     let interacted = false;
-    const fit = () => {
-      cy.resize();
-      cy.fit(undefined, 32);
-      if (cy.zoom() > 1.25)
-        cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-    };
+    const fit = () => fitView(cy);
     const wheel = () => {
       interacted = true;
     };
@@ -356,14 +428,10 @@
       interacted = true;
     });
     cy.on('tap', 'node, edge', (event) => onSelect(event.target.data()));
-    const observer =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
-            cy.resize();
-            if (!interacted) fit();
-          })
-        : null;
-    observer?.observe(container);
+    const observer = watchSize(container, () => {
+      cy.resize();
+      if (!interacted) fit();
+    });
     fit();
     return {
       fit: () => {
@@ -372,22 +440,12 @@
       },
       zoom: (factor) => {
         interacted = true;
-        cy.zoom({
-          level: Math.max(0.25, Math.min(2.2, cy.zoom() * factor)),
-          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
-        });
+        zoomBy(cy, factor, 2.2);
       },
       select(type, id, paperId) {
         cy.elements().removeClass('active');
         cy.elements()
-          .filter(
-            (item) =>
-              item.data('type') === type &&
-              (type === 'reference'
-                ? id === item.data('recordId') + ':' + item.data('paperId') &&
-                  item.data('paperId') === paperId
-                : item.data('recordId') === id),
-          )
+          .filter((item) => isSelected(item, type, id, paperId))
           .addClass('active');
       },
       destroy: () => {
@@ -448,13 +506,13 @@
       headings = [];
     let slot = 0;
     for (const [title, { papers: ids, groups }] of columns) {
-      let x = slot * column,
-        y = 0;
-      headings.push({ title, x, y: tree.headingTop });
+      let left = slot * column,
+        top = 0;
+      headings.push({ title, x: left, y: tree.headingTop });
       const place = (id, key, size, offset) => {
-        positions[key] = { x: x + offset, y: y + size.height / 2 };
+        positions[key] = { x: left + offset, y: top + size.height / 2 };
         sizes.set(id, size);
-        y += size.height + tree.gap;
+        top += size.height + tree.gap;
       };
       // Cards share the column's left edge so gutters stay straight when citation counts change card widths.
       for (const id of ids.filter((id) => !plan.owner.has(id))) {
@@ -463,13 +521,13 @@
       for (const group of groups) {
         // One crowded topic wraps into another column under the same heading instead of shrinking the whole map.
         // A single group never splits.
-        const overflows = y > 0 && y + tree.groupGap + groupHeight(group) > tree.maxColumn;
+        const overflows = top > 0 && top + tree.groupGap + groupHeight(group) > tree.maxColumn;
         if (overflows) {
           slot += 1;
-          x = slot * column;
-          y = 0;
+          left = slot * column;
+          top = 0;
         }
-        if (y > 0) y += tree.groupGap - tree.gap;
+        if (top > 0) top += tree.groupGap - tree.gap;
         place(group.concept, group.concept, { width, height: tree.conceptHeight }, 0);
         for (const id of group.papers) {
           const size = nodeSizes.get(id);
@@ -506,10 +564,10 @@
     const to = columnEdge(target) - gutter - outline(target);
     // Same column: stay in one gutter, using the outer x so the line also clears a focal outline.
     if (Math.abs(columnEdge(source) - columnEdge(target)) < 1) {
-      const x = Math.min(from, to);
+      const gutterX = Math.min(from, to);
       return [
-        [x, a.y],
-        [x, b.y],
+        [gutterX, a.y],
+        [gutterX, b.y],
       ];
     }
     const lane = need ? tree.bus : tree.bus - route.linkLane;
@@ -521,18 +579,18 @@
     ];
   }
   function routeEdge(edge) {
-    const s = edge.source().position(),
-      e = edge.target().position();
-    const dx = e.x - s.x,
-      dy = e.y - s.y,
+    const start = edge.source().position(),
+      end = edge.target().position();
+    const dx = end.x - start.x,
+      dy = end.y - start.y,
       length = Math.hypot(dx, dy);
     if (length < 1) return;
     const points = bends(edge),
       weights = [],
       distances = [];
-    for (const [x, y] of points) {
-      weights.push(((x - s.x) * dx + (y - s.y) * dy) / (length * length));
-      distances.push(((y - s.y) * dx - (x - s.x) * dy) / length);
+    for (const [pointX, pointY] of points) {
+      weights.push(((pointX - start.x) * dx + (pointY - start.y) * dy) / (length * length));
+      distances.push(((pointY - start.y) * dx - (pointX - start.x) * dy) / length);
     }
     const style = {
       'curve-style': 'round-segments',
@@ -543,11 +601,11 @@
     };
     // Tree lines leave the concept's lower edge at the gutter.
     if (edge.data('type') === 'background-reading' && !edge.data('free'))
-      style['source-endpoint'] = points[0][0] - s.x + 'px ' + edge.source().height() / 2 + 'px';
+      style['source-endpoint'] = points[0][0] - start.x + 'px ' + edge.source().height() / 2 + 'px';
     edge.style(style);
   }
-  function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
-    const presentation = window.DanseoGraph;
+  // Elements, card sizes, reading plan and layout of a paper map, computed before cytoscape starts.
+  function paperMapModel(data, scene, presentation) {
     const elements = build(data, scene);
     const hasCitationCounts = data.papers.some((paper) => paper.citations !== undefined);
     const nodeSizes = new Map(
@@ -572,88 +630,104 @@
     const layout = concepts.length
       ? conceptLayout(plan, paperOrder, nodeSizes)
       : presentation.topicLayout(paperOrder);
-    // The concept a reading card hangs under, for tree lines; other links to it become free routes.
-    const treeParent = (paperId) =>
-      plan.owner.has(paperId) ? 'concept:' + plan.owner.get(paperId) : undefined;
-    for (const item of elements) {
-      if (item.data.type === 'concept') {
-        item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.id];
-        Object.assign(item.data, layout.sizes?.get(item.data.id) ?? { width: 168, height: 62 });
-      } else if (item.group === 'nodes') {
-        item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
-        Object.assign(
-          item.data,
-          layout.sizes?.get(item.data.id) ?? nodeSizes.get(item.data.recordId),
-        );
-      } else if (
-        item.data.type === 'background-reading' &&
-        concepts.length &&
-        treeParent(item.data.target.slice('paper:'.length)) !== item.data.source
-      ) {
-        // A reading placed under another concept or topic keeps a free curve instead of a misleading tree line.
-        item.data.free = true;
-      } else if (item.data.type === 'relation') {
-        const relation = relations.get(item.data.recordId);
-        item.data.category = presentation.category(relation);
-        item.data.number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
-        item.data.label =
-          String(data.relations.indexOf(relation) + 1).padStart(2, '0') +
-          ' · ' +
-          presentation.kindNames[relation.kind];
-      }
-    }
-    container.classList.add('paper-map');
-    const cy = cytoscape({
-      container,
+    return {
+      data,
+      presentation,
       elements,
-      layout: { name: 'preset' },
-      minZoom: 0.25,
-      maxZoom: 2.5,
-      wheelSensitivity: 0.2,
-      boxSelectionEnabled: false,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            shape: 'roundrectangle',
-            width: 'data(width)',
-            height: 'data(height)',
-            'background-opacity': 0,
-            'border-width': 0,
-            label: '',
-            'overlay-opacity': 0,
-          },
+      nodeSizes,
+      relations,
+      plan,
+      concepts,
+      shownPapers,
+      layout,
+    };
+  }
+  // The concept a reading card hangs under, for tree lines; other links to it become free routes.
+  function treeParent(plan, paperId) {
+    return plan.owner.has(paperId) ? 'concept:' + plan.owner.get(paperId) : undefined;
+  }
+  function isFreeReading(map, item) {
+    return (
+      item.data.type === 'background-reading' &&
+      map.concepts.length &&
+      treeParent(map.plan, item.data.target.slice('paper:'.length)) !== item.data.source
+    );
+  }
+  function labelRelation(map, item) {
+    const { data, presentation } = map;
+    const relation = map.relations.get(item.data.recordId);
+    item.data.category = presentation.category(relation);
+    item.data.number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
+    item.data.label =
+      String(data.relations.indexOf(relation) + 1).padStart(2, '0') +
+      ' · ' +
+      presentation.kindNames[relation.kind];
+  }
+  // Gives each node its position (a saved one first) and size, and each edge its route kind or label.
+  function placeElement(map, item, paperState) {
+    const { layout } = map;
+    if (item.data.type === 'concept') {
+      item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.id];
+      Object.assign(item.data, layout.sizes?.get(item.data.id) ?? { width: 168, height: 62 });
+    } else if (item.group === 'nodes') {
+      item.position = paperState?.positions[item.data.id] ?? layout.positions[item.data.recordId];
+      Object.assign(
+        item.data,
+        layout.sizes?.get(item.data.id) ?? map.nodeSizes.get(item.data.recordId),
+      );
+    } else if (isFreeReading(map, item)) {
+      // A reading placed under another concept or topic keeps a free curve instead of a misleading tree line.
+      item.data.free = true;
+    } else if (item.data.type === 'relation') {
+      labelRelation(map, item);
+    }
+  }
+  // Nodes are invisible hit areas; the HTML cards above them carry the text.
+  function paperMapStyle(presentation) {
+    return [
+      {
+        selector: 'node',
+        style: {
+          shape: 'roundrectangle',
+          width: 'data(width)',
+          height: 'data(height)',
+          'background-opacity': 0,
+          'border-width': 0,
+          label: '',
+          'overlay-opacity': 0,
         },
-        { selector: 'node[type="concept"]', style: { shape: 'round-rectangle' } },
-        ...presentation.edgeStyles(),
-        {
-          selector: 'edge[type="concept-need"]',
-          style: { 'control-point-step-size': 80, 'line-dash-pattern': [10, 6] },
+      },
+      { selector: 'node[type="concept"]', style: { shape: 'round-rectangle' } },
+      ...presentation.edgeStyles(),
+      {
+        selector: 'edge[type="concept-need"]',
+        style: { 'control-point-step-size': 80, 'line-dash-pattern': [10, 6] },
+      },
+      {
+        selector: 'edge[type="background-reading"]',
+        style: { 'control-point-step-size': 80, 'line-dash-pattern': [4, 4] },
+      },
+      {
+        selector: 'edge[type="concept-need"].faded, edge[type="background-reading"].faded',
+        style: { opacity: 1 },
+      },
+      {
+        selector: 'edge[type="concept-need"].connected, edge[type="background-reading"].connected',
+        style: { width: 2 },
+      },
+      {
+        selector: 'edge[type="background-reading"][!free]',
+        style: {
+          'target-arrow-shape': 'none',
+          'line-style': 'solid',
+          'line-color': '#b8acd0',
+          width: 1.5,
         },
-        {
-          selector: 'edge[type="background-reading"]',
-          style: { 'control-point-step-size': 80, 'line-dash-pattern': [4, 4] },
-        },
-        {
-          selector: 'edge[type="concept-need"].faded, edge[type="background-reading"].faded',
-          style: { opacity: 1 },
-        },
-        {
-          selector:
-            'edge[type="concept-need"].connected, edge[type="background-reading"].connected',
-          style: { width: 2 },
-        },
-        {
-          selector: 'edge[type="background-reading"][!free]',
-          style: {
-            'target-arrow-shape': 'none',
-            'line-style': 'solid',
-            'line-color': '#b8acd0',
-            width: 1.5,
-          },
-        },
-      ],
-    });
+      },
+    ];
+  }
+  // Cards and topic headings sit in an HTML layer over the canvas that follows the viewport.
+  function decorationLayer(container) {
     const layer = document.createElement('div');
     layer.className = 'graph-decorations';
     layer.setAttribute('aria-hidden', 'true');
@@ -661,8 +735,11 @@
     world.className = 'graph-world';
     layer.append(world);
     container.append(layer);
-    const cards = new Map();
-    for (const paper of shownPapers) {
+    return { layer, world };
+  }
+  function drawPaperCards(map, world, cards, venueRanks) {
+    const { data, presentation, plan, concepts, layout, nodeSizes } = map;
+    for (const paper of map.shownPapers) {
       const venueRank = venueRanks?.get(paper.id);
       const card = presentation.paperCard(
         {
@@ -681,179 +758,193 @@
       cards.set('paper:' + paper.id, card);
       world.append(card);
     }
-    concepts.forEach((item, index) => {
-      const card = document.createElement('div');
-      card.className = 'graph-concept';
-      const title = data.concepts.find((concept) => concept.id === item.data.recordId).title;
-      const label = document.createElement('span');
-      label.textContent = title;
-      const order = document.createElement('b');
-      order.className = 'graph-concept-order';
-      order.textContent = String(index + 1);
-      card.append(order, label);
-      card.title = title;
-      if (plan.unread.has(item.data.recordId)) {
-        // A required concept whose primary reading could not be secured: shown, but marked as a gap.
-        const text = document.createElement('span');
-        text.className = 'graph-concept-gap';
-        card.append(text);
-        text.textContent = t('No reading secured');
-        card.classList.add('is-unread');
-        card.title = title + ' · ' + t('No reading secured');
-      }
-      card.style.width = item.data.width + 'px';
-      card.style.height = item.data.height + 'px';
+  }
+  function conceptCard(map, item, index) {
+    const card = document.createElement('div');
+    card.className = 'graph-concept';
+    const title = map.data.concepts.find((concept) => concept.id === item.data.recordId).title;
+    const label = document.createElement('span');
+    label.textContent = title;
+    const order = document.createElement('b');
+    order.className = 'graph-concept-order';
+    order.textContent = String(index + 1);
+    card.append(order, label);
+    card.title = title;
+    if (map.plan.unread.has(item.data.recordId)) {
+      // A required concept whose primary reading could not be secured: shown, but marked as a gap.
+      const text = document.createElement('span');
+      text.className = 'graph-concept-gap';
+      card.append(text);
+      text.textContent = t('No reading secured');
+      card.classList.add('is-unread');
+      card.title = title + ' · ' + t('No reading secured');
+    }
+    card.style.width = item.data.width + 'px';
+    card.style.height = item.data.height + 'px';
+    return card;
+  }
+  function drawConceptCards(map, world, cards) {
+    map.concepts.forEach((item, index) => {
+      const card = conceptCard(map, item, index);
       cards.set(item.data.id, card);
       world.append(card);
     });
-    presentation.drawTopics(world, layout.headings);
-    // Measure after the cards are in the document, and again once web fonts settle.
-    presentation.fitTitles(cards.values());
-    document.fonts?.ready.then(() => presentation.fitTitles(cards.values()));
-    if (concepts.length) {
-      cy.edges().forEach(routeEdge);
-      cy.on('position', 'node', (event) => event.target.connectedEdges().forEach(routeEdge));
+  }
+  // Reads the selection after the edge data, as the map always has.
+  function freeEdgeIsRelevant(edge, session) {
+    switch (session.selection?.type) {
+      case 'concept':
+        return edge.data('source') === 'concept:' + session.selection.id;
+      case 'paper':
+        return edge.data('target') === 'paper:' + session.selection.id;
+      case 'background-reading':
+        return edge.data('recordId') === session.selection.id;
+      case 'concept-need':
+        return edge.data('backgroundId') === session.selection.id;
+      default:
+        return false;
     }
-    const host = document.createElement('div');
-    if (concepts.length) (container.nextElementSibling ?? container).after(host);
-    else container.before(host);
-    let selection = null;
-    const explorer = presentation.explorer(
-      host,
-      () => {
-        if (
-          selection?.type === 'relation' &&
-          !presentation.matchesRelation(relations.get(selection.id), explorer.filters)
-        ) {
-          selection = null;
-          onSelect({ type: 'overview', recordId: 'all' });
-        }
-        applyDisplay();
-        onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
-      },
-      paperState?.filters,
+  }
+  // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
+  function summarizedRelations(session) {
+    const { map, explorer } = session;
+    const { data, presentation } = map;
+    return map.concepts.length &&
+      explorer.filters.mode === 'focus' &&
+      session.selection?.type === 'paper' &&
+      session.selection.id === data.focal_paper_id
+      ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
+        data.relations.filter(
+          (edge) =>
+            edge.source === session.selection.id &&
+            presentation.matchesRelation(edge, explorer.filters),
+        )
+      : [];
+  }
+  // A paper's concept readings stay outlined even when their free link is hidden,
+  // the same way summarized relations keep their emphasis without a line.
+  function withOwnReadings(cy, eligible) {
+    const ownBackgrounds = new Set(
+      eligible.filter('[type="concept-need"]').map((edge) => edge.data('backgroundId')),
     );
-    function freeEdgeIsRelevant(edge) {
-      switch (selection?.type) {
-        case 'concept':
-          return edge.data('source') === 'concept:' + selection.id;
-        case 'paper':
-          return edge.data('target') === 'paper:' + selection.id;
-        case 'background-reading':
-          return edge.data('recordId') === selection.id;
-        case 'concept-need':
-          return edge.data('backgroundId') === selection.id;
-        default:
-          return false;
-      }
-    }
-    function applyDisplay() {
-      // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
-      const summarized =
-        concepts.length &&
-        explorer.filters.mode === 'focus' &&
-        selection?.type === 'paper' &&
-        selection.id === data.focal_paper_id
-          ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
-            data.relations.filter(
-              (edge) =>
-                edge.source === selection.id &&
-                presentation.matchesRelation(edge, explorer.filters),
-            )
-          : [];
-      cy.edges('[type="relation"]').forEach((edge) => {
-        const relation = relations.get(edge.data('recordId'));
-        edge.toggleClass(
-          'display-hidden',
-          summarized.includes(relation) ||
-            !presentation.shownRelation(relation, explorer.filters, selection),
-        );
-      });
-      // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
-      cy.edges('[type="background-reading"][?free]').forEach((edge) =>
-        edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge)),
+    return eligible.union(
+      cy
+        .edges('[type="background-reading"]')
+        .filter((edge) => ownBackgrounds.has(edge.data('backgroundId'))),
+    );
+  }
+  function highlightSelection(session, summarized) {
+    const { cy, map } = session;
+    cy.elements().removeClass('selected connected faded');
+    const item =
+      session.selection && cy.getElementById(session.selection.type + ':' + session.selection.id);
+    if (!item?.length) return;
+    item.addClass('selected');
+    let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
+    if (session.selection.type === 'paper') eligible = withOwnReadings(cy, eligible);
+    // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
+    const summaryNodes = cy
+      .edges('[type="relation"]')
+      .filter((edge) => summarized.includes(map.relations.get(edge.data('recordId'))))
+      .connectedNodes();
+    const connected = item.isNode()
+      ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
+      : item.connectedNodes().union(item);
+    connected.difference(item).addClass('connected');
+    cy.elements().difference(connected).addClass('faded');
+  }
+  // Hides relations the filters or selection rule out, then outlines the selection and its neighbours.
+  function applyDisplay(session) {
+    const { cy, map, explorer } = session;
+    const { data, presentation, relations } = map;
+    const summarized = summarizedRelations(session);
+    cy.edges('[type="relation"]').forEach((edge) => {
+      const relation = relations.get(edge.data('recordId'));
+      edge.toggleClass(
+        'display-hidden',
+        summarized.includes(relation) ||
+          !presentation.shownRelation(relation, explorer.filters, session.selection),
       );
-      explorer.update(data.papers, data.relations, selection, summarized.length);
-      cy.elements().removeClass('selected connected faded');
-      const item = selection && cy.getElementById(selection.type + ':' + selection.id);
-      if (item?.length) {
-        item.addClass('selected');
-        let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
-        if (selection.type === 'paper') {
-          // A paper's concept readings stay outlined even when their free link is hidden,
-          // the same way summarized relations keep their emphasis without a line.
-          const ownBackgrounds = new Set(
-            eligible.filter('[type="concept-need"]').map((edge) => edge.data('backgroundId')),
-          );
-          eligible = eligible.union(
-            cy
-              .edges('[type="background-reading"]')
-              .filter((edge) => ownBackgrounds.has(edge.data('backgroundId'))),
-          );
-        }
-        // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
-        const summaryNodes = cy
-          .edges('[type="relation"]')
-          .filter((edge) => summarized.includes(relations.get(edge.data('recordId'))))
-          .connectedNodes();
-        const connected = item.isNode()
-          ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
-          : item.connectedNodes().union(item);
-        connected.difference(item).addClass('connected');
-        cy.elements().difference(connected).addClass('faded');
-      }
-      sync();
+    });
+    // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
+    cy.edges('[type="background-reading"][?free]').forEach((edge) =>
+      edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge, session)),
+    );
+    explorer.update(data.papers, data.relations, session.selection, summarized.length);
+    highlightSelection(session, summarized);
+    session.sync();
+  }
+  // A filter change drops a selected relation the filters now hide, then redraws.
+  function explorerChanged(session) {
+    const { map, explorer, onSelect, onFilter } = session;
+    const { presentation } = map;
+    if (
+      session.selection?.type === 'relation' &&
+      !presentation.matchesRelation(map.relations.get(session.selection.id), explorer.filters)
+    ) {
+      session.selection = null;
+      onSelect({ type: 'overview', recordId: 'all' });
     }
-    let frame = null,
-      interacted = !!paperState;
-    const sync = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        const pan = cy.pan();
-        world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
-        for (const [id, card] of cards) presentation.syncCard(card, cy.getElementById(id));
+    applyDisplay(session);
+    onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
+  }
+  // Moves the card layer with the viewport and copies node states to the cards, once per frame.
+  function syncDecorations(session) {
+    if (session.frame !== null) return;
+    session.frame = requestAnimationFrame(() => {
+      session.frame = null;
+      const { cy, world, cards, map } = session;
+      const pan = cy.pan();
+      world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
+      for (const [id, card] of cards) map.presentation.syncCard(card, cy.getElementById(id));
+    });
+  }
+  // Fits every card; on first open a narrow screen or a large first map starts zoomed in instead.
+  function fitPaperMap(session, { initial = false } = {}) {
+    const { cy, map } = session;
+    const { concepts } = map;
+    cy.resize();
+    cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
+    if (
+      initial &&
+      concepts.length &&
+      cy.width() < view.narrowWidth &&
+      cy.zoom() < view.narrowZoom
+    ) {
+      // A phone opens on the start paper at a readable size.
+      const node = cy.getElementById('paper:' + map.data.start),
+        start = node.position(),
+        zoom = view.narrowZoom;
+      const centerY = Math.max(
+        cy.height() / 4,
+        (node.height() / 2 - tree.headingTop + tree.gap) * zoom,
+      );
+      cy.viewport({
+        zoom,
+        pan: { x: cy.width() * 0.3 - start.x * zoom, y: centerY - start.y * zoom },
       });
+    } else if (initial && concepts.length && cy.zoom() < view.firstMapMinZoom) {
+      // A large first map opens readable at its top-left (focal paper and first concepts); "Fit all" still shows everything.
+      const box = cy.nodes().boundingBox(),
+        zoom = view.firstMapMinZoom;
+      cy.viewport({
+        zoom,
+        pan: { x: view.padding - box.x1 * zoom, y: view.padding - box.y1 * zoom },
+      });
+    } else if (cy.zoom() > 1) {
+      cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+    }
+    session.sync();
+  }
+  function bindPaperEvents(session) {
+    const { container, cy, onSelect, sync } = session;
+    // Once the user scrolls, drags or taps, resizing no longer refits the map.
+    const markInteracted = () => {
+      session.interacted = true;
     };
-    const fit = ({ initial = false } = {}) => {
-      cy.resize();
-      cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
-      if (
-        initial &&
-        concepts.length &&
-        cy.width() < view.narrowWidth &&
-        cy.zoom() < view.narrowZoom
-      ) {
-        // A phone opens on the start paper at a readable size.
-        const node = cy.getElementById('paper:' + data.start),
-          start = node.position(),
-          zoom = view.narrowZoom;
-        const centerY = Math.max(
-          cy.height() / 4,
-          (node.height() / 2 - tree.headingTop + tree.gap) * zoom,
-        );
-        cy.viewport({
-          zoom,
-          pan: { x: cy.width() * 0.3 - start.x * zoom, y: centerY - start.y * zoom },
-        });
-      } else if (initial && concepts.length && cy.zoom() < view.firstMapMinZoom) {
-        // A large first map opens readable at its top-left (focal paper and first concepts); "Fit all" still shows everything.
-        const box = cy.nodes().boundingBox(),
-          zoom = view.firstMapMinZoom;
-        cy.viewport({
-          zoom,
-          pan: { x: view.padding - box.x1 * zoom, y: view.padding - box.y1 * zoom },
-        });
-      } else if (cy.zoom() > 1) {
-        cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-      }
-      sync();
-    };
-    const wheel = () => {
-      interacted = true;
-    };
-    container.addEventListener('wheel', wheel, { passive: true });
-    cy.on('mousedown touchstart', wheel);
+    session.markInteracted = markInteracted;
+    container.addEventListener('wheel', markInteracted, { passive: true });
+    cy.on('mousedown touchstart', markInteracted);
     cy.on('render', sync);
     cy.on('tap', 'node, edge', (event) => onSelect(event.target.data()));
     cy.on('tap', (event) => {
@@ -869,24 +960,16 @@
       container.style.cursor = '';
       sync();
     });
-    const observer =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
-            if (interacted) cy.resize();
-            else fit({ initial: true });
-          })
-        : null;
-    observer?.observe(container);
-    applyDisplay();
-    if (paperState) {
-      cy.zoom(paperState.zoom);
-      cy.pan(paperState.pan);
-      sync();
-      onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
-    } else fit({ initial: true });
+    session.observer = watchSize(container, () => {
+      if (session.interacted) cy.resize();
+      else session.fit({ initial: true });
+    });
+  }
+  function paperControls(session) {
+    const { container, cy, map, layer } = session;
     return {
       snapshot: () => ({
-        filters: { ...explorer.filters },
+        filters: { ...session.explorer.filters },
         zoom: cy.zoom(),
         pan: { ...cy.pan() },
         positions: Object.fromEntries(
@@ -894,33 +977,91 @@
         ),
       }),
       fit: () => {
-        interacted = true;
-        fit();
+        session.interacted = true;
+        session.fit();
       },
       zoom: (factor) => {
-        interacted = true;
-        cy.zoom({
-          level: Math.max(0.25, Math.min(2.5, cy.zoom() * factor)),
-          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
-        });
+        session.interacted = true;
+        zoomBy(cy, factor, 2.5);
       },
       select(type, id) {
-        selection = type && id ? { type, id } : null;
-        if (type === 'relation' && relations.has(id)) explorer.reveal(relations.get(id));
-        applyDisplay();
+        session.selection = type && id ? { type, id } : null;
+        if (type === 'relation' && map.relations.has(id))
+          session.explorer.reveal(map.relations.get(id));
+        applyDisplay(session);
       },
       destroy() {
-        observer?.disconnect();
-        container.removeEventListener('wheel', wheel);
-        if (frame !== null) cancelAnimationFrame(frame);
+        session.observer?.disconnect();
+        container.removeEventListener('wheel', session.markInteracted);
+        if (session.frame !== null) cancelAnimationFrame(session.frame);
         cy.destroy();
-        explorer.destroy();
-        host.remove();
+        session.explorer.destroy();
+        session.host.remove();
         layer.remove();
         container.classList.remove('paper-map');
         container.style.cursor = '';
       },
     };
+  }
+  // Wires up the explorer, events and first view of a mounted paper map and returns its controls.
+  // The session object holds what the helpers share. mountPapers creates it; this function adds
+  // host, selection, explorer, frame, interacted, sync and fit, and bindPaperEvents adds
+  // markInteracted and observer. selection, frame and interacted change while the map is open.
+  function paperController(session) {
+    const { container, cy, map, paperState, onFilter } = session;
+    const host = document.createElement('div');
+    if (map.concepts.length) (container.nextElementSibling ?? container).after(host);
+    else container.before(host);
+    session.host = host;
+    session.selection = null;
+    session.explorer = map.presentation.explorer(
+      host,
+      () => explorerChanged(session),
+      paperState?.filters,
+    );
+    session.frame = null;
+    session.interacted = !!paperState;
+    session.sync = () => syncDecorations(session);
+    session.fit = (options) => fitPaperMap(session, options);
+    bindPaperEvents(session);
+    applyDisplay(session);
+    if (paperState) {
+      cy.zoom(paperState.zoom);
+      cy.pan(paperState.pan);
+      session.sync();
+      onFilter((edge) => map.presentation.matchesRelation(edge, session.explorer.filters));
+    } else session.fit({ initial: true });
+    return paperControls(session);
+  }
+  function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
+    const presentation = window.DanseoGraph;
+    const map = paperMapModel(data, scene, presentation);
+    for (const item of map.elements) placeElement(map, item, paperState);
+    container.classList.add('paper-map');
+    const cy = cytoscape({
+      container,
+      elements: map.elements,
+      layout: { name: 'preset' },
+      minZoom: 0.25,
+      maxZoom: 2.5,
+      wheelSensitivity: 0.2,
+      boxSelectionEnabled: false,
+      style: paperMapStyle(presentation),
+    });
+    const { layer, world } = decorationLayer(container);
+    const cards = new Map();
+    drawPaperCards(map, world, cards, venueRanks);
+    drawConceptCards(map, world, cards);
+    presentation.drawTopics(world, map.layout.headings);
+    // Measure after the cards are in the document, and again once web fonts settle.
+    presentation.fitTitles(cards.values());
+    document.fonts?.ready.then(() => presentation.fitTitles(cards.values()));
+    if (map.concepts.length) {
+      cy.edges().forEach(routeEdge);
+      cy.on('position', 'node', (event) => event.target.connectedEdges().forEach(routeEdge));
+    }
+    const session = { container, cy, map, layer, world, cards, onSelect, onFilter, paperState };
+    return paperController(session);
   }
   window.DanseoMap = { build, mount, folded };
 })();
