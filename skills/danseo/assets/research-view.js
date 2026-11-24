@@ -9,39 +9,53 @@
   const presentation = window.DanseoGraph;
   // The same plan the map draws from, so "Concept N" here always matches pill N and the card's tree line.
   const plan = presentation.conceptPlan(data);
-  const venueRanks = new Map();
-  for (const paper of data.papers) {
-    const ranking = presentation.linkedVenueRank(paper.venue_rank, sources);
-    if (ranking) venueRanks.set(paper.id, ranking);
+  // Each paper's representative venue rank, when its sources link it.
+  function linkedVenueRanks() {
+    const ranks = new Map();
+    for (const paper of data.papers) {
+      const ranking = presentation.linkedVenueRank(paper.venue_rank, sources);
+      if (ranking) ranks.set(paper.id, ranking);
+    }
+    return ranks;
   }
+  const venueRanks = linkedVenueRanks();
   const hasCitationCounts = data.papers.some((paper) => paper.citations);
   const hasVenueMetadata = data.papers.some((paper) => paper.venue_rank);
   const concepts = new Map((data.concepts ?? []).map((item) => [item.id, item]));
   const backgrounds = new Map((data.backgrounds ?? []).map((item) => [item.id, item]));
-  const linkedConcepts = new Map();
-  for (const background of backgrounds.values()) {
-    if (!linkedConcepts.has(background.concept_id)) linkedConcepts.set(background.concept_id, []);
-    linkedConcepts.get(background.concept_id).push(background);
+  // The backgrounds of each concept, in input order.
+  function backgroundsByConcept() {
+    const byConcept = new Map();
+    for (const background of backgrounds.values()) {
+      if (!byConcept.has(background.concept_id)) byConcept.set(background.concept_id, []);
+      byConcept.get(background.concept_id).push(background);
+    }
+    return byConcept;
   }
+  const linkedConcepts = backgroundsByConcept();
   const items = projectMode ? data.applications : data.papers;
   const prefix = projectMode ? '#application=' : '#paper=';
   const topics = new Map((data.project_context?.items ?? []).map((item) => [item.id, item]));
   const paperName = (id) => papers.get(id).short_title ?? papers.get(id).title;
-  const aliasCounts = new Map();
-  for (const paper of data.papers) {
-    const alias = paperName(paper.id);
-    aliasCounts.set(alias, (aliasCounts.get(alias) ?? 0) + 1);
+  // How many papers share each short name; a shared name is replaced by the full title and ID.
+  function countAliases() {
+    const counts = new Map();
+    for (const paper of data.papers) {
+      const alias = paperName(paper.id);
+      counts.set(alias, (counts.get(alias) ?? 0) + 1);
+    }
+    return counts;
   }
+  const aliasCounts = countAliases();
   function backgroundPaperName(id) {
     const alias = paperName(id);
     return aliasCounts.get(alias) > 1 ? papers.get(id).title + ' (' + id + ')' : alias;
   }
-  let scene =
-    projectMode && data.map_view === 'context'
-      ? 'context'
-      : projectMode
-        ? 'applications'
-        : 'papers';
+  function initialScene() {
+    if (projectMode && data.map_view === 'context') return 'context';
+    return projectMode ? 'applications' : 'papers';
+  }
+  let scene = initialScene();
   let map,
     activeBackground,
     paperMapState,
@@ -523,8 +537,13 @@
     }
   }
   const nav = new Map();
-  const gradeGuide = !projectMode && hasVenueMetadata ? venueGuide() : null;
-  if (gradeGuide) byId(linkedConcepts.size ? 'map-status' : 'map-legend').after(gradeGuide);
+  // Paper maps with venue data get a ranking guide below the map status or the legend.
+  function placeVenueGuide() {
+    const guide = !projectMode && hasVenueMetadata ? venueGuide() : null;
+    if (guide) byId(linkedConcepts.size ? 'map-status' : 'map-legend').after(guide);
+    return guide;
+  }
+  const gradeGuide = placeVenueGuide();
   function localLink(type, id, title, cls) {
     const a = node('a', cls, title);
     a.href = '#' + type + '=' + encodeURIComponent(id);
@@ -1073,24 +1092,31 @@
     byId('current-count').textContent = t('Optional background reading');
     return true;
   }
-  if (projectMode && data.project_context)
-    for (const [value, title] of [
-      ['context', data.project_context.title],
-      ['applications', t('Project–paper connections')],
-    ]) {
-      const button = node('button', '', title);
-      button.type = 'button';
-      button.scene = value;
-      button.addEventListener('click', () => {
-        location.hash =
-          value === 'context'
-            ? '#topic=' + encodeURIComponent(data.project_context.start)
-            : '#application=' + encodeURIComponent(data.start);
-      });
-      byId('scene-controls').append(button);
-    }
-  if (!projectMode)
-    byId('scene-controls').append(localLink('overview', 'all', t('Relation overview'), 'map-item'));
+  // Project maps with a context switch between the context and the applications; paper maps can
+  // return to the relation overview.
+  function addSceneControls() {
+    if (projectMode && data.project_context)
+      for (const [value, title] of [
+        ['context', data.project_context.title],
+        ['applications', t('Project–paper connections')],
+      ]) {
+        const button = node('button', '', title);
+        button.type = 'button';
+        button.scene = value;
+        button.addEventListener('click', () => {
+          location.hash =
+            value === 'context'
+              ? '#topic=' + encodeURIComponent(data.project_context.start)
+              : '#application=' + encodeURIComponent(data.start);
+        });
+        byId('scene-controls').append(button);
+      }
+    if (!projectMode)
+      byId('scene-controls').append(
+        localLink('overview', 'all', t('Relation overview'), 'map-item'),
+      );
+  }
+  addSceneControls();
   for (const item of data.provenance ?? [])
     byId('provenance').append(paragraph(item.name + ' · SHA-256 ' + item.sha256));
   let selected;
@@ -1600,7 +1626,8 @@
     });
     if (focus) byId('item-title').focus();
   }
-  function followHash(focus = false) {
+  // The route in the hash: its type, and its decoded ID or '' when the ID is malformed.
+  function hashRoute() {
     const match = /^#([a-z-]+)=(.*)$/.exec(location.hash);
     let id;
     try {
@@ -1608,38 +1635,49 @@
     } catch {
       id = '';
     }
-    const type = match?.[1];
+    return { type: match?.[1], id };
+  }
+  // Concept, background and project-context routes. Each returns false when the ID names nothing.
+  function showConceptRoute(type, id, focus) {
     if (['concept', 'concept-need', 'background'].includes(type) && showConcept(id, focus, type))
-      return;
+      return true;
     if (
       ['background-reading', 'background-paper'].includes(type) &&
       showBackgroundPaper(id, focus, type)
     )
-      return;
-    if (type === 'topic' && showTopic(id, focus)) return;
-    if (
+      return true;
+    if (type === 'topic' && showTopic(id, focus)) return true;
+    return (
       type === 'context-link' &&
       /^\d+$/.test(id) &&
-      data.project_context?.links[Number(id)] &&
+      Boolean(data.project_context?.links[Number(id)]) &&
       showTopic('', focus, Number(id))
-    )
-      return;
-    if (type === 'relation' && showRelation(id, focus)) return;
-    if (type === 'reference' && projectMode) {
-      const [appId, paperId, extra] = id.split(':'),
-        app = items.find((item) => item.id === appId);
-      if (!extra && app?.claim_refs.some((ref) => ref.paper_id === paperId)) {
-        select(appId, focus, paperId);
-        highlight('reference', id, paperId);
-        return;
-      }
-    }
-    if (type === 'paper' && projectMode && showProjectPaper(id, focus)) return;
+    );
+  }
+  // A project reference opens its application with only that paper's evidence.
+  function showReference(id, focus) {
+    const [appId, paperId, extra] = id.split(':'),
+      app = items.find((item) => item.id === appId);
+    if (extra || !app?.claim_refs.some((ref) => ref.paper_id === paperId)) return false;
+    select(appId, focus, paperId);
+    highlight('reference', id, paperId);
+    return true;
+  }
+  // Relation, reference, paper and application routes.
+  function showRecordRoute(type, id, focus) {
+    if (type === 'relation' && showRelation(id, focus)) return true;
+    if (type === 'reference' && projectMode && showReference(id, focus)) return true;
+    if (type === 'paper' && projectMode && showProjectPaper(id, focus)) return true;
     if (type === (projectMode ? 'application' : 'paper') && items.some((item) => item.id === id)) {
       if (scene === 'background') mountMap('papers');
       select(id, focus);
-      return;
+      return true;
     }
+    return false;
+  }
+  function followHash(focus = false) {
+    const { type, id } = hashRoute();
+    if (showConceptRoute(type, id, focus) || showRecordRoute(type, id, focus)) return;
     if (projectMode && data.map_view === 'context') {
       showTopic(data.project_context.start, focus);
     } else if (projectMode || !location.hash) {
@@ -1649,17 +1687,21 @@
       showOverview(focus);
     }
   }
-  for (const [button, offset] of [
-    ['previous', -1],
-    ['next', 1],
-  ])
-    byId(button).addEventListener('click', () => {
-      const sequence = selectedType === 'topic' ? data.project_context.items : items;
-      const item = sequence[sequence.findIndex((item) => item.id === selected) + offset];
-      if (item)
-        location.hash =
-          (selectedType === 'topic' ? '#topic=' : prefix) + encodeURIComponent(item.id);
-    });
+  // Previous and next step through topics on the context map, otherwise through the items.
+  function bindPaging() {
+    for (const [button, offset] of [
+      ['previous', -1],
+      ['next', 1],
+    ])
+      byId(button).addEventListener('click', () => {
+        const sequence = selectedType === 'topic' ? data.project_context.items : items;
+        const item = sequence[sequence.findIndex((item) => item.id === selected) + offset];
+        if (item)
+          location.hash =
+            (selectedType === 'topic' ? '#topic=' : prefix) + encodeURIComponent(item.id);
+      });
+  }
+  bindPaging();
   byId('skip').addEventListener('click', (event) => {
     event.preventDefault();
     byId('item-title').focus();
