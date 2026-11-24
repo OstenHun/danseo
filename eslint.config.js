@@ -124,6 +124,7 @@ export default defineConfig([
       'skills/danseo-reading/assets/learning-view.js',
       'skills/danseo/assets/graph-presentation.js',
       'skills/danseo/assets/research-map.js',
+      'skills/danseo/assets/research-view.js',
       'src/cli.ts',
       'src/core/analysis.ts',
       'src/core/claim-state.ts',
