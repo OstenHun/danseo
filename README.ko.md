@@ -113,7 +113,7 @@ GitHub에서 **Code → Download ZIP**으로 받아도 됩니다. 압축을 풀�
 node --test "<설치 경로>/scripts/research-evidence.test.mjs"
 ```
 
-이미 Danseo를 설치했다면 에이전트가 어느 복사본을 읽는지 먼저 확인하세요. 업데이트할 때는 기존 복사본을 에이전트의 스킬 폴더 밖으로 옮겨 백업한 뒤 위 복사 명령을 다시 실행합니다.
+이미 Danseo를 설치했다면 에이전트가 어느 복사본을 읽는지 먼저 확인하세요. 업데이트할 때는 먼저 GitHub에서 최신 소스를 받습니다. 기존 복사본을 에이전트의 스킬 폴더 밖으로 옮겨 백업한 뒤, 새 소스 폴더에서 위 복사 명령을 다시 실행합니다.
 
 ## 논문 그래프 생성 요청
 
@@ -229,10 +229,10 @@ node ./dist/cli.js export --workspace ./examples/minimal --project demo --applic
 Danseo는 TypeScript/Node.js 패키지와 에이전트용 스킬로 이루어져 있습니다. 주제 폴더에는 연구 질문 하나를 위해 고른 논문, 모은 원문, 메모가 남습니다. 별도의 `workspace.json`에는 여러 프로젝트에서 다시 쓰는 Paper 기록과 프로젝트별 Application 기록을 등록합니다. 그래서 여러 프로젝트가 같은 근거를 인용하면서도 각자 다른 판단을 내릴 수 있습니다.
 
 ```text
-src/                     CLI, 파일 기반 core, 비교 서버와 브라우저 화면
+src/                     CLI, 파일을 읽고 쓰는 핵심 로직, 비교 서버와 브라우저 화면
 schemas/                 카드, workspace, 관계 스키마
 skills/                  논문 지도, 논문 학습, 프로젝트 적용
-examples/minimal/        검증과 내보내기용 합성 workspace
+examples/minimal/        검증과 내보내기를 시험하는 합성 예제 workspace
 tests/                   CLI, 원문, 패키지 검사
 docs/                    사용 안내, 데이터 형식, 개발 참고 자료
 ```
