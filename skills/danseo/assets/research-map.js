@@ -68,9 +68,9 @@
     );
     return { concepts, papers };
   }
-  // Background scenes set the focal paper, its concept and the readings in three columns; context
-  // scenes snake through three columns; project maps put papers left and applications right; other
-  // maps use a pair or a ring.
+  // Background scenes set the paper that needs a concept, the concept and its readings in three
+  // columns; context scenes snake through three columns; project maps put papers left and
+  // applications right; other maps use a pair or a ring.
   function nodePosition(scene, project, index, count, column) {
     if (scene === 'background') return { x: 140 + column * 330, y: 100 + index * 165 };
     if (scene === 'context') {
@@ -126,7 +126,7 @@
       });
     };
   }
-  // One background: the focal paper, the concept it needs, and that concept's readings.
+  // One background: the paper that needs a concept, the concept, and that concept's readings.
   function addBackgroundScene(data, backgroundId, addNode, elements) {
     const background = data.backgrounds.find((item) => item.id === backgroundId);
     const concept = data.concepts.find((item) => item.id === background.concept_id);
@@ -589,10 +589,8 @@
       weights = [],
       distances = [];
     for (const [pointX, pointY] of points) {
-      const offsetX = pointX - start.x,
-        offsetY = pointY - start.y;
-      weights.push((offsetX * dx + offsetY * dy) / (length * length));
-      distances.push((offsetY * dx - offsetX * dy) / length);
+      weights.push(((pointX - start.x) * dx + (pointY - start.y) * dy) / (length * length));
+      distances.push(((pointY - start.y) * dx - (pointX - start.x) * dy) / length);
     }
     const style = {
       'curve-style': 'round-segments',
@@ -792,16 +790,17 @@
       world.append(card);
     });
   }
-  function freeEdgeIsRelevant(edge, selection) {
-    switch (selection?.type) {
+  // Reads the selection after the edge data, as the map always has.
+  function freeEdgeIsRelevant(edge, session) {
+    switch (session.selection?.type) {
       case 'concept':
-        return edge.data('source') === 'concept:' + selection.id;
+        return edge.data('source') === 'concept:' + session.selection.id;
       case 'paper':
-        return edge.data('target') === 'paper:' + selection.id;
+        return edge.data('target') === 'paper:' + session.selection.id;
       case 'background-reading':
-        return edge.data('recordId') === selection.id;
+        return edge.data('recordId') === session.selection.id;
       case 'concept-need':
-        return edge.data('backgroundId') === selection.id;
+        return edge.data('backgroundId') === session.selection.id;
       default:
         return false;
     }
@@ -854,6 +853,7 @@
     connected.difference(item).addClass('connected');
     cy.elements().difference(connected).addClass('faded');
   }
+  // Hides relations the filters or selection rule out, then outlines the selection and its neighbours.
   function applyDisplay(session) {
     const { cy, map, explorer } = session;
     const { data, presentation, relations } = map;
@@ -868,7 +868,7 @@
     });
     // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
     cy.edges('[type="background-reading"][?free]').forEach((edge) =>
-      edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge, session.selection)),
+      edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge, session)),
     );
     explorer.update(data.papers, data.relations, session.selection, summarized.length);
     highlightSelection(session, summarized);
@@ -899,6 +899,7 @@
       for (const [id, card] of cards) map.presentation.syncCard(card, cy.getElementById(id));
     });
   }
+  // Fits every card; on first open a narrow screen or a large first map starts zoomed in instead.
   function fitPaperMap(session, { initial = false } = {}) {
     const { cy, map } = session;
     const { concepts } = map;
@@ -937,12 +938,13 @@
   }
   function bindPaperEvents(session) {
     const { container, cy, onSelect, sync } = session;
-    const wheel = () => {
+    // Once the user scrolls, drags or taps, resizing no longer refits the map.
+    const markInteracted = () => {
       session.interacted = true;
     };
-    session.wheel = wheel;
-    container.addEventListener('wheel', wheel, { passive: true });
-    cy.on('mousedown touchstart', wheel);
+    session.markInteracted = markInteracted;
+    container.addEventListener('wheel', markInteracted, { passive: true });
+    cy.on('mousedown touchstart', markInteracted);
     cy.on('render', sync);
     cy.on('tap', 'node, edge', (event) => onSelect(event.target.data()));
     cy.on('tap', (event) => {
@@ -990,7 +992,7 @@
       },
       destroy() {
         session.observer?.disconnect();
-        container.removeEventListener('wheel', session.wheel);
+        container.removeEventListener('wheel', session.markInteracted);
         if (session.frame !== null) cancelAnimationFrame(session.frame);
         cy.destroy();
         session.explorer.destroy();
@@ -1001,8 +1003,10 @@
       },
     };
   }
-  // The explorer, selection, viewport and events of a mounted paper map. The session object holds
-  // the state its helpers share: the selection, the pending frame and whether the user moved the view.
+  // Wires up the explorer, events and first view of a mounted paper map and returns its controls.
+  // The session object holds what the helpers share. mountPapers creates it; this function adds
+  // host, selection, explorer, frame, interacted, sync and fit, and bindPaperEvents adds
+  // markInteracted and observer. selection, frame and interacted change while the map is open.
   function paperController(session) {
     const { container, cy, map, paperState, onFilter } = session;
     const host = document.createElement('div');
