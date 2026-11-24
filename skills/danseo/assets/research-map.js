@@ -790,37 +790,6 @@
       world.append(card);
     });
   }
-  // Reads the selection after the edge data, as the map always has.
-  function freeEdgeIsRelevant(edge, session) {
-    switch (session.selection?.type) {
-      case 'concept':
-        return edge.data('source') === 'concept:' + session.selection.id;
-      case 'paper':
-        return edge.data('target') === 'paper:' + session.selection.id;
-      case 'background-reading':
-        return edge.data('recordId') === session.selection.id;
-      case 'concept-need':
-        return edge.data('backgroundId') === session.selection.id;
-      default:
-        return false;
-    }
-  }
-  // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
-  function summarizedRelations(session) {
-    const { map, explorer } = session;
-    const { data, presentation } = map;
-    return map.concepts.length &&
-      explorer.filters.mode === 'focus' &&
-      session.selection?.type === 'paper' &&
-      session.selection.id === data.focal_paper_id
-      ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
-        data.relations.filter(
-          (edge) =>
-            edge.source === session.selection.id &&
-            presentation.matchesRelation(edge, explorer.filters),
-        )
-      : [];
-  }
   // A paper's concept readings stay outlined even when their free link is hidden,
   // the same way summarized relations keep their emphasis without a line.
   function withOwnReadings(cy, eligible) {
@@ -833,75 +802,8 @@
         .filter((edge) => ownBackgrounds.has(edge.data('backgroundId'))),
     );
   }
-  function highlightSelection(session, summarized) {
-    const { cy, map } = session;
-    cy.elements().removeClass('selected connected faded');
-    const item =
-      session.selection && cy.getElementById(session.selection.type + ':' + session.selection.id);
-    if (!item?.length) return;
-    item.addClass('selected');
-    let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
-    if (session.selection.type === 'paper') eligible = withOwnReadings(cy, eligible);
-    // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
-    const summaryNodes = cy
-      .edges('[type="relation"]')
-      .filter((edge) => summarized.includes(map.relations.get(edge.data('recordId'))))
-      .connectedNodes();
-    const connected = item.isNode()
-      ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
-      : item.connectedNodes().union(item);
-    connected.difference(item).addClass('connected');
-    cy.elements().difference(connected).addClass('faded');
-  }
-  // Hides relations the filters or selection rule out, then outlines the selection and its neighbours.
-  function applyDisplay(session) {
-    const { cy, map, explorer } = session;
-    const { data, presentation, relations } = map;
-    const summarized = summarizedRelations(session);
-    cy.edges('[type="relation"]').forEach((edge) => {
-      const relation = relations.get(edge.data('recordId'));
-      edge.toggleClass(
-        'display-hidden',
-        summarized.includes(relation) ||
-          !presentation.shownRelation(relation, explorer.filters, session.selection),
-      );
-    });
-    // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
-    cy.edges('[type="background-reading"][?free]').forEach((edge) =>
-      edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge, session)),
-    );
-    explorer.update(data.papers, data.relations, session.selection, summarized.length);
-    highlightSelection(session, summarized);
-    session.sync();
-  }
-  // A filter change drops a selected relation the filters now hide, then redraws.
-  function explorerChanged(session) {
-    const { map, explorer, onSelect, onFilter } = session;
-    const { presentation } = map;
-    if (
-      session.selection?.type === 'relation' &&
-      !presentation.matchesRelation(map.relations.get(session.selection.id), explorer.filters)
-    ) {
-      session.selection = null;
-      onSelect({ type: 'overview', recordId: 'all' });
-    }
-    applyDisplay(session);
-    onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
-  }
-  // Moves the card layer with the viewport and copies node states to the cards, once per frame.
-  function syncDecorations(session) {
-    if (session.frame !== null) return;
-    session.frame = requestAnimationFrame(() => {
-      session.frame = null;
-      const { cy, world, cards, map } = session;
-      const pan = cy.pan();
-      world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
-      for (const [id, card] of cards) map.presentation.syncCard(card, cy.getElementById(id));
-    });
-  }
   // Fits every card; on first open a narrow screen or a large first map starts zoomed in instead.
-  function fitPaperMap(session, { initial = false } = {}) {
-    const { cy, map } = session;
+  function fitPaperMap(cy, map, initial) {
     const { concepts } = map;
     cy.resize();
     cy.fit(cy.nodes(), concepts.length ? view.padding : 60);
@@ -934,15 +836,127 @@
     } else if (cy.zoom() > 1) {
       cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
     }
-    session.sync();
   }
-  function bindPaperEvents(session) {
-    const { container, cy, onSelect, sync } = session;
+  // Wires up the explorer, events and first view of a mounted paper map and returns its controls.
+  // The map's changing state lives in four variables declared here: the selection, the explorer
+  // and its filters, the pending animation frame, and whether the user has moved the view.
+  // eslint-disable-next-line max-lines-per-function -- one closure owns that state; split helpers would have to pass it around (CONTRIBUTING.md, Code style).
+  function paperController({
+    container,
+    cy,
+    map,
+    layer,
+    world,
+    cards,
+    onSelect,
+    onFilter,
+    paperState,
+  }) {
+    const { data, presentation, relations } = map;
+    const host = document.createElement('div');
+    if (map.concepts.length) (container.nextElementSibling ?? container).after(host);
+    else container.before(host);
+    let selection = null;
+    // A filter change drops a selected relation the filters now hide, then redraws.
+    const explorer = presentation.explorer(
+      host,
+      () => {
+        if (
+          selection?.type === 'relation' &&
+          !presentation.matchesRelation(relations.get(selection.id), explorer.filters)
+        ) {
+          selection = null;
+          onSelect({ type: 'overview', recordId: 'all' });
+        }
+        applyDisplay();
+        onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
+      },
+      paperState?.filters,
+    );
+    function freeEdgeIsRelevant(edge) {
+      switch (selection?.type) {
+        case 'concept':
+          return edge.data('source') === 'concept:' + selection.id;
+        case 'paper':
+          return edge.data('target') === 'paper:' + selection.id;
+        case 'background-reading':
+          return edge.data('recordId') === selection.id;
+        case 'concept-need':
+          return edge.data('backgroundId') === selection.id;
+        default:
+          return false;
+      }
+    }
+    // On a first map the focal paper cites most readings; one summary replaces that fan of identical lines.
+    function summarizedRelations() {
+      return map.concepts.length &&
+        explorer.filters.mode === 'focus' &&
+        selection?.type === 'paper' &&
+        selection.id === data.focal_paper_id
+        ? // Only outgoing relations fan out identically; follow-up papers that cite the focal paper keep their lines.
+          data.relations.filter(
+            (edge) =>
+              edge.source === selection.id && presentation.matchesRelation(edge, explorer.filters),
+          )
+        : [];
+    }
+    function highlightSelection(summarized) {
+      cy.elements().removeClass('selected connected faded');
+      const item = selection && cy.getElementById(selection.type + ':' + selection.id);
+      if (!item?.length) return;
+      item.addClass('selected');
+      let eligible = item.connectedEdges().filter((edge) => !edge.hasClass('display-hidden'));
+      if (selection.type === 'paper') eligible = withOwnReadings(cy, eligible);
+      // Summarized relations lose their lines, not their emphasis: related papers stay outlined.
+      const summaryNodes = cy
+        .edges('[type="relation"]')
+        .filter((edge) => summarized.includes(relations.get(edge.data('recordId'))))
+        .connectedNodes();
+      const connected = item.isNode()
+        ? item.union(eligible).union(eligible.connectedNodes()).union(summaryNodes)
+        : item.connectedNodes().union(item);
+      connected.difference(item).addClass('connected');
+      cy.elements().difference(connected).addClass('faded');
+    }
+    // Hides relations the filters or selection rule out, then outlines the selection and its neighbours.
+    function applyDisplay() {
+      const summarized = summarizedRelations();
+      cy.edges('[type="relation"]').forEach((edge) => {
+        const relation = relations.get(edge.data('recordId'));
+        edge.toggleClass(
+          'display-hidden',
+          summarized.includes(relation) ||
+            !presentation.shownRelation(relation, explorer.filters, selection),
+        );
+      });
+      // A link to a reading drawn under another concept appears only while its concept, paper or path is selected.
+      cy.edges('[type="background-reading"][?free]').forEach((edge) =>
+        edge.toggleClass('display-hidden', !freeEdgeIsRelevant(edge)),
+      );
+      explorer.update(data.papers, data.relations, selection, summarized.length);
+      highlightSelection(summarized);
+      sync();
+    }
+    let frame = null,
+      interacted = !!paperState;
+    // Moves the card layer with the viewport and copies node states to the cards, once per frame.
+    const sync = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const pan = cy.pan();
+        world.style.transform = `translate(${pan.x}px,${pan.y}px) scale(${cy.zoom()})`;
+        for (const [id, card] of cards) presentation.syncCard(card, cy.getElementById(id));
+      });
+    };
+    const fit = ({ initial = false } = {}) => {
+      fitPaperMap(cy, map, initial);
+      sync();
+    };
     // Once the user scrolls, drags or taps, resizing no longer refits the map.
     const markInteracted = () => {
-      session.interacted = true;
+      interacted = true;
     };
-    session.markInteracted = markInteracted;
     container.addEventListener('wheel', markInteracted, { passive: true });
     cy.on('mousedown touchstart', markInteracted);
     cy.on('render', sync);
@@ -960,16 +974,20 @@
       container.style.cursor = '';
       sync();
     });
-    session.observer = watchSize(container, () => {
-      if (session.interacted) cy.resize();
-      else session.fit({ initial: true });
+    const observer = watchSize(container, () => {
+      if (interacted) cy.resize();
+      else fit({ initial: true });
     });
-  }
-  function paperControls(session) {
-    const { container, cy, map, layer } = session;
+    applyDisplay();
+    if (paperState) {
+      cy.zoom(paperState.zoom);
+      cy.pan(paperState.pan);
+      sync();
+      onFilter((edge) => presentation.matchesRelation(edge, explorer.filters));
+    } else fit({ initial: true });
     return {
       snapshot: () => ({
-        filters: { ...session.explorer.filters },
+        filters: { ...explorer.filters },
         zoom: cy.zoom(),
         pan: { ...cy.pan() },
         positions: Object.fromEntries(
@@ -977,61 +995,30 @@
         ),
       }),
       fit: () => {
-        session.interacted = true;
-        session.fit();
+        interacted = true;
+        fit();
       },
       zoom: (factor) => {
-        session.interacted = true;
+        interacted = true;
         zoomBy(cy, factor, 2.5);
       },
       select(type, id) {
-        session.selection = type && id ? { type, id } : null;
-        if (type === 'relation' && map.relations.has(id))
-          session.explorer.reveal(map.relations.get(id));
-        applyDisplay(session);
+        selection = type && id ? { type, id } : null;
+        if (type === 'relation' && relations.has(id)) explorer.reveal(relations.get(id));
+        applyDisplay();
       },
       destroy() {
-        session.observer?.disconnect();
-        container.removeEventListener('wheel', session.markInteracted);
-        if (session.frame !== null) cancelAnimationFrame(session.frame);
+        observer?.disconnect();
+        container.removeEventListener('wheel', markInteracted);
+        if (frame !== null) cancelAnimationFrame(frame);
         cy.destroy();
-        session.explorer.destroy();
-        session.host.remove();
+        explorer.destroy();
+        host.remove();
         layer.remove();
         container.classList.remove('paper-map');
         container.style.cursor = '';
       },
     };
-  }
-  // Wires up the explorer, events and first view of a mounted paper map and returns its controls.
-  // The session object holds what the helpers share. mountPapers creates it; this function adds
-  // host, selection, explorer, frame, interacted, sync and fit, and bindPaperEvents adds
-  // markInteracted and observer. selection, frame and interacted change while the map is open.
-  function paperController(session) {
-    const { container, cy, map, paperState, onFilter } = session;
-    const host = document.createElement('div');
-    if (map.concepts.length) (container.nextElementSibling ?? container).after(host);
-    else container.before(host);
-    session.host = host;
-    session.selection = null;
-    session.explorer = map.presentation.explorer(
-      host,
-      () => explorerChanged(session),
-      paperState?.filters,
-    );
-    session.frame = null;
-    session.interacted = !!paperState;
-    session.sync = () => syncDecorations(session);
-    session.fit = (options) => fitPaperMap(session, options);
-    bindPaperEvents(session);
-    applyDisplay(session);
-    if (paperState) {
-      cy.zoom(paperState.zoom);
-      cy.pan(paperState.pan);
-      session.sync();
-      onFilter((edge) => map.presentation.matchesRelation(edge, session.explorer.filters));
-    } else session.fit({ initial: true });
-    return paperControls(session);
   }
   function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
     const presentation = window.DanseoGraph;
@@ -1060,8 +1047,17 @@
       cy.edges().forEach(routeEdge);
       cy.on('position', 'node', (event) => event.target.connectedEdges().forEach(routeEdge));
     }
-    const session = { container, cy, map, layer, world, cards, onSelect, onFilter, paperState };
-    return paperController(session);
+    return paperController({
+      container,
+      cy,
+      map,
+      layer,
+      world,
+      cards,
+      onSelect,
+      onFilter,
+      paperState,
+    });
   }
   window.DanseoMap = { build, mount, folded };
 })();
