@@ -252,6 +252,151 @@
     }
     return elements;
   }
+  function nodeStyle() {
+    return [
+      {
+        selector: 'node',
+        style: {
+          shape: 'round-rectangle',
+          width: 176,
+          height: 74,
+          'background-color': '#ffffff',
+          'border-width': 1.5,
+          'border-color': '#9aa9c5',
+          label: 'data(label)',
+          color: '#202631',
+          'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
+          'font-size': 18,
+          'font-weight': 600,
+          'text-wrap': 'wrap',
+          'text-max-width': 152,
+          'text-valign': 'center',
+          'text-halign': 'center',
+          padding: 8,
+        },
+      },
+      {
+        selector: 'node[type="application"]',
+        style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
+      },
+      {
+        selector: 'node[type="concept"]',
+        style: { shape: 'ellipse', 'background-color': '#f4effa', 'border-color': '#7c659d' },
+      },
+      {
+        selector: 'node[?focal]',
+        style: {
+          height: 98,
+          'underlay-shape': 'round-rectangle',
+          'underlay-opacity': 1,
+          'underlay-color': '#27416b',
+          'underlay-padding': 4,
+        },
+      },
+    ];
+  }
+  function edgeStyle() {
+    return [
+      {
+        selector: 'edge',
+        style: {
+          width: 2,
+          'curve-style': 'bezier',
+          'control-point-step-size': 110,
+          'target-arrow-shape': 'triangle',
+          'arrow-scale': 1,
+          'line-color': '#89958b',
+          'target-arrow-color': '#89958b',
+          label: 'data(label)',
+          'font-family': 'Malgun Gothic, sans-serif',
+          'font-size': 13,
+          'text-background-color': '#f7f8fb',
+          'text-background-opacity': 1,
+          'text-background-padding': 5,
+          'text-rotation': 'none',
+          color: '#606b7d',
+        },
+      },
+      {
+        selector: 'edge[origin="source"][state="source-checked"]',
+        style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
+      },
+      {
+        selector: 'edge[origin="ai"]',
+        style: {
+          'line-color': '#7c659d',
+          'target-arrow-color': '#7c659d',
+          'line-style': 'dashed',
+          color: '#6f508d',
+        },
+      },
+      {
+        selector: 'edge[state="needs-recheck"]',
+        style: {
+          'line-color': '#a77d2e',
+          'target-arrow-color': '#a77d2e',
+          'line-style': 'dashed',
+        },
+      },
+      {
+        selector: 'edge[type="reference"]',
+        style: {
+          'line-color': '#64776c',
+          'target-arrow-color': '#64776c',
+          'line-style': 'dotted',
+        },
+      },
+    ];
+  }
+  // The selection highlight comes after the base styles so it wins.
+  function selectionStyle() {
+    return [
+      {
+        selector: '.active',
+        style: {
+          'border-width': 3,
+          'border-color': '#315be8',
+          'background-color': '#edf1ff',
+          width: 4,
+        },
+      },
+      { selector: 'node.active', style: { width: 176 } },
+      { selector: 'edge.active', style: { width: 4 } },
+    ];
+  }
+  function mapStyle() {
+    return [...nodeStyle(), ...edgeStyle(), ...selectionStyle()];
+  }
+  // A reference edge is identified by its application and paper; other elements by record ID.
+  function isSelected(item, type, id, paperId) {
+    return (
+      item.data('type') === type &&
+      (type === 'reference'
+        ? id === item.data('recordId') + ':' + item.data('paperId') &&
+          item.data('paperId') === paperId
+        : item.data('recordId') === id)
+    );
+  }
+  // Fit the whole map, but never zoom in past 125% for a small map.
+  function fitView(cy) {
+    cy.resize();
+    cy.fit(undefined, 32);
+    if (cy.zoom() > 1.25)
+      cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+  }
+  // Zoom around the view centre within the map's zoom limits.
+  function zoomBy(cy, factor, maxZoom) {
+    cy.zoom({
+      level: Math.max(0.25, Math.min(maxZoom, cy.zoom() * factor)),
+      renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
+    });
+  }
+  // Calls onResize whenever the container changes size, where the browser supports it.
+  function watchSize(container, onResize) {
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(onResize) : null;
+    observer?.observe(container);
+    return observer;
+  }
   function mount(
     container,
     data,
@@ -271,115 +416,10 @@
       layout: { name: 'preset', fit: true, padding: 32 },
       minZoom: 0.25,
       maxZoom: 2.2,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            shape: 'round-rectangle',
-            width: 176,
-            height: 74,
-            'background-color': '#ffffff',
-            'border-width': 1.5,
-            'border-color': '#9aa9c5',
-            label: 'data(label)',
-            color: '#202631',
-            'font-family': 'Malgun Gothic, Noto Sans KR, sans-serif',
-            'font-size': 18,
-            'font-weight': 600,
-            'text-wrap': 'wrap',
-            'text-max-width': 152,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            padding: 8,
-          },
-        },
-        {
-          selector: 'node[type="application"]',
-          style: { 'background-color': '#edf1ff', 'border-color': '#315be8' },
-        },
-        {
-          selector: 'node[type="concept"]',
-          style: { shape: 'ellipse', 'background-color': '#f4effa', 'border-color': '#7c659d' },
-        },
-        {
-          selector: 'node[?focal]',
-          style: {
-            height: 98,
-            'underlay-shape': 'round-rectangle',
-            'underlay-opacity': 1,
-            'underlay-color': '#27416b',
-            'underlay-padding': 4,
-          },
-        },
-        {
-          selector: 'edge',
-          style: {
-            width: 2,
-            'curve-style': 'bezier',
-            'control-point-step-size': 110,
-            'target-arrow-shape': 'triangle',
-            'arrow-scale': 1,
-            'line-color': '#89958b',
-            'target-arrow-color': '#89958b',
-            label: 'data(label)',
-            'font-family': 'Malgun Gothic, sans-serif',
-            'font-size': 13,
-            'text-background-color': '#f7f8fb',
-            'text-background-opacity': 1,
-            'text-background-padding': 5,
-            'text-rotation': 'none',
-            color: '#606b7d',
-          },
-        },
-        {
-          selector: 'edge[origin="source"][state="source-checked"]',
-          style: { 'line-color': '#245641', 'target-arrow-color': '#245641' },
-        },
-        {
-          selector: 'edge[origin="ai"]',
-          style: {
-            'line-color': '#7c659d',
-            'target-arrow-color': '#7c659d',
-            'line-style': 'dashed',
-            color: '#6f508d',
-          },
-        },
-        {
-          selector: 'edge[state="needs-recheck"]',
-          style: {
-            'line-color': '#a77d2e',
-            'target-arrow-color': '#a77d2e',
-            'line-style': 'dashed',
-          },
-        },
-        {
-          selector: 'edge[type="reference"]',
-          style: {
-            'line-color': '#64776c',
-            'target-arrow-color': '#64776c',
-            'line-style': 'dotted',
-          },
-        },
-        {
-          selector: '.active',
-          style: {
-            'border-width': 3,
-            'border-color': '#315be8',
-            'background-color': '#edf1ff',
-            width: 4,
-          },
-        },
-        { selector: 'node.active', style: { width: 176 } },
-        { selector: 'edge.active', style: { width: 4 } },
-      ],
+      style: mapStyle(),
     });
     let interacted = false;
-    const fit = () => {
-      cy.resize();
-      cy.fit(undefined, 32);
-      if (cy.zoom() > 1.25)
-        cy.zoom({ level: 1.25, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
-    };
+    const fit = () => fitView(cy);
     const wheel = () => {
       interacted = true;
     };
@@ -388,14 +428,10 @@
       interacted = true;
     });
     cy.on('tap', 'node, edge', (event) => onSelect(event.target.data()));
-    const observer =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
-            cy.resize();
-            if (!interacted) fit();
-          })
-        : null;
-    observer?.observe(container);
+    const observer = watchSize(container, () => {
+      cy.resize();
+      if (!interacted) fit();
+    });
     fit();
     return {
       fit: () => {
@@ -404,22 +440,12 @@
       },
       zoom: (factor) => {
         interacted = true;
-        cy.zoom({
-          level: Math.max(0.25, Math.min(2.2, cy.zoom() * factor)),
-          renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 },
-        });
+        zoomBy(cy, factor, 2.2);
       },
       select(type, id, paperId) {
         cy.elements().removeClass('active');
         cy.elements()
-          .filter(
-            (item) =>
-              item.data('type') === type &&
-              (type === 'reference'
-                ? id === item.data('recordId') + ':' + item.data('paperId') &&
-                  item.data('paperId') === paperId
-                : item.data('recordId') === id),
-          )
+          .filter((item) => isSelected(item, type, id, paperId))
           .addClass('active');
       },
       destroy: () => {
