@@ -26,7 +26,7 @@ Summary: English guides cover installation, workflows, formats and evidence chec
 
 ## Language and permissions
 
-Standalone research and learning labels support candidate `language` (`ko`/`en`). Omitted language retains English research UI or legacy Korean learning UI. CLI/native comparison labels, diagnostics and active skill instructions remain English. Agent-authored prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language); original titles, quotations, IDs and saved records are preserved. Other requested prose languages use English controls. There is no live language selector or content translation service. Korean README editions remain available.
+Standalone research and learning labels support candidate `language` (`ko`/`en`). Omitted language uses English UI in both views. CLI/native comparison labels, diagnostics and active skill instructions remain English. Agent-authored prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language); original titles, quotations, IDs and saved records are preserved. Other requested prose languages use English controls. There is no live language selector or content translation service. Korean README editions remain available.
 
 The repository provides [three complete skills](../README.md#companion-skills-and-output-language): research records/maps, paper learning, and project application decisions. A local read-only comparison viewer is optional; no card editor is bundled. Keep private papers, workspaces, learner answers, raw logs and internal execution/review notes local. Public examples are synthetic; tests do not prove reader understanding or usefulness.
 

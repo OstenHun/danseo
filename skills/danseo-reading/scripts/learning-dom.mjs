@@ -84,7 +84,7 @@ export function openView(data, initialHash, { script, elementIds, navigation, pr
   }
   elements.get('candidate').textContent = JSON.stringify(data);
   elements.get('skip').href = '#' + title;
-  runInNewContext(languageScript(data.language ?? 'ko') + readFileSync(script, 'utf8'), {
+  runInNewContext(languageScript(data.language ?? 'en') + readFileSync(script, 'utf8'), {
     document,
     location,
     window: {

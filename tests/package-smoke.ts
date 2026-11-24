@@ -192,15 +192,16 @@ for (const file of [
     readFileSync(path.join(standalone, file)),
   );
 }
-for (const language of ['en', 'ko']) {
-  const learning = parseJson<{ language: string; title: string }>(
+for (const language of ['en', 'ko', undefined]) {
+  const learning = parseJson<{ language?: string; title: string }>(
     readFileSync(path.join(standaloneReading, 'assets/learning-view.example.json'), 'utf8'),
   );
-  learning.language = language;
+  if (language === undefined) delete learning.language;
+  else learning.language = language;
   // A source title is never translated; the Korean means "source title".
   learning.title = '원문 제목 · original title';
-  const input = path.join(consumer, `learning-${language}.json`),
-    output = path.join(consumer, `learning-${language}.html`);
+  const input = path.join(consumer, `learning-${language ?? 'default'}.json`),
+    output = path.join(consumer, `learning-${language ?? 'default'}.html`);
   writeFileSync(input, JSON.stringify(learning));
   const receipt = parseJson<{ ok: boolean }>(
     execFileSync(
@@ -211,7 +212,7 @@ for (const language of ['en', 'ko']) {
   );
   assert.equal(receipt.ok, true);
   const html = readFileSync(output, 'utf8');
-  assert.ok(html.includes(`<html lang="${language}">`));
+  assert.ok(html.includes(`<html lang="${language ?? 'en'}">`));
   assert.ok(html.includes(language === 'ko' ? '추천 학습 순서' : 'Suggested learning order'));
   assert.deepEqual(
     parseJson<unknown>(required(html.match(/id="candidate">(.*?)<\/script>/s)?.[1])),
@@ -224,7 +225,7 @@ assert.ok(
     .byteLength > 0,
 );
 console.log(
-  'All three skills packaged; standalone learning en/ko, exact payload and shared language assets passed.',
+  'All three skills packaged; standalone learning en/ko/default-en, exact payload and shared language assets passed.',
 );
 
 // Exercise the installed CLI from a consumer outside the source tree.

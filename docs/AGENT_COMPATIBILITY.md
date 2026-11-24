@@ -28,7 +28,7 @@ See [first-run values](CLI.md#first-run) and [setup](CLI.en.md#connect-your-own-
 
 ## Observed scope
 
-The [companion skills](../README.md#companion-skills-and-output-language) use English instructions and requested-language explanations. `danseo-reading` owns learning questions and concept views; `paper-to-project` owns paper/project condition comparisons. Learning views explicitly support `language: en | ko`; omission preserves their legacy Korean UI. Other prose languages use English fixed controls. Each complete folder is independently usable; host discovery still needs a separate check.
+The [companion skills](../README.md#companion-skills-and-output-language) use English instructions and requested-language explanations. `danseo-reading` owns learning questions and concept views; `paper-to-project` owns paper/project condition comparisons. Learning views explicitly support `language: en | ko`; omission uses English UI. Other prose languages use English fixed controls. Each complete folder is independently usable; host discovery still needs a separate check.
 
 In a prepared installation/build/data environment, two local agents called CLI and read cards. One accessed original text; another failed to read a PDF and made some unsupported source/CLI claims. This is not a provider/model ranking. Private prompts/responses/authentication are not shareable examples.
 

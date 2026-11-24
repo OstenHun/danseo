@@ -121,7 +121,7 @@ function renderValidatedCandidate(candidate) {
     path.join(directory, '../assets/learning-view.js'),
     1,
   );
-  const language = candidate.language ?? 'ko'; // Preserve existing learning candidates.
+  const language = candidate.language ?? 'en'; // Omitted language uses English UI, like the research view.
   const script = languageScript(language) + assetsScript;
   const ui = (value) => escape(uiText(language, value));
   return `<!doctype html>

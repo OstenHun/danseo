@@ -6,7 +6,7 @@ description: Study papers through questions and source-grounded feedback, or cre
 
 Summary: Help a reader explain and critique a paper's problem, method, evidence and limits. Separate inspected sources from learning attempts; save personal records only when authorized.
 
-Use the user's requested language for explanations, questions, records and view guidance, and apply [writing and reading checks](references/writing-quality.md). English instructions and examples do not require English output. For a learning view, explicitly set candidate `language` to `en` or `ko` to match the request; omitted language retains the legacy Korean UI. For another requested language, write the prose in that language and explain the fixed English-UI fallback. Preserve original titles, quotations, identifiers and existing learner responses.
+Use the user's requested language for explanations, questions, records and view guidance, and apply [writing and reading checks](references/writing-quality.md). English instructions and examples do not require English output. For a learning view, explicitly set candidate `language` to `en` or `ko` to match the request; omitted language uses the English UI, so existing Korean candidates must set `"language": "ko"`. For another requested language, write the prose in that language and explain the fixed English-UI fallback. Preserve original titles, quotations, identifiers and existing learner responses.
 
 ## Start or resume
 
