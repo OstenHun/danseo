@@ -657,11 +657,9 @@
     const { data, presentation } = map;
     const relation = map.relations.get(item.data.recordId);
     item.data.category = presentation.category(relation);
-    item.data.number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
-    item.data.label =
-      String(data.relations.indexOf(relation) + 1).padStart(2, '0') +
-      ' · ' +
-      presentation.kindNames[relation.kind];
+    const number = String(data.relations.indexOf(relation) + 1).padStart(2, '0');
+    item.data.number = number;
+    item.data.label = number + ' · ' + presentation.kindNames[relation.kind];
   }
   // Gives each node its position (a saved one first) and size, and each edge its route kind or label.
   function placeElement(map, item, paperState) {
