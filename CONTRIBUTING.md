@@ -64,15 +64,15 @@ ESLint checks the JavaScript (`.js`, `.mjs`) and TypeScript (`.ts`) files with `
 
 A warning is not a bug. In new and changed code, leave no new warning unless splitting the code would make it harder to follow; say why in the pull request. Prettier already owns layout, so the linter has no formatting rules. On the Node 22 line, ESLint 10 needs 22.13 or later (Node 24 also works); this applies to contributors only, not to the CLI or the skills.
 
-Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected. Files that have already been cleaned up are listed near the end of `eslint.config.js`. In those files the readability rules are errors and fail CI, so a new warning there must be fixed before merging.
+Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected. Files that have already been cleaned up are listed near the end of `eslint.config.js`. In those files the readability rules are errors and fail CI, so a new warning there must be fixed before merging unless the length exception below applies.
 
-Split a function by job, not to meet a line count. When splitting a function would make its flow harder to follow, for example when several steps share state that the pieces would have to pass around, keep it whole and put this comment on the line above it:
+The one exception is function length. Split a function by job, not to meet a line count. In a cleaned-up file, when splitting a function would make its flow harder to follow, for example when several steps share state that the pieces would have to pass around, keep it whole and put this comment on the line above it:
 
 ```js
 // eslint-disable-next-line max-lines-per-function -- <why splitting would make it harder to follow>
 ```
 
-The exception covers that one function and only the length rule. Explain it in the pull request as well. The other readability rules still apply to the function.
+The exception covers that one function and only the length rule. Explain it in the pull request as well. The other readability rules still apply to the function. In files where the rules are still warnings, no comment is needed; the reason in the pull request is enough.
 
 <a id="공통-테스트-fixture-수정"></a>
 

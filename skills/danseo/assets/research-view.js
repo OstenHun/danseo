@@ -72,7 +72,9 @@
       details.append(badge(t('Edition date · {date}', { date: paper.publication.edition_date })));
     const source = sources.get(paper.publication.source_id);
     if (source?.url) {
-      details.append(externalLink('badge', t('Publication date source ↗'), source.url));
+      details.append(
+        asExternalLink(node('a', 'badge', t('Publication date source ↗')), source.url),
+      );
     } else if (source)
       details.append(
         node(
@@ -106,9 +108,9 @@
     return el;
   }
   const paragraph = (value) => node('p', '', value);
-  // Opens an outside source in a new tab without giving that page access to this one.
-  function externalLink(cls, text, url) {
-    const link = node('a', cls, text);
+  // Makes a link open an outside source in a new tab without giving that page access to this one.
+  // Callers build the link first, so its text is created before the address is read.
+  function asExternalLink(link, url) {
     link.href = url;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -158,9 +160,8 @@
         );
       if (source.url !== null) {
         detail.append(
-          externalLink(
-            '',
-            t(bibliographic ? 'Open metadata source ↗' : 'Open original source ↗'),
+          asExternalLink(
+            node('a', '', t(bibliographic ? 'Open metadata source ↗' : 'Open original source ↗')),
             source.url,
           ),
         );
@@ -203,7 +204,10 @@
       parent.append(paragraph(t('Subject category · {category}', { category: ranking.category })));
   }
   function rankingLink(ranking) {
-    return externalLink('', t('Open ranking source ↗'), sources.get(ranking.source_id).url);
+    return asExternalLink(
+      node('a', '', t('Open ranking source ↗')),
+      sources.get(ranking.source_id).url,
+    );
   }
   function appendAdditionalRanks(parent, rankings, representative) {
     if (!rankings.length) return;
@@ -338,7 +342,7 @@
       const table = venueGuideTable(ranks, first, scale);
       guide.append(table);
       if (scale) {
-        guide.append(externalLink('', t(scale.sourceLabel), scale.sourceUrl));
+        guide.append(asExternalLink(node('a', '', t(scale.sourceLabel)), scale.sourceUrl));
       }
     }
     if (venueRanks.size < data.papers.length) {
@@ -390,7 +394,7 @@
       node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')),
     );
     if (source.url !== null) {
-      const link = externalLink('', t('Open original source ↗'), source.url);
+      const link = asExternalLink(node('a', '', t('Open original source ↗')), source.url);
       const label = t('{paper} · {source} · open original source · new tab', {
         paper: paperTitle,
         source: source.title,
@@ -411,7 +415,7 @@
       reading.append(node('p', '', source.title));
     } else {
       const label = relationEvidence ? source.title + ' ↗' : t('Open original source ↗');
-      const link = externalLink('map-item', label, source.url);
+      const link = asExternalLink(node('a', 'map-item', label), source.url);
       const accessibleName = relationEvidence
         ? name + (showAddress ? ' · ' + source.url : '') + t(' · open original source · new tab')
         : t('{paper} · {source} · open original source · new tab', {

@@ -854,10 +854,12 @@
     const host = document.createElement('div');
     if (map.concepts.length) (container.nextElementSibling ?? container).after(host);
     else container.before(host);
-    let selection = null;
-    // A filter change drops a selected relation the filters now hide, then redraws.
+    let selection = null,
+      frame = null,
+      interacted = !!paperState;
     const explorer = presentation.explorer(
       host,
+      // A filter change drops a selected relation the filters now hide, then redraws.
       () => {
         if (
           selection?.type === 'relation' &&
@@ -935,8 +937,6 @@
       highlightSelection(summarized);
       sync();
     }
-    let frame = null,
-      interacted = !!paperState;
     // Moves the card layer with the viewport and copies node states to the cards, once per frame.
     const sync = () => {
       if (frame !== null) return;
