@@ -14,7 +14,7 @@ const sample = JSON.parse(
 );
 const fresh = () => structuredClone(sample);
 
-test('English, Korean and legacy UI preserve all authored data and navigation', () => {
+test('English, Korean and omitted-language UI preserve all authored data and navigation', () => {
   for (const language of ['en', 'ko', undefined]) {
     const data = fresh();
     if (language === undefined) delete data.language;
@@ -24,8 +24,8 @@ test('English, Korean and legacy UI preserve all authored data and navigation', 
     data.concepts[0].title = '원문 제목 <original>';
     data.concepts[0].body = ['Keep this exact quotation: 원문'];
     const html = renderCandidate(data),
-      korean = language !== 'en';
-    assert.ok(html.includes(`<html lang="${language ?? 'ko'}">`));
+      korean = language === 'ko';
+    assert.ok(html.includes(`<html lang="${language ?? 'en'}">`));
     assert.ok(html.includes(korean ? '추천 학습 순서' : 'Suggested learning order'));
     assert.deepEqual(JSON.parse(html.match(/id="candidate">(.*?)<\/script>/s)[1]), data);
     const page = openLearningView(data, '#concept=input');
@@ -219,6 +219,21 @@ test('CLI checks without output, reports hashes and never overwrites an existing
   assert.deepEqual(readFileSync(output), bytes);
   assert.throws(() => run([input, '--out', input]), /\.html/);
   assert.throws(() => run([input, '--check', 'extra']), /Expected/);
+});
+
+test('the receipt names the UI language and warns only when the candidate omits it', () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), 'danseo-learning-language-'));
+  for (const language of ['en', 'ko', undefined]) {
+    const data = fresh();
+    if (language === undefined) delete data.language;
+    else data.language = language;
+    const input = path.join(scratch, `${language ?? 'omitted'}.json`);
+    writeFileSync(input, JSON.stringify(data));
+    const receipt = run([input, '--check']);
+    assert.equal(receipt.language, language ?? 'en');
+    if (language === undefined) assert.match(receipt.warning, /missing.*English.*"language": "ko"/);
+    else assert.equal(Object.hasOwn(receipt, 'warning'), false);
+  }
 });
 
 test('a junction/symlink skill installation actually runs the CLI entry point', () => {
