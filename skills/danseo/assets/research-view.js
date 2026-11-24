@@ -530,23 +530,20 @@
     a.href = '#' + type + '=' + encodeURIComponent(id);
     return a;
   }
-  function mountMap(nextScene) {
-    activeBackground = undefined;
-    map?.destroy();
-    scene = nextScene;
-    nav.clear();
-    byId('items').replaceChildren();
-    byId('map-links').replaceChildren();
-    byId('research-map').className = scene === 'context' ? 'context-map' : '';
-    const listed =
-      scene === 'context'
-        ? data.project_context.items
-        : projectMode
-          ? [...data.papers, ...items]
-          : items;
+  // The records a scene lists: topics on the context map, papers then applications on a project
+  // map, and otherwise the papers.
+  function listedItems() {
+    if (scene === 'context') return data.project_context.items;
+    if (projectMode) return [...data.papers, ...items];
+    return items;
+  }
+  function itemType(item) {
+    if (scene === 'context') return 'topic';
+    return data.papers.includes(item) ? 'paper' : 'application';
+  }
+  function listMapItems(listed) {
     for (const item of listed) {
-      const type =
-        scene === 'context' ? 'topic' : data.papers.includes(item) ? 'paper' : 'application';
+      const type = itemType(item);
       const li = node('li'),
         a = localLink(type, item.id, item.short_title ?? item.title, 'map-item');
       if (!projectMode) {
@@ -574,169 +571,165 @@
       byId('items').append(li);
       nav.set('concept:' + id, link);
     }
+  }
+  // Scene texts: the list's kind and accessible name, the map heading, notice and legend, and the
+  // heading of the matching links.
+  function nodeKindLabel() {
+    if (scene === 'context') return t('Concepts');
+    if (projectMode) return t('Projects · papers');
+    return linkedConcepts.size ? t('Papers and concepts') : t('Paper');
+  }
+  function listLabel() {
+    if (scene === 'context') return t('Concept list');
+    if (projectMode) return t('Projects and papers');
+    return linkedConcepts.size ? t('Papers and concepts') : t('Paper list');
+  }
+  function mapHeading() {
+    if (scene === 'context') return data.project_context.title;
+    if (projectMode) return t('Current question and paper evidence');
+    return t('Connections between papers');
+  }
+  function mapNotice() {
+    if (scene === 'context') return data.project_context.notice;
+    if (projectMode)
+      return t(
+        'Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.',
+      );
+    return linkedConcepts.size
+      ? t(
+          'Select a paper, concept, or connection to read its evidence. Filters apply to paper relations.',
+        )
+      : t(
+          'Check relation types and both endpoints before selecting an edge or the corresponding record in the list.',
+        );
+  }
+  function legendText() {
+    if (scene === 'context') return t('Purple dashed lines · suggested reading order.');
+    if (projectMode)
+      return t(
+        'Dashed lines · project evidence references. Paper review and project decisions are separate.',
+      );
+    return t(
+      'Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck',
+    );
+  }
+  function linksHeading() {
+    if (scene === 'context') return t('Suggested order and connection rationale');
+    if (projectMode) return t('Corresponding evidence references');
+    return t('Corresponding relations');
+  }
+  function describeScene(listed, legend) {
     byId('count').textContent = t('{count} items', { count: listed.length + linkedConcepts.size });
-    byId('node-kind').textContent =
-      scene === 'context'
-        ? t('Concepts')
-        : projectMode
-          ? t('Projects · papers')
-          : linkedConcepts.size
-            ? t('Papers and concepts')
-            : t('Paper');
-    byId('map-node-navigation').setAttribute(
-      'aria-label',
-      scene === 'context'
-        ? t('Concept list')
-        : projectMode
-          ? t('Projects and papers')
-          : linkedConcepts.size
-            ? t('Papers and concepts')
-            : t('Paper list'),
-    );
-    byId('map-heading').textContent =
-      scene === 'context'
-        ? data.project_context.title
-        : projectMode
-          ? t('Current question and paper evidence')
-          : t('Connections between papers');
-    byId('map-notice').textContent =
-      scene === 'context'
-        ? data.project_context.notice
-        : projectMode
-          ? t(
-              'Dashed lines are claim references recorded in an Application. They do not establish causal or performance inheritance.',
-            )
-          : linkedConcepts.size
-            ? t(
-                'Select a paper, concept, or connection to read its evidence. Filters apply to paper relations.',
-              )
-            : t(
-                'Check relation types and both endpoints before selecting an edge or the corresponding record in the list.',
-              );
-    const legend = byId('map-legend');
-    legend.textContent =
-      scene === 'context'
-        ? t('Purple dashed lines · suggested reading order.')
-        : projectMode
-          ? t(
-              'Dashed lines · project evidence references. Paper review and project decisions are separate.',
-            )
-          : t(
-              'Green solid · source-checked relation / purple dashed · suggested connection / amber dashed · recheck',
-            );
-    if (linkedConcepts.size && scene === 'papers') {
-      // First maps show line samples instead of prose: the map itself explains selection.
-      byId('map-notice').hidden = true;
-      legend.replaceChildren(
-        ...[
-          ['source', t('Source-checked relation')],
-          ['ai', t('AI-suggested reading path')],
-          ...(data.relations.some((relation) => presentation.category(relation) === 'stale')
-            ? [['stale', t('Recheck')]]
-            : []),
-          ...(plan.order.length ? [['concept', t('Concept, numbered in reading order')]] : []),
-        ].map(([kind, label]) => {
-          const key = node('span', 'legend-key');
-          key.append(
-            node('i', 'legend-sample legend-' + kind, kind === 'concept' ? '1' : ''),
-            label,
-          );
-          return key;
-        }),
-      );
-      // Training, data and evaluation concepts stay one click away instead of crowding the opening map.
-      const recipe = (data.concepts ?? []).filter(
-        (concept) => concept.tier === 'recipe' && linkedConcepts.has(concept.id),
-      );
-      if (recipe.length) {
-        const fold = node('details', 'recipe-fold'),
-          list = node('ul', '');
-        fold.append(node('summary', '', foldedCount(recipe.length)), list);
-        for (const concept of recipe) {
-          const li = node('li', ''),
-            contexts = linkedConcepts.get(concept.id);
-          li.append(localLink('concept', concept.id, concept.title, ''));
-          if (contexts.every((background) => !background.readings.length))
-            li.append(node('span', 'recipe-gap', ' · ' + t('No reading secured')));
-          for (const background of contexts) {
-            const suffix =
-              contexts.length > 1
-                ? t(' · from {paper}', { paper: backgroundPaperName(background.paper_id) })
-                : '';
-            for (const reading of background.readings) {
-              li.append(
-                ' · ',
-                localLink(
-                  'background-reading',
-                  background.id + ':' + reading.paper_id,
-                  backgroundPaperName(reading.paper_id) + suffix,
-                  '',
-                ),
-              );
-            }
-          }
-          list.append(li);
-        }
-        legend.append(fold);
+    byId('node-kind').textContent = nodeKindLabel();
+    byId('map-node-navigation').setAttribute('aria-label', listLabel());
+    byId('map-heading').textContent = mapHeading();
+    byId('map-notice').textContent = mapNotice();
+    legend.textContent = legendText();
+  }
+  // First maps show line samples instead of prose: the map itself explains selection.
+  function legendSamples() {
+    return [
+      ['source', t('Source-checked relation')],
+      ['ai', t('AI-suggested reading path')],
+      ...(data.relations.some((relation) => presentation.category(relation) === 'stale')
+        ? [['stale', t('Recheck')]]
+        : []),
+      ...(plan.order.length ? [['concept', t('Concept, numbered in reading order')]] : []),
+    ].map(([kind, label]) => {
+      const key = node('span', 'legend-key');
+      key.append(node('i', 'legend-sample legend-' + kind, kind === 'concept' ? '1' : ''), label);
+      return key;
+    });
+  }
+  // A folded concept with links to its readings, naming the paper each comes from when several do.
+  function recipeItem(concept) {
+    const li = node('li', ''),
+      contexts = linkedConcepts.get(concept.id);
+    li.append(localLink('concept', concept.id, concept.title, ''));
+    if (contexts.every((background) => !background.readings.length))
+      li.append(node('span', 'recipe-gap', ' · ' + t('No reading secured')));
+    for (const background of contexts) {
+      const suffix =
+        contexts.length > 1
+          ? t(' · from {paper}', { paper: backgroundPaperName(background.paper_id) })
+          : '';
+      for (const reading of background.readings) {
+        li.append(
+          ' · ',
+          localLink(
+            'background-reading',
+            background.id + ':' + reading.paper_id,
+            backgroundPaperName(reading.paper_id) + suffix,
+            '',
+          ),
+        );
       }
-    } else byId('map-notice').hidden = false;
-    if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
-    if (scene === 'papers' && hasCitationCounts) {
-      legend.append(
-        node('br'),
-        node(
-          'span',
-          '',
-          t('Node size = citation count · capped; unavailable counts use the base size.'),
-        ),
-      );
     }
-    const links =
-      scene === 'context'
-        ? data.project_context.links
-        : projectMode
-          ? items.flatMap((app) =>
-              data.papers
-                .filter((paper) => app.claim_refs.some((ref) => ref.paper_id === paper.id))
-                .map((paper) => ({ app, paper })),
-            )
-          : data.relations;
-    byId('map-links').append(
-      node(
-        'h3',
-        '',
-        scene === 'context'
-          ? t('Suggested order and connection rationale')
-          : projectMode
-            ? t('Corresponding evidence references')
-            : t('Corresponding relations'),
-      ),
+    return li;
+  }
+  function showFirstMapLegend(legend) {
+    byId('map-notice').hidden = true;
+    legend.replaceChildren(...legendSamples());
+    // Training, data and evaluation concepts stay one click away instead of crowding the opening map.
+    const recipe = (data.concepts ?? []).filter(
+      (concept) => concept.tier === 'recipe' && linkedConcepts.has(concept.id),
     );
+    if (recipe.length) {
+      const fold = node('details', 'recipe-fold'),
+        list = node('ul', '');
+      fold.append(node('summary', '', foldedCount(recipe.length)), list);
+      for (const concept of recipe) {
+        const li = recipeItem(concept);
+        list.append(li);
+      }
+      legend.append(fold);
+    }
+  }
+  // What the link list below the map shows: topic links, application evidence or paper relations.
+  function mapLinkRecords() {
+    if (scene === 'context') return data.project_context.links;
+    if (projectMode)
+      return items.flatMap((app) =>
+        data.papers
+          .filter((paper) => app.claim_refs.some((ref) => ref.paper_id === paper.id))
+          .map((paper) => ({ app, paper })),
+      );
+    return data.relations;
+  }
+  function mapLinkFields(item, index) {
+    if (scene === 'context')
+      return {
+        type: 'context-link',
+        id: String(index),
+        title: topics.get(item.source).title + ' → ' + topics.get(item.target).title,
+        sub: item.label + t(' · suggested reading order'),
+      };
+    if (projectMode)
+      return {
+        type: 'reference',
+        id: item.app.id + ':' + item.paper.id,
+        title: paperName(item.paper.id) + ' → ' + item.app.title,
+        sub:
+          item.app.claim_refs.filter((ref) => ref.paper_id === item.paper.id).length +
+          t(' claims · compare with project conditions'),
+      };
+    return {
+      type: 'relation',
+      id: item.id,
+      title:
+        paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind],
+      sub: relationLabel(item) + (item.needs_recheck ? t(' · Needs rechecking') : ''),
+    };
+  }
+  function listMapLinks() {
+    const links = mapLinkRecords();
+    byId('map-links').append(node('h3', '', linksHeading()));
     if (!links.length)
       byId('map-links').append(
         node('p', 'empty-note', t('No registered relations · disconnected items are still shown.')),
       );
     links.forEach((item, index) => {
-      let type, id, title, sub;
-      if (scene === 'context') {
-        type = 'context-link';
-        id = String(index);
-        title = topics.get(item.source).title + ' → ' + topics.get(item.target).title;
-        sub = item.label + t(' · suggested reading order');
-      } else if (projectMode) {
-        type = 'reference';
-        id = item.app.id + ':' + item.paper.id;
-        title = paperName(item.paper.id) + ' → ' + item.app.title;
-        sub =
-          item.app.claim_refs.filter((ref) => ref.paper_id === item.paper.id).length +
-          t(' claims · compare with project conditions');
-      } else {
-        type = 'relation';
-        id = item.id;
-        title =
-          paperName(item.source) + ' → ' + paperName(item.target) + ' · ' + kindLabels[item.kind];
-        sub = relationLabel(item) + (item.needs_recheck ? t(' · Needs rechecking') : '');
-      }
+      const { type, id, title, sub } = mapLinkFields(item, index);
       const a = localLink(type, id, undefined, 'map-link'),
         body = node('span', '', title);
       body.append(node('span', 'link-subtitle', sub));
@@ -744,35 +737,34 @@
       byId('map-links').append(a);
       nav.set(type + ':' + id, a);
     });
-    if (linkedConcepts.size) {
-      const list = byId('map-links');
-      list.append(node('h3', '', t('Suggested concept and background connections')));
-      const addConnection = (type, id, title) => {
-        const link = localLink(type, id, title, 'map-item map-background-link');
-        list.append(link);
-        nav.set(type + ':' + id, link);
-      };
-      for (const background of backgrounds.values()) {
-        const title = concepts.get(background.concept_id).title;
-        const from = backgroundPaperName(background.paper_id);
+  }
+  function listBackgroundConnections() {
+    const list = byId('map-links');
+    list.append(node('h3', '', t('Suggested concept and background connections')));
+    const addConnection = (type, id, title) => {
+      const link = localLink(type, id, title, 'map-item map-background-link');
+      list.append(link);
+      nav.set(type + ':' + id, link);
+    };
+    for (const background of backgrounds.values()) {
+      const title = concepts.get(background.concept_id).title;
+      const from = backgroundPaperName(background.paper_id);
+      addConnection('concept-need', background.id, t('Explore concept · ') + from + ' → ' + title);
+      for (const reading of background.readings) {
+        const route =
+          t('Background reading · ') + title + ' → ' + backgroundPaperName(reading.paper_id);
         addConnection(
-          'concept-need',
-          background.id,
-          t('Explore concept · ') + from + ' → ' + title,
+          'background-reading',
+          background.id + ':' + reading.paper_id,
+          linkedConcepts.get(background.concept_id).length > 1
+            ? route + t(' · from {paper}', { paper: from })
+            : route,
         );
-        for (const reading of background.readings) {
-          const route =
-            t('Background reading · ') + title + ' → ' + backgroundPaperName(reading.paper_id);
-          addConnection(
-            'background-reading',
-            background.id + ':' + reading.paper_id,
-            linkedConcepts.get(background.concept_id).length > 1
-              ? route + t(' · from {paper}', { paper: from })
-              : route,
-          );
-        }
       }
     }
+  }
+  // Map selections become hash routes; relation filters hide the matching links in the list.
+  function mountSceneMap() {
     map = window.DanseoMap?.mount(
       byId('research-map'),
       data,
@@ -797,21 +789,40 @@
     for (const button of byId('scene-controls').children)
       button.setAttribute('aria-pressed', String(button.scene === scene));
   }
+  function mountMap(nextScene) {
+    activeBackground = undefined;
+    map?.destroy();
+    scene = nextScene;
+    nav.clear();
+    byId('items').replaceChildren();
+    byId('map-links').replaceChildren();
+    byId('research-map').className = scene === 'context' ? 'context-map' : '';
+    const listed = listedItems();
+    listMapItems(listed);
+    const legend = byId('map-legend');
+    describeScene(listed, legend);
+    if (linkedConcepts.size && scene === 'papers') showFirstMapLegend(legend);
+    else byId('map-notice').hidden = false;
+    if (gradeGuide) gradeGuide.hidden = scene !== 'papers';
+    if (scene === 'papers' && hasCitationCounts) {
+      legend.append(
+        node('br'),
+        node(
+          'span',
+          '',
+          t('Node size = citation count · capped; unavailable counts use the base size.'),
+        ),
+      );
+    }
+    listMapLinks();
+    if (linkedConcepts.size) listBackgroundConnections();
+    mountSceneMap();
+  }
   const backgroundNotice = t(
     'Optional background readings, not citations or required prerequisites.',
   );
-  function mountBackground(background) {
-    if (scene === 'background' && activeBackground === background.id) return;
-    if (scene === 'papers') paperMapState = map?.snapshot?.();
-    map?.destroy();
-    scene = 'background';
-    activeBackground = background.id;
-    nav.clear();
-    if (gradeGuide) gradeGuide.hidden = true;
-    byId('items').replaceChildren();
-    byId('map-links').replaceChildren();
-    byId('research-map').className = '';
-    const concept = concepts.get(background.concept_id);
+  // The current paper, the concept and its readings, as list items keyed like the map's nodes.
+  function listBackgroundItems(background, concept) {
     const addItem = (type, id, key, title) => {
       const li = node('li'),
         link = localLink(type, id, title, 'map-item');
@@ -835,23 +846,9 @@
         'paper:' + reading.paper_id,
         t('Representative reading · ') + paperName(reading.paper_id),
       );
-    byId('count').textContent = t('{count} items', { count: background.readings.length + 2 });
-    byId('node-kind').textContent = t('Papers and concept');
-    byId('map-node-navigation').setAttribute('aria-label', t('Concept background items'));
-    byId('map-heading').textContent = t('Concept background · ') + concept.title;
-    byId('map-notice').textContent = backgroundNotice;
-    byId('map-notice').hidden = false;
-    byId('map-legend').textContent = t(
-      'Paper rectangles · concept ellipse / dashed lines · suggested background readings',
-    );
-    byId('map-links').append(
-      localLink(
-        'paper',
-        background.paper_id,
-        t('Return to paper relationships · ') + paperName(background.paper_id),
-        'map-item',
-      ),
-    );
+  }
+  // Selecting the current paper returns to the main map; readings and the concept stay in this scene.
+  function mountBackgroundMap(background) {
     map = window.DanseoMap?.mount(
       byId('research-map'),
       data,
@@ -871,6 +868,38 @@
     byId('map-status').textContent = map
       ? t('Drag nodes · pan background · wheel/buttons to zoom · fit all')
       : t('Unable to load the map. Use the matching concept background items to navigate.');
+  }
+  function mountBackground(background) {
+    if (scene === 'background' && activeBackground === background.id) return;
+    if (scene === 'papers') paperMapState = map?.snapshot?.();
+    map?.destroy();
+    scene = 'background';
+    activeBackground = background.id;
+    nav.clear();
+    if (gradeGuide) gradeGuide.hidden = true;
+    byId('items').replaceChildren();
+    byId('map-links').replaceChildren();
+    byId('research-map').className = '';
+    const concept = concepts.get(background.concept_id);
+    listBackgroundItems(background, concept);
+    byId('count').textContent = t('{count} items', { count: background.readings.length + 2 });
+    byId('node-kind').textContent = t('Papers and concept');
+    byId('map-node-navigation').setAttribute('aria-label', t('Concept background items'));
+    byId('map-heading').textContent = t('Concept background · ') + concept.title;
+    byId('map-notice').textContent = backgroundNotice;
+    byId('map-notice').hidden = false;
+    byId('map-legend').textContent = t(
+      'Paper rectangles · concept ellipse / dashed lines · suggested background readings',
+    );
+    byId('map-links').append(
+      localLink(
+        'paper',
+        background.paper_id,
+        t('Return to paper relationships · ') + paperName(background.paper_id),
+        'map-item',
+      ),
+    );
+    mountBackgroundMap(background);
   }
   const conceptOrder = () => plan.order;
   const foldedCount = (count) =>
