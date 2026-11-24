@@ -103,7 +103,7 @@ From the downloaded source folder, run the block for your operating system and e
 
 </details>
 
-The script prints `Installed Danseo at` followed by the skill folder path. If you already have Danseo installed, check which copy your agent loads. To update, move that copy to a backup location outside the agent's skill folders and run the copy instructions again.
+The script prints `Installed Danseo at` followed by the skill folder path. If you already have Danseo installed, check which copy your agent loads. To update, first download the latest source. Then move the installed copy to a backup location outside the agent's skill folders and run the copy instructions again from the new source folder.
 
 <a id="논문-그래프-생성-요청"></a>
 
