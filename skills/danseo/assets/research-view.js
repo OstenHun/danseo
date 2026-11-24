@@ -72,11 +72,7 @@
       details.append(badge(t('Edition date · {date}', { date: paper.publication.edition_date })));
     const source = sources.get(paper.publication.source_id);
     if (source?.url) {
-      const link = node('a', 'badge', t('Publication date source ↗'));
-      link.href = source.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      details.append(link);
+      details.append(externalLink('badge', t('Publication date source ↗'), source.url));
     } else if (source)
       details.append(
         node(
@@ -110,6 +106,14 @@
     return el;
   }
   const paragraph = (value) => node('p', '', value);
+  // Opens an outside source in a new tab without giving that page access to this one.
+  function externalLink(cls, text, url) {
+    const link = node('a', cls, text);
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    return link;
+  }
   function section(title, cls = '') {
     const el = node('section', 'research-section ' + cls);
     el.append(node('h3', '', title));
@@ -153,15 +157,13 @@
           ),
         );
       if (source.url !== null) {
-        const link = node(
-          'a',
-          '',
-          t(bibliographic ? 'Open metadata source ↗' : 'Open original source ↗'),
+        detail.append(
+          externalLink(
+            '',
+            t(bibliographic ? 'Open metadata source ↗' : 'Open original source ↗'),
+            source.url,
+          ),
         );
-        link.href = source.url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        detail.append(link);
       } else
         detail.append(
           paragraph(t('No external link recorded · use the specified local original.')),
@@ -201,11 +203,7 @@
       parent.append(paragraph(t('Subject category · {category}', { category: ranking.category })));
   }
   function rankingLink(ranking) {
-    const link = node('a', '', t('Open ranking source ↗'));
-    link.href = sources.get(ranking.source_id).url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    return link;
+    return externalLink('', t('Open ranking source ↗'), sources.get(ranking.source_id).url);
   }
   function appendAdditionalRanks(parent, rankings, representative) {
     if (!rankings.length) return;
@@ -340,11 +338,7 @@
       const table = venueGuideTable(ranks, first, scale);
       guide.append(table);
       if (scale) {
-        const link = node('a', '', t(scale.sourceLabel));
-        link.href = scale.sourceUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        guide.append(link);
+        guide.append(externalLink('', t(scale.sourceLabel), scale.sourceUrl));
       }
     }
     if (venueRanks.size < data.papers.length) {
@@ -396,10 +390,7 @@
       node('p', '', source.title + ' · ' + locators + (showAddress ? ' · ' + source.url : '')),
     );
     if (source.url !== null) {
-      const link = node('a', '', t('Open original source ↗'));
-      link.href = source.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      const link = externalLink('', t('Open original source ↗'), source.url);
       const label = t('{paper} · {source} · open original source · new tab', {
         paper: paperTitle,
         source: source.title,
@@ -420,10 +411,7 @@
       reading.append(node('p', '', source.title));
     } else {
       const label = relationEvidence ? source.title + ' ↗' : t('Open original source ↗');
-      const link = node('a', 'map-item', label);
-      link.href = source.url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
+      const link = externalLink('map-item', label, source.url);
       const accessibleName = relationEvidence
         ? name + (showAddress ? ' · ' + source.url : '') + t(' · open original source · new tab')
         : t('{paper} · {source} · open original source · new tab', {
