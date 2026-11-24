@@ -15,6 +15,7 @@ const included = new Set(files);
 let checked = 0;
 for (const file of files.filter((file) => file.endsWith('.md'))) {
   const source = readFileSync(file, 'utf8');
+  // The Korean alternative is the word for "Summary", kept by Korean translations.
   const summary = source.match(/^(?:요약|Summary): (.+)$/m)?.[1];
   if (summary) assert.ok([...summary].length <= 200, `${file}: summary exceeds 200 characters`);
   const prose = source.replace(/```[\s\S]*?```/g, '');

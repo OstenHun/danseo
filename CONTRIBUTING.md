@@ -18,7 +18,7 @@ Use a small synthetic example when possible. If the bug only happens with privat
 Browse the open [good first issues](https://github.com/OstenHun/danseo/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). If the list is empty, a small documentation fix, a synthetic example, or a report from another environment is welcome.
 
 1. Fork Danseo, clone your fork, and create a branch for one change.
-2. Make the change and run the relevant checks. For a documentation-only change, start with `npm ci` and `npm run check:docs`. For a behavior change, run the relevant tests and add a regression check where appropriate.
+2. Make the change and run the relevant checks. For a documentation-only change, start with `npm ci`, `npm run check:docs` and `npm run check:language`. For a behavior change, run the relevant tests and add a regression check where appropriate.
 3. Push the branch to your fork and open a pull request against `OstenHun/danseo:main`. Link the related issue if there is one. Explain why the change helps, which checks you ran, and which checks remain.
 
 ## Development setup
@@ -31,6 +31,7 @@ npm run check:format
 npm run lint
 npm test
 npm run check:docs
+npm run check:language
 npm run test:package
 node ./dist/cli.js validate --workspace ./examples/minimal --json
 ```
@@ -111,4 +112,4 @@ npm run check:docs
 
 Submit only code and documentation you have the right to share. New contributions use the project's [MIT License](LICENSE). Preserve source attribution and applicable license notices for third-party code, and update [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md). If you use AI, describe what was reviewed or executed and what remains unchecked.
 
-Write the titles and descriptions of public pull requests and issues in English so contributors can follow the discussion. Keep feedback respectful and focus on the problem, evidence, and steps to reproduce it. Follow [SECURITY](SECURITY.md) for private vulnerability reporting. The [English CLI guide](docs/CLI.en.md) explains setup and the end-to-end workflow.
+Write the titles and descriptions of public pull requests and issues in English so contributors can follow the discussion. Repository content is English-first too; see the [language rule](AGENTS.md#language) for the Korean that may remain. Keep feedback respectful and focus on the problem, evidence, and steps to reproduce it. Follow [SECURITY](SECURITY.md) for private vulnerability reporting. The [English CLI guide](docs/CLI.en.md) explains setup and the end-to-end workflow.

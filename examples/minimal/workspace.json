@@ -10,13 +10,13 @@
       "id": "demo",
       "root": "projects/demo",
       "question_source": "question.md",
-      "question_section": "합성 프로젝트 질문"
+      "question_section": "Synthetic project question"
     },
     {
       "id": "other",
       "root": "projects/other",
       "question_source": "question.md",
-      "question_section": "다른 합성 프로젝트"
+      "question_section": "Another synthetic project"
     }
   ]
 }

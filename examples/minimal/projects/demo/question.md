@@ -1,5 +1,5 @@
-# 합성 프로젝트 질문
+# Synthetic project question
 
-요약: 설정 A의 결과를 현재 작업에 적용할 수 있는지 묻는 가상 프로젝트다.
+Summary: A fictional project asking whether the result for setting A applies to the current work.
 
-현재 입력 조건과 가상 논문의 조건을 먼저 비교한다. 실제 실험 결과는 없다.
+Compare the current input conditions with the fictional paper's conditions first. There are no real experiment results.

@@ -130,6 +130,7 @@ function initialsBylinePosition(
 }
 
 function verifyCoverIdentity(paper: SelectedPaper, runs: string[], sameArxiv: boolean) {
+  // The Korean heading means "abstract"; the Korean author-list suffix means "and (N) others".
   const abstract = runs.findIndex(
     (run, index) => index > 0 && /^(?:abstract|초록)\s*[:.]?$/iu.test(run.trim()),
   );
@@ -193,7 +194,8 @@ function verifyUnstampedEdition(
     throw Error('The edition name must appear in the evidence on the specified page.');
   }
   // Proof may quote a venue also printed on an author manuscript. Check cover markings
-  // outside the paper title, including footer markings after the abstract.
+  // outside the paper title, including footer markings after the abstract. The Korean
+  // labels mean draft, submitted manuscript and manuscript under review, in that order.
   const label =
     /\b(?:draft|pre[ -]?print|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b|초고|투고본|심사본/i;
   const explicitStatus =
