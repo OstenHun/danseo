@@ -221,6 +221,21 @@ test('CLI checks without output, reports hashes and never overwrites an existing
   assert.throws(() => run([input, '--check', 'extra']), /Expected/);
 });
 
+test('the receipt names the UI language and warns only when the candidate omits it', () => {
+  const scratch = mkdtempSync(path.join(tmpdir(), 'danseo-learning-language-'));
+  for (const language of ['en', 'ko', undefined]) {
+    const data = fresh();
+    if (language === undefined) delete data.language;
+    else data.language = language;
+    const input = path.join(scratch, `${language ?? 'omitted'}.json`);
+    writeFileSync(input, JSON.stringify(data));
+    const receipt = run([input, '--check']);
+    assert.equal(receipt.language, language ?? 'en');
+    if (language === undefined) assert.match(receipt.warning, /missing.*English.*"language": "ko"/);
+    else assert.equal(Object.hasOwn(receipt, 'warning'), false);
+  }
+});
+
 test('a junction/symlink skill installation actually runs the CLI entry point', () => {
   const scratch = mkdtempSync(path.join(tmpdir(), 'danseo-learning-link-'));
   const linked = path.join(scratch, 'linked-skill');

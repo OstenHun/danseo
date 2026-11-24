@@ -143,5 +143,13 @@ export const run = (args) =>
     representation: data.view,
     concepts: data.concepts.length,
     relations: data.relations.length,
+    language: data.language ?? 'en',
+    // The renderer cannot see the request language, so name the fallback for the agent to check.
+    ...(Object.hasOwn(data, 'language')
+      ? {}
+      : {
+          warning:
+            'candidate.language is missing, so the fixed UI is English. Set "language": "ko" for a Korean request and regenerate.',
+        }),
   }));
 cliEntry(import.meta.url, run);

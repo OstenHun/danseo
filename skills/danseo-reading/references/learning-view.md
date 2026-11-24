@@ -38,7 +38,7 @@ node <skill>/scripts/render-learning-view.mjs <candidate.json> --check
 node <skill>/scripts/render-learning-view.mjs <candidate.json> --out <new-view.html>
 ```
 
-Use an existing authorized parent directory. The generator does not overwrite files; generate revisions under new names and compare with the earlier output. `--check` reads input and rendering assets without creating a file. The JSON receipt includes input/output hashes and inspection scope, with `visual_review: not-run` by default. This does not mean a browser check ran. The single HTML requires no external assets, model calls, server or storage. Concept selection uses `#concept=<id>`.
+Use an existing authorized parent directory. The generator does not overwrite files; generate revisions under new names and compare with the earlier output. `--check` reads input and rendering assets without creating a file. The JSON receipt includes the input hash, the output hash after `--out`, the fixed UI `language` and inspection scope, with `visual_review: not-run` by default. This does not mean a browser check ran. When the candidate omits `language`, the receipt adds a `warning` that the UI fell back to English; for a Korean request, set `"language": "ko"` and generate again under a new name. The single HTML requires no external assets, model calls, server or storage. Concept selection uses `#concept=<id>`.
 
 The agent checks and fixes the following before delivery, without making the user perform mandatory design QA:
 
