@@ -66,6 +66,14 @@ A warning is not a bug. In new and changed code, leave no new warning unless spl
 
 Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected. Files that have already been cleaned up are listed near the end of `eslint.config.js`. In those files the readability rules are errors and fail CI, so a new warning there must be fixed before merging.
 
+Split a function by job, not to meet a line count. When splitting a function would make its flow harder to follow, for example when several steps share state that the pieces would have to pass around, keep it whole and put this comment on the line above it:
+
+```js
+// eslint-disable-next-line max-lines-per-function -- <why splitting would make it harder to follow>
+```
+
+The exception covers that one function and only the length rule. Explain it in the pull request as well. The other readability rules still apply to the function.
+
 <a id="공통-테스트-fixture-수정"></a>
 
 ## Editing shared test fixtures
