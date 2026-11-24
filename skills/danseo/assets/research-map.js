@@ -506,13 +506,13 @@
       headings = [];
     let slot = 0;
     for (const [title, { papers: ids, groups }] of columns) {
-      let x = slot * column,
-        y = 0;
-      headings.push({ title, x, y: tree.headingTop });
+      let left = slot * column,
+        top = 0;
+      headings.push({ title, x: left, y: tree.headingTop });
       const place = (id, key, size, offset) => {
-        positions[key] = { x: x + offset, y: y + size.height / 2 };
+        positions[key] = { x: left + offset, y: top + size.height / 2 };
         sizes.set(id, size);
-        y += size.height + tree.gap;
+        top += size.height + tree.gap;
       };
       // Cards share the column's left edge so gutters stay straight when citation counts change card widths.
       for (const id of ids.filter((id) => !plan.owner.has(id))) {
@@ -521,13 +521,13 @@
       for (const group of groups) {
         // One crowded topic wraps into another column under the same heading instead of shrinking the whole map.
         // A single group never splits.
-        const overflows = y > 0 && y + tree.groupGap + groupHeight(group) > tree.maxColumn;
+        const overflows = top > 0 && top + tree.groupGap + groupHeight(group) > tree.maxColumn;
         if (overflows) {
           slot += 1;
-          x = slot * column;
-          y = 0;
+          left = slot * column;
+          top = 0;
         }
-        if (y > 0) y += tree.groupGap - tree.gap;
+        if (top > 0) top += tree.groupGap - tree.gap;
         place(group.concept, group.concept, { width, height: tree.conceptHeight }, 0);
         for (const id of group.papers) {
           const size = nodeSizes.get(id);
@@ -564,10 +564,10 @@
     const to = columnEdge(target) - gutter - outline(target);
     // Same column: stay in one gutter, using the outer x so the line also clears a focal outline.
     if (Math.abs(columnEdge(source) - columnEdge(target)) < 1) {
-      const x = Math.min(from, to);
+      const gutterX = Math.min(from, to);
       return [
-        [x, a.y],
-        [x, b.y],
+        [gutterX, a.y],
+        [gutterX, b.y],
       ];
     }
     const lane = need ? tree.bus : tree.bus - route.linkLane;
@@ -579,18 +579,20 @@
     ];
   }
   function routeEdge(edge) {
-    const s = edge.source().position(),
-      e = edge.target().position();
-    const dx = e.x - s.x,
-      dy = e.y - s.y,
+    const start = edge.source().position(),
+      end = edge.target().position();
+    const dx = end.x - start.x,
+      dy = end.y - start.y,
       length = Math.hypot(dx, dy);
     if (length < 1) return;
     const points = bends(edge),
       weights = [],
       distances = [];
-    for (const [x, y] of points) {
-      weights.push(((x - s.x) * dx + (y - s.y) * dy) / (length * length));
-      distances.push(((y - s.y) * dx - (x - s.x) * dy) / length);
+    for (const [pointX, pointY] of points) {
+      const offsetX = pointX - start.x,
+        offsetY = pointY - start.y;
+      weights.push((offsetX * dx + offsetY * dy) / (length * length));
+      distances.push((offsetY * dx - offsetX * dy) / length);
     }
     const style = {
       'curve-style': 'round-segments',
@@ -601,7 +603,7 @@
     };
     // Tree lines leave the concept's lower edge at the gutter.
     if (edge.data('type') === 'background-reading' && !edge.data('free'))
-      style['source-endpoint'] = points[0][0] - s.x + 'px ' + edge.source().height() / 2 + 'px';
+      style['source-endpoint'] = points[0][0] - start.x + 'px ' + edge.source().height() / 2 + 'px';
     edge.style(style);
   }
   function mountPapers(container, data, scene, onSelect, onFilter, paperState, venueRanks) {
