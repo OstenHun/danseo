@@ -266,7 +266,8 @@ test('a Korean question heading selects one section and fails when duplicated', 
   const ws = await setup(t);
   const heading = '합성 프로젝트 질문'; // "Synthetic project question"
   const question = join(ws, 'projects/demo/question.md');
-  await writeFile(question, `# ${heading}\nbody\n`);
+  // A distinct Korean sibling, "Another question", must stay out of the export.
+  await writeFile(question, `# 다른 질문\nprivate\n# ${heading}\nbody\n`);
   await edit(ws, 'workspace.json', (text) => text.replace('Synthetic project question', heading));
   const selected = run(ws, [...exportArgs, '--json']);
   assert.equal(selected.status, 0, selected.stderr);

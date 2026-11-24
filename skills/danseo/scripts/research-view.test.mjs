@@ -339,8 +339,10 @@ test('reading reason comes first and additional ranks stay in the paper disclosu
   paper.additional_venue_ranks[0].venue_source_id = otherVenue.id;
   const withoutPrimary = openPaper(data, paper.id);
   assert.match(withoutPrimary.textContent, /Representative rank unverified/);
-  // "Representative rank unverified" in Korean.
-  assert.match(openPaper({ ...data, language: 'ko' }, paper.id).textContent, /대표 등급 미확인/);
+  // "Representative rank unverified" and "Other venue rankings" in Korean.
+  const koreanWithoutPrimary = openPaper({ ...data, language: 'ko' }, paper.id).textContent;
+  assert.match(koreanWithoutPrimary, /대표 등급 미확인/);
+  assert.match(koreanWithoutPrimary, /추가 게재처 등급/);
   assert.match(withoutPrimary.textContent, /Other venue rankings/);
   const extra = withoutPrimary.children
     .find((child) => child.children[0]?.textContent === 'Venue ranking')
@@ -366,6 +368,10 @@ test('reading reason comes first and additional ranks stay in the paper disclosu
   );
   otherSource.url = null;
   assert.doesNotMatch(openPaper(data, paper.id).textContent, /Other venue rankings/);
+  assert.doesNotMatch(
+    openPaper({ ...data, language: 'ko' }, paper.id).textContent,
+    /추가 게재처 등급/,
+  );
   const invalid = structuredClone(data);
   invalid.papers[0].additional_venue_ranks[0].source_id = 'missing';
   assert.throws(
