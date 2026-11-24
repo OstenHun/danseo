@@ -2,7 +2,6 @@ import { readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { hash, fail, object, text, list } from './view-core.mjs';
 import { verifyPerformance, performanceFields } from './performance-evidence.mjs';
-import { uiFormat, uiText } from './view-language.mjs';
 
 // A bounded evidence gate, not a natural-language truth classifier.
 
@@ -11,6 +10,18 @@ const normalize = (value) => value.normalize('NFKC').replace(/\s+/g, ' ').trim()
 // ---------------------------------------------------------------------------
 // Canonical overview
 // ---------------------------------------------------------------------------
+
+// The overview is written into the candidate, not the page, so its Korean text stays
+// out of the browser language pack.
+const koreanOverview = JSON.parse(
+  readFileSync(new URL('../assets/research-overview.ko.json', import.meta.url), 'utf8'),
+);
+const uiText = (language, text) =>
+  language === 'ko' && Object.hasOwn(koreanOverview, text) ? koreanOverview[text] : text;
+const uiFormat = (language, text, values) =>
+  uiText(language, text).replace(/\{(\w+)\}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key]) : match,
+  );
 
 const isCurrentSourceCheckedRelation = (relation) =>
   relation.origin === 'source' && relation.status === 'source-checked' && !relation.needs_recheck;

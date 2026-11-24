@@ -226,6 +226,14 @@ test('optional metrics preserve a measured zero and attribute venue ranks to the
   assert.match(secondDetail, /Citation count unavailable/);
   assert.match(secondDetail, /Example JournalChannel Register 2026Level 2/);
   assert.doesNotMatch(secondDetail, /Top tier in this ranking/);
+  // The same labels in Korean, in the order asserted above.
+  const korean = { ...data, language: 'ko' };
+  const koreanFirst = openResearchPaper(korean, first.id).elements.get('content').textContent;
+  assert.match(koreanFirst, /인용 0회 · 2026-11-18 조회/);
+  assert.match(koreanFirst, /Example ConferenceICORE 2026A\*이 평가 기준의 최상위 등급/);
+  const koreanSecond = openPaper(korean, second.id).textContent;
+  assert.match(koreanSecond, /인용수 미확인/);
+  assert.doesNotMatch(koreanSecond, /최상위 등급/);
   const guide = firstView.elements.get('venue-guide');
   assert.deepEqual(
     guide.children.filter((child) => child.tagName === 'H3').map((child) => child.textContent),
@@ -315,6 +323,15 @@ test('reading reason comes first and additional ranks stay in the paper disclosu
   assert.match(disclosure.textContent, /CCF 2026BCCF catalog · p\. 58/);
   assert.match(disclosure.textContent, /Full papers only/);
   assert.equal(disclosure.children[1].children.at(-1).href, otherSource.url);
+  // The same headings in Korean: "Why read this paper", "Venue ranking" and "Other venue rankings".
+  const korean = openResearchPaper({ ...data, language: 'ko' }, paper.id).elements.get('content');
+  assert.equal(korean.children[0].textContent, '이 논문을 읽을 이유' + paper.reading_reason);
+  const koreanMetrics = korean.children.find(
+    (child) => child.children[0]?.textContent === '게재처 등급',
+  );
+  assert.ok(
+    koreanMetrics.children.some((child) => child.children?.[0]?.textContent === '추가 게재처 등급'),
+  );
   const fields = performanceFields(data);
   assert.equal(fields.get('/papers/0/reading_reason').value, paper.reading_reason);
 
@@ -322,6 +339,8 @@ test('reading reason comes first and additional ranks stay in the paper disclosu
   paper.additional_venue_ranks[0].venue_source_id = otherVenue.id;
   const withoutPrimary = openPaper(data, paper.id);
   assert.match(withoutPrimary.textContent, /Representative rank unverified/);
+  // "Representative rank unverified" in Korean.
+  assert.match(openPaper({ ...data, language: 'ko' }, paper.id).textContent, /대표 등급 미확인/);
   assert.match(withoutPrimary.textContent, /Other venue rankings/);
   const extra = withoutPrimary.children
     .find((child) => child.children[0]?.textContent === 'Venue ranking')
@@ -1498,7 +1517,7 @@ test('Korean UI follows the declared language without translating research or so
   assert.match(html, /<html lang="ko">/);
   // Korean labels in this test, in order: "Skip to content", "Zoom in", "Earlier records",
   // "Paper source", "Expand background", "Concept background", "...does not mean a source
-  // citation or a required prerequisite.", "Open source", "new tab", "Come back and compare"
+  // citation or a required prerequisite.", "Open original source", "new tab", "Come back and compare"
   // and "Connections between papers".
   assert.ok(html.includes('본문으로 건너뛰기'));
   assert.ok(html.includes('aria-label="확대"'));

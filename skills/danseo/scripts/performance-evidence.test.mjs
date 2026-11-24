@@ -400,7 +400,9 @@ test('a rejected exemption quotes the wording that was matched', (t) => {
   // The direction next to a measure is quoted even when 앞선 ("earlier") comes first.
   assert.throws(exempt('앞선 연구 reports higher accuracy.'), rejection('higher accuracy'));
   // "Score ... improve" three sentences apart: only the two ends are quoted, so
-  // the text between them stays out of the message.
+  // the text between them stays out of the message. The sentences read "Scoring is in the
+  // appendix. The evaluation data's internal identifier is TEST-42. The next section improves
+  // performance."
   const farApart =
     '점수 산정은 부록에 있다. 평가 자료의 내부 식별자는 TEST-42다. 다음 절에서 성능을 개선한다.';
   assert.throws(exempt(farApart), (error) => {

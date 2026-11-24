@@ -19,7 +19,8 @@ test('English, Korean and legacy UI preserve all authored data and navigation', 
     const data = fresh();
     if (language === undefined) delete data.language;
     else data.language = language;
-    // Authored text is never translated. The Korean title words mean "source title".
+    // Authored text is never translated. The Korean title words mean "source title"; the
+    // quoted word means "original text".
     data.concepts[0].title = '원문 제목 <original>';
     data.concepts[0].body = ['Keep this exact quotation: 원문'];
     const html = renderCandidate(data),

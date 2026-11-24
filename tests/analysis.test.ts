@@ -33,9 +33,11 @@ test('A→B→fresh A appends to one document, preserves notes, and reuses a Pap
   const first = save(open());
   const other = save(open(topic, '2', b), answer({ question: 'B only question' }), topic, '2');
   const otherBytes = readFileSync(other.document);
-  appendFileSync(first.document, '\nUser note: recheck the sample.\n');
+  // A Korean user note must survive reopening and appending: "User note: recheck the sample."
+  const note = '사용자 메모: 표본을 다시 보기.';
+  appendFileSync(first.document, `\n${note}\n`);
   const reopened = ok(topic, 'analysis-open', '--id', '1');
-  assert.match(reopened.markdown, /User note/);
+  assert.ok(reopened.markdown.includes(note));
   const before = readFileSync(reopened.document);
   assert.equal(ok(topic, 'analysis-open', '--id', '1').document_sha256, reopened.document_sha256);
   assert.deepEqual(readFileSync(reopened.document), before);
@@ -45,7 +47,7 @@ test('A→B→fresh A appends to one document, preserves notes, and reuses a Pap
   );
   assert.match(followed.markdown, /How was the result evaluated/);
   assert.match(followed.markdown, /Who were the evaluation subjects/);
-  assert.match(followed.markdown, /User note/);
+  assert.ok(followed.markdown.includes(note));
   assert.deepEqual(readFileSync(other.document), otherBytes);
   assert.equal(readdirSync(topic).filter((x) => /^analysis-.*\.md$/.test(x)).length, 2);
   assert.equal(required(ok(topic, 'show').analyses[0]).document, followed.document);

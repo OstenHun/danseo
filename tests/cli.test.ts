@@ -262,6 +262,20 @@ test('question selection preserves exact nested section, fences and provenance, 
   assert.ok(md.stdout.includes('````text'));
 });
 
+test('a Korean question heading selects one section and fails when duplicated', async (t) => {
+  const ws = await setup(t);
+  const heading = '합성 프로젝트 질문'; // "Synthetic project question"
+  const question = join(ws, 'projects/demo/question.md');
+  await writeFile(question, `# ${heading}\nbody\n`);
+  await edit(ws, 'workspace.json', (text) => text.replace('Synthetic project question', heading));
+  const selected = run(ws, [...exportArgs, '--json']);
+  assert.equal(selected.status, 0, selected.stderr);
+  assert.equal(parseJson<Bundle>(selected.stdout).question.content, `# ${heading}\nbody\n`);
+  await writeFile(question, `# ${heading}\nA\n# ${heading}\nB`);
+  const duplicate = run(ws, [...exportArgs, '--json']);
+  assert.equal(parseJson<CliError>(duplicate.stderr).error.code, 'QUESTION_SECTION');
+});
+
 test('missing, ambiguous or absent question selector never falls back to whole file', async (t) => {
   const ws = await setup(t);
   for (const content of [

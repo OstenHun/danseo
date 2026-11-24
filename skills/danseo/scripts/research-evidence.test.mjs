@@ -75,7 +75,7 @@ test('source-bound counts render; receipt never certifies semantics; no overwrit
 for (const key of ['description', 'view_reason', 'scope'])
   test(`contradictory ${key} blocks output`, (t) => {
     const f = fixture(t);
-    f.candidate[key] = '원문 기반 확장 관계'; // "source-based extension relation"
+    f.candidate[key] = 'Source-based extension relation';
     f.save();
     assert.throws(
       () => run([f.input, '--evidence', f.sidecar, '--out', f.output]),
