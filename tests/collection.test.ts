@@ -319,6 +319,63 @@ test('the collected draft must match a secondary arXiv identifier imported with 
   }
 });
 
+test('the selected RIS record also uses an arXiv identity linked by a JSON search round', (t) => {
+  const { dir, ok, run, batch, path, collect } = fixture(t);
+  const input = join(dir, 'references.ris');
+  const doi = '10.99999/mixed';
+  writeFileSync(
+    input,
+    [
+      'TY  - CONF',
+      'TT  - Synthetic mixed record',
+      'A1  - Reader, Alice',
+      'PY  - 2025',
+      'DO  - ' + doi,
+      'UR  - https://example.org/conference',
+      'ER  -',
+    ].join('\n'),
+  );
+  ok('import', '--input', input);
+  ok('select', '--ids', '1', '--round', '1');
+  batch([
+    {
+      ...paper(doi),
+      title: 'Synthetic mixed record',
+      source: 'https://arxiv.org/abs/9999.11111v1',
+      edition: 'arXiv:9999.11111v1',
+    },
+  ]);
+  const selected = required(ok('show').selected[0]);
+  assert.equal(selected.source, 'https://example.org/conference');
+  assert.equal(selected.edition, null);
+  const wrong = 'arXiv:9999.22222v2';
+  const topicFile = join(dir, 'topic.json');
+  const beforeConflict = readFileSync(topicFile);
+  const conflict = join(dir, 'conflicting.json');
+  writeFileSync(
+    conflict,
+    JSON.stringify({
+      query: 'Conflicting arXiv work',
+      papers: [
+        {
+          ...paper(doi),
+          title: selected.title,
+          source: 'https://arxiv.org/abs/9999.33333',
+          edition: 'arXiv:9999.33333v1',
+        },
+      ],
+    }),
+  );
+  const importFailure = run('search', '--input', conflict);
+  assert.equal(importFailure.status, 2);
+  assert.match(importFailure.stderr, /Different arXiv works/);
+  assert.deepEqual(readFileSync(topicFile), beforeConflict);
+  writeFileSync(path, pdf(selected.title, selected.authors, wrong + ' [cs.CL] 1 January 2025'));
+  const rejected = required(collect('1', wrong, [], 'draft').rows[0]);
+  assert.deepEqual(rejected.files, []);
+  assert.match(required(rejected.failure).reason, /exact arXiv paper ID/);
+});
+
 test('published headers and footer draft markings are checked independently of the paper title', (t) => {
   const { batch, ok, path, collect, dir } = fixture(t);
   const a = { ...paper('A'), title: 'How Lawyers Draft Contracts' };

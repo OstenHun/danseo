@@ -132,17 +132,20 @@ async function readJson(file: string): Promise<unknown> {
   }
 }
 
-function importedArxivIds(topic: Topic) {
+function topicArxivIds(topic: Topic) {
+  const papers = topic.searches.flatMap((search) => search.papers);
+  const importedKeys = new Set(
+    papers.filter((paper) => paper.scope === 'bibliography').map((paper) => paper.key),
+  );
   const ids = new Map<string, string>();
-  for (const search of topic.searches) {
-    for (const paper of search.papers) {
-      if (!paper.arxiv) continue;
-      const id = paper.arxiv.replace(/v\d+$/, '');
-      const previous = ids.get(paper.key);
-      if (previous && previous !== id)
-        invalid('Different arXiv works are recorded under the same topic paper.');
-      ids.set(paper.key, id);
-    }
+  for (const paper of papers) {
+    if (!importedKeys.has(paper.key)) continue;
+    const id = bibliographicIdentity(paper).arxiv;
+    if (!id) continue;
+    const previous = ids.get(paper.key);
+    if (previous && previous !== id)
+      invalid('Different arXiv works are recorded under the same RIS-linked paper.');
+    ids.set(paper.key, id);
   }
   return ids;
 }
@@ -167,7 +170,7 @@ function overview(topic: Topic) {
     });
     return { round: index + 1, query: search.query, papers };
   });
-  const arxivIds = importedArxivIds(topic);
+  const arxivIds = topicArxivIds(topic);
   const selected = topic.selected.map((choice) => {
     const paper = searches[choice.round - 1]?.papers.find((row) => row.key === choice.key);
     if (!paper)
