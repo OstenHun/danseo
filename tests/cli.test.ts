@@ -357,3 +357,13 @@ for (const [name, change, code] of invalidSources)
     assert.equal(r.stdout, '');
     assert.equal(parseJson<CliError>(r.stderr).error.code, code);
   });
+
+test('--help keeps danseo usage and shows how to run from a source checkout', () => {
+  const result = runNode([cli, '--help']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage: danseo /m);
+  assert.match(
+    result.stdout,
+    /From a source checkout, after npm run build, run from the repository root: node \.\/dist\/cli\.js --help/,
+  );
+});
