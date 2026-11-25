@@ -42,6 +42,10 @@ The `validate` command returns the following JSON.
 
 `ok: true` confirms that the workspace structure and references are valid, and the warning means the paper’s source review is incomplete. Exporting this draft requires `--include-drafts` and leaves its review status unchanged.
 
+The `list` command prints a JSON array with two records: `paper-synthetic` (`"type": "paper"`, `"status": "draft"`) and `app-demo` (`"type": "application"`, `"status": "proposed"`). Each record also has its title and the absolute path of its file on your computer.
+
+The `export` command prints a Markdown bundle that starts with `# Project evidence bundle` and contains the line `Project: demo`. Because the paper is a draft, it also writes `Includes unreviewed material: paper-synthetic: draft; …` to standard error. That message is expected; the exit code is still 0.
+
 ## Connect your own workspace
 
 Keep research outside the source repository. Start with the [synthetic workspace](../examples/minimal/workspace.json) and its Paper/Application files. Register explicit paths rather than copying entire research folders.
@@ -65,6 +69,21 @@ Tool root: <absolute path to the Danseo repository>
 Research workspace: <absolute directory containing workspace.json>
 Project ID: <registered ID>
 Skill: <tool root>/skills/danseo/SKILL.md
+```
+
+For example, with the repository cloned at `/home/me/danseo` and the synthetic workspace standing in for your own. Replace `/home/me/danseo` with the path of your clone, such as `C:\Users\me\danseo` on Windows:
+
+```text
+Tool root: /home/me/danseo
+Research workspace: /home/me/danseo/examples/minimal
+Project ID: demo
+Skill: /home/me/danseo/skills/danseo/SKILL.md
+```
+
+To check the tool root, workspace and project ID before you give them to the agent, run this read-only command from any other directory, with both paths replaced by your own and quoted if they contain spaces. It should list `paper-synthetic` and `app-demo`. It does not check the skill path, so also confirm that the `SKILL.md` file exists there:
+
+```sh
+node /home/me/danseo/dist/cli.js list --workspace /home/me/danseo/examples/minimal --project demo --json
 ```
 
 Use `node <tool root>/dist/cli.js` from any working directory. Quote paths containing spaces for your shell. Reuse an existing build and setup. Reading the skill explicitly is supported; automatic skill discovery and global installation are not implied. The bundled skill instructions are English; generated prose follows the [requested-language rule](../skills/danseo/SKILL.md#output-language).
