@@ -17,7 +17,7 @@ Use a small synthetic example when possible. If the bug only happens with privat
 
 Browse the open [good first issues](https://github.com/OstenHun/danseo/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22). If the list is empty, a small documentation fix, a synthetic example, or a report from another environment is welcome.
 
-1. Fork Danseo, clone your fork, and create a branch for one change.
+1. Fork Danseo, clone your fork, and create a branch for one change. Use a short, descriptive name such as `fix/export-path`. You can include an issue number, as in `docs/issue-33-skill-check`.
 2. Make the change and run the relevant checks. For a documentation-only change, start with `npm ci`, `npm run check:docs` and `npm run check:language`. For a behavior change, run the relevant tests and add a regression check where appropriate.
 3. Push the branch to your fork and open a pull request against `OstenHun/danseo:main`. Link the related issue if there is one. Explain why the change helps, which checks you ran, and which checks remain.
 
@@ -63,7 +63,7 @@ ESLint checks the JavaScript (`.js`, `.mjs`) and TypeScript (`.ts`) files with `
 - `id-length`: variable and parameter names of one character, except `i`, `j`, `k`, `a`, `b`, `t` and `_`.
 - `no-nested-ternary`: a conditional expression inside another one.
 
-A warning is not a bug. In new and changed code, leave no new warning unless splitting the code would make it harder to follow; say why in the pull request. Prettier already owns layout, so the linter has no formatting rules. On the Node 22 line, ESLint 10 needs 22.13 or later (Node 24 also works); this applies to contributors only, not to the CLI or the skills.
+A warning is not a bug. In new and changed code, leave no new warning unless splitting the code would make it harder to follow; say why in the pull request. `npm run lint` also lists warnings that were already there. To find the ones you added, run `npx eslint <files you change>` before and after your edit and compare every warning in those files by rule, not only on the lines you touched: a rule such as `max-lines-per-function` reports on a function's first line when its body grows. Every warning in a file you add is new. Prettier already owns layout, so the linter has no formatting rules. On the Node 22 line, ESLint 10 needs 22.13 or later (Node 24 also works); this applies to contributors only, not to the CLI or the skills.
 
 Some older files are still dense. Clean up a file when you change it; a repository-wide rewrite is not expected. Files that have already been cleaned up are listed near the end of `eslint.config.js`. In those files the readability rules are errors and fail CI, so a new warning there must be fixed before merging unless the length exception below applies.
 

@@ -150,7 +150,7 @@ npm run build
 node ./dist/cli.js validate --workspace ./examples/minimal --json
 ```
 
-The first command fetches the locked dependencies. After the build, the example should report `ok: true`, three records, two projects, and one expected draft warning. These checks cover file structure and references. The example uses synthetic cards with Korean body text. The CLI messages are in English.
+The first command fetches the locked dependencies. After the build, the example should report `ok: true`, three records, two projects, and one expected draft warning. These checks cover file structure and references. The example cards are synthetic and written in English, like the CLI messages.
 
 For your own research, follow the [CLI and agent guide](docs/CLI.en.md#find-collect-analyze-and-compare) to create a topic folder, collect sources, and open a local comparison. For reusable Paper and Application cards, see [connect your own workspace](docs/CLI.en.md#connect-your-own-workspace).
 
