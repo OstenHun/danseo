@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtempSync, readFileSync, readdirSync, statSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -313,6 +321,126 @@ test('published headers and footer draft markings are checked independently of t
   assert.equal(corrected.decision, 'pending');
   const reusedRow = required(collect('1', 'AUTHOR ACCEPTED MANUSCRIPT', [], 'draft').rows[0]);
   assert.deepEqual(required(reusedRow.files[1]), corrected);
+});
+
+test('a proceedings footer emitted before the title supplies evidence without becoming the title', (t) => {
+  const { batch, ok, path, collect, copies } = fixture(t);
+  const selected = { ...paper('A'), title: 'Paper A with a Long Title' };
+  const versionWarning = 'This is not the version of record';
+  const titleWithSameWords = { ...paper('B'), title: versionWarning };
+  batch([selected, titleWithSameWords]);
+  ok('select', '--ids', '1,2');
+  const venue = 'Proceedings of Journal 2024, pages 20-30';
+  const publication = [
+    'Example City, June 2 - June 7, 2024.',
+    'Copyright 2024 Association for Computational Linguistics',
+    '20',
+  ];
+  const footer = [venue, ...publication];
+  const existing = ['--existing', path];
+
+  writeFileSync(path, pdf(['Different Paper', selected.title], selected.authors, [], footer));
+  const mismatch = required(collect('1', selected.edition, existing).rows[0]);
+  assert.match(required(mismatch.failure).reason, /first-page title differs/);
+  assert.deepEqual(mismatch.files, []);
+
+  for (const unexpectedFooter of [
+    [...footer, 'A Replication of'],
+    [...footer, versionWarning],
+    [venue, versionWarning, ...publication],
+  ]) {
+    writeFileSync(path, pdf(selected.title, selected.authors, [], unexpectedFooter));
+    const clutter = required(collect('1', selected.edition, existing).rows[0]);
+    assert.match(required(clutter.failure).reason, /first-page title differs/);
+    assert.deepEqual(clutter.files, []);
+  }
+
+  writeFileSync(
+    path,
+    pdf(
+      selected.title,
+      selected.authors,
+      [],
+      ['Proceedings of Journal 2024 - Author accepted manuscript, pages 20-30', ...publication],
+    ),
+  );
+  const draft = required(collect('1', selected.edition, existing).rows[0]);
+  assert.match(required(draft.failure).reason, /Register a substitute draft/);
+  assert.deepEqual(draft.files, []);
+
+  const footerWarnings = [
+    pdf(selected.title, selected.authors, [], footer, versionWarning),
+    pdf(
+      selected.title,
+      selected.authors,
+      [],
+      [`Proceedings of Journal 2024 - ${versionWarning}, pages 20-30`, ...publication],
+    ),
+    pdf(
+      selected.title,
+      selected.authors,
+      [],
+      [venue, `${versionWarning}. Example City, June 2 - June 7, 2024.`, ...publication.slice(1)],
+    ),
+  ];
+  for (const bytes of footerWarnings) {
+    writeFileSync(path, bytes);
+    const row = required(collect('1', selected.edition, existing).rows[0]);
+    assert.match(required(row.failure).reason, /Register a substitute draft/);
+    assert.deepEqual(row.files, []);
+  }
+
+  writeFileSync(
+    path,
+    pdf(
+      ['Paper A with a', 'Long Title'],
+      selected.authors,
+      ['Abstract', 'A separate manuscript uses this sentence:', versionWarning],
+      footer,
+    ),
+  );
+  assert.equal(
+    required(collect('1', selected.edition, existing).ready[0]).file.path,
+    realpathSync(path),
+  );
+  assert.deepEqual(copies(), []);
+
+  writeFileSync(path, pdf(titleWithSameWords.title, titleWithSameWords.authors, [], footer));
+  const titleRow = required(collect('2', titleWithSameWords.edition, existing).rows[1]);
+  assert.equal(required(titleRow.files[0]).status, 'ready');
+});
+
+test('a complete attribution notice before the title preserves title and byline checks', (t) => {
+  const { batch, ok, path, collect } = fixture(t);
+  const selected = { ...paper('A'), authors: 'Alice Reader; Bob Writer' };
+  batch([selected]);
+  ok('select', '--ids', '1');
+  const notice = [
+    'Provided proper attribution is provided, Example Press hereby grants permission to',
+    'reproduce the tables and figures in this paper solely for use in journalistic or',
+    'scholarly works.',
+  ];
+
+  writeFileSync(
+    path,
+    pdf([...notice, selected.title + ' extended'], selected.authors, selected.edition),
+  );
+  assert.match(required(collect('1').rows[0]?.failure).reason, /first-page title differs/);
+
+  writeFileSync(
+    path,
+    pdf([...notice, selected.title], 'Alice Reader and Chris Writer', selected.edition),
+  );
+  assert.match(
+    required(collect('1').rows[0]?.failure).reason,
+    /Unable to match the first-page authors/,
+  );
+
+  writeFileSync(
+    path,
+    pdf([...notice, selected.title], 'Alice Reader and Bob Writer', selected.edition),
+  );
+  assert.equal(collect('1').ready.length, 1);
 });
 
 test('revised metadata in another selection round can replace an unsuitable cached edition', (t) => {
