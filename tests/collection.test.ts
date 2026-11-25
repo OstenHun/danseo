@@ -443,6 +443,106 @@ test('a proceedings footer emitted before the title supplies evidence without be
   assert.equal(required(titleRow.files[0]).status, 'ready');
 });
 
+test('footer draft markings next to publication text or a page number are found', (t) => {
+  const { batch, ok, path, collect } = fixture(t);
+  const selected = { ...paper('A'), title: 'Paper A with a Long Title' };
+  batch([selected]);
+  ok('select', '--ids', '1');
+  const versionWarning = 'This is not the version of record';
+  const lateFooters = [
+    // The version notice counts anywhere in a footer line.
+    `Example City, June 2 - June 7, 2024. ${versionWarning}`,
+    `June 2, 2024. Copyright 2024 Association for Computational Linguistics. ${versionWarning}`,
+    `Proceedings of Journal 2024, pages 20-30. ${versionWarning}`,
+    `Example City, ${versionWarning}, June 2, 2024.`,
+    `Proceedings of Journal 2024 (${versionWarning}), pages 20-30`,
+    `Proceedings of Journal 2024 -- ${versionWarning}, pages 20-30`,
+    `Proceedings of Journal 2024 ${versionWarning}, pages 20-30`,
+    'Journal 2024 - This is not the version-of-record',
+    'this is not the version of record',
+    // Other labels count when they fill a phrase of the footer line.
+    '20  Author accepted manuscript',
+    "Journal 2024 | Author's accepted manuscript",
+    'Journal 2024 | Draft v2',
+    'Journal 2024 (Draft)',
+    'Preprint.',
+    'Preprint. Under review.',
+    // Publisher sentences count at the start of a phrase.
+    "This is the author's version of the work. It is posted here for your personal use.",
+    'This is the authors version of the work. It is posted here for your personal use.',
+  ];
+  for (const lateFooter of lateFooters) {
+    writeFileSync(path, pdf(selected.title, selected.authors, selected.edition, [], lateFooter));
+    const row = required(collect('1', selected.edition, ['--existing', path]).rows[0]);
+    assert.match(required(row.failure).reason, /Register a substitute draft/, lateFooter);
+    assert.deepEqual(row.files, []);
+  }
+
+  // The venue named in this footer is also the only edition proof on the page.
+  writeFileSync(
+    path,
+    pdf(
+      selected.title,
+      selected.authors,
+      [],
+      [],
+      'Preprint submitted to Journal 2024 November 25, 2026',
+    ),
+  );
+  const submitted = required(collect('1', selected.edition, ['--existing', path]).rows[0]);
+  assert.match(required(submitted.failure).reason, /Register a substitute draft/);
+
+  // A marking in a header above the title still marks the copy.
+  const headers = [
+    `Proceedings of X - ${versionWarning}`,
+    'Proceedings of X - This is not the version-of-record',
+    'Proceedings of X - Authors manuscript',
+  ];
+  for (const header of headers) {
+    writeFileSync(path, pdf([header, selected.title], selected.authors, selected.edition));
+    const row = required(collect('1', selected.edition, ['--existing', path]).rows[0]);
+    assert.match(required(row.failure).reason, /Register a substitute draft/, header);
+  }
+});
+
+test('prose and footnotes in the footer band do not count as draft markings', (t) => {
+  const { batch, ok, path, collect } = fixture(t);
+  const footers = [
+    // Wrapped body text reaching the footer band starts in lower case.
+    [
+      'preprint. We then fine-tune the released draft on each task - under review',
+      'conditions, the final article (draft v2) matches the earlier one.',
+    ],
+    // A footnote after its marker, and a publication line without a marking.
+    [
+      '1 Code and the draft annotation guidelines are available online.',
+      'Proceedings of Journal 2024, pages 20-30. Example City, June 2, 2024.',
+    ],
+    // A label word that only starts a sentence or footnote.
+    [
+      '1 Under review conditions, accuracy fell.',
+      'Results hold. Under review conditions, the model wins.',
+    ],
+    ['We test it. Draft-free decoding is faster.', '2 Preprint: https://arxiv.org/abs/1810.04805'],
+    // Published journal footers with dates, a licence and parentheses.
+    [
+      'Received 12 March 2024; Accepted 5 May 2024; Published 1 June 2024',
+      '(c) 2024 The Author(s). Published by Example Press. This is an open access article.',
+    ],
+  ];
+  const selected = footers.map((_, index) => paper(String(index + 1)));
+  batch(selected);
+  ok('select', '--ids', selected.map((_, index) => index + 1).join(','));
+  for (const [index, lateFooter] of footers.entries()) {
+    const current = required(selected[index]);
+    writeFileSync(path, pdf(current.title, current.authors, current.edition, [], lateFooter));
+    const row = required(
+      collect(String(index + 1), current.edition, ['--existing', path]).rows[index],
+    );
+    assert.equal(required(row.files[0]).status, 'ready', lateFooter.join(' / '));
+  }
+});
+
 test('a complete attribution notice before the title preserves title and byline checks', (t) => {
   const { batch, ok, path, collect } = fixture(t);
   const selected = { ...paper('A'), authors: 'Alice Reader; Bob Writer' };

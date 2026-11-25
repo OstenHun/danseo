@@ -43,7 +43,6 @@ const attributionNotice =
 const coverTextLimit = 6500;
 const proceedingsPagination = /^proceedings of .+?,\s*pages\s+(\d+)(?:\s*[-–]\s*\d+)?$/i;
 const datelineText = String.raw`(?:[\p{L}\p{N}., -]+, )?[a-z]+ \d{1,2}(?: *[-–] *(?:[a-z]+ )?\d{1,2})?,? \d{4}\.?`;
-const publicationDateline = new RegExp(`^${datelineText}$`, 'iu');
 const aclPublicationNotice = new RegExp(
   String.raw`^${datelineText}[ \n](?:c )?(?:©|\(c\)|copyright) *\d{4} Association for Computational Linguistics\.?$`,
   'iu',
@@ -231,6 +230,24 @@ function verifyCoverIdentity(
   return { titleBlock, bibliographicHeader };
 }
 
+// The publisher's version notice is specific enough to count wherever it appears in
+// a bibliographic header or a footer line, whatever its case, hyphens or punctuation.
+const versionNotice = ' this is not the version of record ';
+const hasVersionNotice = (text: string) => (' ' + editionKey(text) + ' ').includes(versionNotice);
+
+function footerLines(cover: CoverRuns, footerTop: number) {
+  const footer = coverLines(cover.filter((run) => isFooterRun(run, footerTop)));
+  return footer.map((line) => normalizeCoverText(line).replace(/\s+/gu, ' ').trim());
+}
+
+// In the physical footer a status label can share a line with a page number or with
+// publication text, before or after it. Split a footer line at sentence and clause
+// punctuation, spaced dashes and bars, and opening parentheses, and drop leading
+// page numbers and symbols, so each label can be matched on its own.
+const footerBreak = /[.;,] | [-–—|]+ | ?\(/u;
+const footerPhrases = (line: string) =>
+  line.split(footerBreak).map((phrase) => phrase.replace(/^[^\p{L}]+/u, '').trim());
+
 function verifyUnstampedEdition(
   paper: SelectedPaper,
   evidence: Edition,
@@ -249,41 +266,40 @@ function verifyUnstampedEdition(
   // outside the paper title, including footer markings after the abstract. The Korean
   // labels mean draft, submitted manuscript and manuscript under review, in that order.
   const label =
-    /\b(?:draft|pre[ -]?print|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b|초고|투고본|심사본/i;
+    /\b(?:draft|pre[ -]?print|author(?:['’]?s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b|초고|투고본|심사본/i;
   const explicitStatus =
-    /^(?:this (?:paper|article|version) is (?:an? )?(?:draft|pre[ -]?print)|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b/i;
+    /^(?:this (?:paper|article|version) is (?:an? )?(?:draft|pre[ -]?print)|author(?:['’]?s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b/i;
   const versionLabel =
-    /^(?:(?:working|preliminary|first|final)\s+)?(?:draft|pre[ -]?print|초고|투고본|심사본)(?:$|\s+v(?:ersion)?\s*\d|\s*[-:—(])/i;
-  // A detached version notice can be emitted anywhere in the page's text
-  // stream, on its own or as part of a publication line in the physical footer.
-  const versionNotice = 'this is not the version of record';
-  const printedNotice = new RegExp(String.raw`^(?:\d+ )?${versionNotice}(?: \d+)?$`);
-  const containsVersionNotice = (normalized: string) =>
-    (' ' + normalized + ' ').includes(' ' + versionNotice + ' ');
-  const footerHasNotice = coverLines(cover.filter((run) => isFooterRun(run, footerTop))).some(
-    (line) => {
-      const text = normalizeCoverText(line).trim().replace(/\s+/gu, ' ');
-      const normalized = editionKey(text);
-      return (
-        printedNotice.test(normalized) ||
-        (containsVersionNotice(normalized) &&
-          (proceedingsPagination.test(text) ||
-            publicationDateline.test(text) ||
-            aclPublicationNotice.test(text)))
-      );
-    },
-  );
+    /^(?:(?:working|preliminary|first|final)\s+)?(?:draft|pre[ -]?print|초고|투고본|심사본)(?:$|\s+v(?:ersion)?\s*\d+|\s*[-:—(])/i;
+  const isStatus = (text: string) => explicitStatus.test(text) || versionLabel.test(text);
+  // A footer phrase cut from the middle of a line can be prose ("Under review
+  // conditions, ..."), so a label must fill it, apart from a trailing period,
+  // closing bracket or page number.
+  const fillsPhrase = (phrase: string) => {
+    const bare = phrase.replace(/[.)\]]+$/u, '');
+    return [bare, bare.replace(/ \d+$/u, '')].some((text) => {
+      const match = explicitStatus.exec(text) ?? versionLabel.exec(text);
+      return match?.[0].length === text.length;
+    });
+  };
+  // Publisher sentences that an abstract can quote while discussing another
+  // manuscript, so they count only in the physical footer.
+  const footerNotice =
+    /^(?:pre[ -]?print submitted to|this is the authors? (?:accepted )?(?:version|manuscript))\b/i;
+  // Body text can reach the footer band. A phrase there that starts in lower case
+  // continues a sentence or a wrapped line, so it is prose rather than a marking.
+  const footerMarking = (phrase: string) =>
+    /^\p{Lu}/u.test(phrase) && (fillsPhrase(phrase) || footerNotice.test(phrase));
+  const statedEdition = [identity.bibliographicHeader, evidence.edition, evidence.proof].join(' ');
+  const footer = footerLines(cover, footerTop);
   // Only status labels and standalone markings describe this document. Running
   // prose in the abstract can discuss a different preprint.
   const draft =
-    label.test([identity.bibliographicHeader, evidence.edition, evidence.proof].join(' ')) ||
-    containsVersionNotice(editionKey(identity.bibliographicHeader)) ||
-    footerHasNotice ||
-    coverLines(cover).some(
-      (line) =>
-        !identity.titleBlock.includes(line) &&
-        (explicitStatus.test(line.trim()) || versionLabel.test(line.trim())),
-    );
+    label.test(statedEdition) ||
+    hasVersionNotice(statedEdition) ||
+    footer.some(hasVersionNotice) ||
+    footer.flatMap(footerPhrases).some(footerMarking) ||
+    coverLines(cover).some((line) => !identity.titleBlock.includes(line) && isStatus(line.trim()));
   if (!evidence.draft && (edition !== editionKey(paper.edition) || draft)) {
     throw Error('The edition differs from the selection. Register a substitute draft as a draft.');
   }
