@@ -290,15 +290,25 @@ test('an imported publication with no selected edition explains how to retry col
     ].join('\n'),
   );
   ok('import', '--input', input);
-  ok('select', '--ids', '1', '--round', '1');
+  const note = 'Check the published results';
+  ok('select', '--ids', '1', '--round', '1', '--note', note);
+  writeFileSync(
+    path,
+    pdf('Paper A', 'Alice Reader', 'Journal 2024', [], 'Author accepted manuscript'),
+  );
+  const draft = required(collect('1').rows[0]);
+  assert.deepEqual(draft.files, []);
+  assert.match(required(draft.failure).reason, /Register a substitute draft/);
+
   writeFileSync(path, pdf('Paper A', 'Alice Reader', 'Journal 2024'));
   const row = required(collect('1').rows[0]);
   assert.deepEqual(row.files, []);
-  assert.match(required(row.failure).reason, /topic unselect.*topic select.*--edition/s);
+  assert.equal(row.paper.note, note);
+  assert.match(required(row.failure).reason, /topic unselect.*topic select.*--edition.*--note/s);
 
   ok('unselect', '--ids', '1');
-  ok('select', '--ids', '1', '--round', '1', '--edition', 'Journal 2024');
-  assert.equal(collect('1').ready.length, 1);
+  ok('select', '--ids', '1', '--round', '1', '--edition', 'Journal 2024', '--note', note);
+  assert.equal(required(collect('1').ready[0]).paper.note, note);
 });
 
 test('the collected draft must match a secondary arXiv identifier imported with a DOI', (t) => {

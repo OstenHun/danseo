@@ -307,7 +307,7 @@ function verifyUnstampedEdition(
   if (!evidence.draft && (!paper.edition || edition !== editionKey(paper.edition) || draft)) {
     if (!paper.edition && !draft) {
       throw Error(
-        'No expected edition was selected. Use topic unselect, then topic select for the same paper and round with --edition before retrying collection.',
+        'No expected edition was selected. Check the intended edition at the official source and copy any selection note. Use topic unselect, then topic select for the same paper and round with --edition and any saved --note. Retry collection.',
       );
     }
     throw Error('The edition differs from the selection. Register a substitute draft as a draft.');
