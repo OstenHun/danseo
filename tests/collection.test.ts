@@ -370,6 +370,21 @@ test('a proceedings footer emitted before the title supplies evidence without be
 
   const footerWarnings = [
     pdf(selected.title, selected.authors, [], footer, versionWarning),
+    pdf(selected.title, selected.authors, [], footer, `20  ${versionWarning}`),
+    pdf(
+      selected.title,
+      selected.authors,
+      [],
+      [],
+      `Proceedings of Journal 2024 - ${versionWarning}, pages 20-30`,
+    ),
+    pdf(
+      selected.title,
+      selected.authors,
+      selected.edition,
+      [],
+      `${versionWarning}, June 2, 2024. Copyright 2024 Association for Computational Linguistics`,
+    ),
     pdf(
       selected.title,
       selected.authors,
@@ -404,6 +419,14 @@ test('a proceedings footer emitted before the title supplies evidence without be
     realpathSync(path),
   );
   assert.deepEqual(copies(), []);
+
+  writeFileSync(
+    path,
+    pdf(titleWithSameWords.title, titleWithSameWords.authors, [], footer, versionWarning),
+  );
+  const sameTitleWarning = required(collect('2', titleWithSameWords.edition, existing).rows[1]);
+  assert.match(required(sameTitleWarning.failure).reason, /Register a substitute draft/);
+  assert.deepEqual(sameTitleWarning.files, []);
 
   writeFileSync(path, pdf(titleWithSameWords.title, titleWithSameWords.authors, [], footer));
   const titleRow = required(collect('2', titleWithSameWords.edition, existing).rows[1]);

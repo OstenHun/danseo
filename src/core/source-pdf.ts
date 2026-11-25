@@ -245,21 +245,34 @@ function verifyUnstampedEdition(
   // outside the paper title, including footer markings after the abstract. The Korean
   // labels mean draft, submitted manuscript and manuscript under review, in that order.
   const label =
-    /\b(?:draft|pre[ -]?print|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review|this is not the version of record)\b|초고|투고본|심사본/i;
+    /\b(?:draft|pre[ -]?print|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b|초고|투고본|심사본/i;
   const explicitStatus =
     /^(?:this (?:paper|article|version) is (?:an? )?(?:draft|pre[ -]?print)|author(?:['’]s)?\s+(?:accepted\s+)?manuscript|accepted manuscript|submitted (?:manuscript|to)|under review)\b/i;
   const versionLabel =
     /^(?:(?:working|preliminary|first|final)\s+)?(?:draft|pre[ -]?print|초고|투고본|심사본)(?:$|\s+v(?:ersion)?\s*\d|\s*[-:—(])/i;
   // A detached version notice can be emitted anywhere in the page's text
-  // stream. Look for the whole marking in the physical footer.
-  const versionNotice = /^this is not the version of record[.!]?$/i;
+  // stream, on its own or as part of a publication line in the physical footer.
+  const versionNotice = 'this is not the version of record';
+  const printedNotice = new RegExp(String.raw`^(?:\d+ )?${versionNotice}(?: \d+)?$`);
+  const containsVersionNotice = (normalized: string) =>
+    (' ' + normalized + ' ').includes(' ' + versionNotice + ' ');
+  const footerHasNotice = coverLines(cover.filter((run) => isFooterRun(run, footerTop))).some(
+    (line) => {
+      const text = normalizeCoverText(line).trim().replace(/\s+/gu, ' ');
+      const normalized = editionKey(text);
+      return (
+        printedNotice.test(normalized) ||
+        ((proceedingsPagination.test(text) || aclPublicationNotice.test(text)) &&
+          containsVersionNotice(normalized))
+      );
+    },
+  );
   // Only status labels and standalone markings describe this document. Running
   // prose in the abstract can discuss a different preprint.
   const draft =
     label.test([identity.bibliographicHeader, evidence.edition, evidence.proof].join(' ')) ||
-    coverLines(cover.filter((run) => isFooterRun(run, footerTop))).some(
-      (line) => versionNotice.test(line.trim()) && !identity.titleBlock.includes(line),
-    ) ||
+    containsVersionNotice(editionKey(identity.bibliographicHeader)) ||
+    footerHasNotice ||
     coverLines(cover).some(
       (line) =>
         !identity.titleBlock.includes(line) &&
