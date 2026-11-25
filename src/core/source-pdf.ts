@@ -305,6 +305,11 @@ function verifyUnstampedEdition(
     footer.flatMap(footerPhrases).some(footerMarking) ||
     coverLines(cover).some((line) => !identity.titleBlock.includes(line) && isStatus(line.trim()));
   if (!evidence.draft && (!paper.edition || edition !== editionKey(paper.edition) || draft)) {
+    if (!paper.edition && !draft) {
+      throw Error(
+        'No expected edition was selected. Use topic unselect, then topic select for the same paper and round with --edition before retrying collection.',
+      );
+    }
     throw Error('The edition differs from the selection. Register a substitute draft as a draft.');
   }
 }

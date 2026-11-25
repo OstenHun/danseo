@@ -275,6 +275,32 @@ test('standalone repository stamps, title containing Abstract and punctuated byl
   assert.ok(required(mismatchedRow.failure).reason);
 });
 
+test('an imported publication with no selected edition explains how to retry collection', (t) => {
+  const { dir, ok, path, collect } = fixture(t);
+  const input = join(dir, 'reference.ris');
+  writeFileSync(
+    input,
+    [
+      'TY  - JOUR',
+      'TI  - Paper A',
+      'AU  - Alice Reader',
+      'PY  - 2024',
+      'DO  - 10.9999/a',
+      'ER  -',
+    ].join('\n'),
+  );
+  ok('import', '--input', input);
+  ok('select', '--ids', '1', '--round', '1');
+  writeFileSync(path, pdf('Paper A', 'Alice Reader', 'Journal 2024'));
+  const row = required(collect('1').rows[0]);
+  assert.deepEqual(row.files, []);
+  assert.match(required(row.failure).reason, /topic unselect.*topic select.*--edition/s);
+
+  ok('unselect', '--ids', '1');
+  ok('select', '--ids', '1', '--round', '1', '--edition', 'Journal 2024');
+  assert.equal(collect('1').ready.length, 1);
+});
+
 test('the collected draft must match a secondary arXiv identifier imported with a DOI', (t) => {
   const { dir, ok, path, collect, copies } = fixture(t);
   const input = join(dir, 'references.ris');
