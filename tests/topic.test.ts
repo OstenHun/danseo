@@ -143,7 +143,7 @@ test('RIS import adds bibliography to the topic and keeps expected editions with
 
 test('one RIS collection keeps all candidates and restores a manual shortlist by number', (t) => {
   const question = 'Which synthetic studies measure retrieval latency?';
-  const { input, ok } = topicFixture(t, question);
+  const { dir, input, ok, run } = topicFixture(t, question);
   const shortlist = [4, 17, 29];
   const records = Array.from({ length: 30 }, (_, index) => {
     const number = index + 1;
@@ -172,6 +172,39 @@ test('one RIS collection keeps all candidates and restores a manual shortlist by
     reopened.selected,
     shortlist.map((number) => ({ ...candidates[number - 1], number, round: 1, note })),
   );
+  const topicFile = join(dir, 'topic.json');
+  const saved = readFileSync(topicFile);
+  writeFileSync(input, [...records, records[3]].join('\n'));
+  assert.match(
+    run('import', '--input', input).stderr,
+    /RIS records 4 and 31 describe the same paper/,
+  );
+  assert.deepEqual(readFileSync(topicFile), saved);
+});
+
+test('an imported alias shared by distinct search keys reports the conflicting record', (t) => {
+  const { dir, input, ok, run, saveBatch } = topicFixture(t);
+  saveBatch([
+    { ...paper('preprint'), source: 'https://arxiv.org/abs/9999.12345v1' },
+    { ...paper('revision'), source: 'https://arxiv.org/pdf/9999.12345v2' },
+  ]);
+  ok('search', '--input', input);
+  const path = join(dir, 'topic.json');
+  const saved = readFileSync(path);
+  const record = ['TY  - JOUR', 'TI  - Example', 'AU  - Reader', 'PY  - 2025'];
+  writeFileSync(
+    input,
+    [
+      ...record,
+      'UR  - https://example.org/unrelated',
+      'ER  -',
+      ...record,
+      'UR  - https://arxiv.org/abs/9999.12345',
+      'ER  -',
+    ].join('\n'),
+  );
+  assert.match(run('import', '--input', input).stderr, /RIS record 2: identifiers conflict/);
+  assert.deepEqual(readFileSync(path), saved);
 });
 
 test('search rounds still allow five candidates and reject six on input and reopen', (t) => {
