@@ -27,6 +27,7 @@ Usage: danseo <${Object.keys(workspaceOptionsByCommand).join('|')}> --workspace 
        danseo topic <init|search|select|unselect|show|sources|collect|unavailable|decide> --dir <topic-folder> [options]
        danseo topic <analysis-open|analysis-save|analysis-list|comparison-input> --dir <topic-folder> [options]
        danseo topic compare --dir <topic-folder> [--port 0 | --json]
+From a source checkout, after npm run build, run from the repository root: node ./dist/cli.js --help
   validate                         Check schema, IDs, references and project paths
   list [--project <id>]             List records
   show --paper <id>                 Original Paper (or --application <id>)
