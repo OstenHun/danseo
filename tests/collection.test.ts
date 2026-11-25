@@ -388,6 +388,16 @@ test('a proceedings footer emitted before the title supplies evidence without be
     pdf(
       selected.title,
       selected.authors,
+      selected.edition,
+      [],
+      [
+        `${versionWarning}. Example City, June 2 - June 7, 2024.`,
+        'Copyright 2024 Association for Computational Linguistics',
+      ],
+    ),
+    pdf(
+      selected.title,
+      selected.authors,
       [],
       [`Proceedings of Journal 2024 - ${versionWarning}, pages 20-30`, ...publication],
     ),

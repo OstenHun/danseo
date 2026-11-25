@@ -42,8 +42,12 @@ const attributionNotice =
   /^provided proper attribution is provided, [\p{L}\p{N}. &-]+ hereby grants permission to reproduce the tables and figures in this paper solely for use in journalistic or scholarly works\.\s+/iu;
 const coverTextLimit = 6500;
 const proceedingsPagination = /^proceedings of .+?,\s*pages\s+(\d+)(?:\s*[-–]\s*\d+)?$/i;
-const aclPublicationNotice =
-  /^(?:[\p{L}\p{N}., -]+, )?[a-z]+ \d{1,2}(?: *[-–] *(?:[a-z]+ )?\d{1,2})?,? \d{4}\.?[ \n](?:c )?(?:©|\(c\)|copyright) *\d{4} Association for Computational Linguistics\.?$/iu;
+const datelineText = String.raw`(?:[\p{L}\p{N}., -]+, )?[a-z]+ \d{1,2}(?: *[-–] *(?:[a-z]+ )?\d{1,2})?,? \d{4}\.?`;
+const publicationDateline = new RegExp(`^${datelineText}$`, 'iu');
+const aclPublicationNotice = new RegExp(
+  String.raw`^${datelineText}[ \n](?:c )?(?:©|\(c\)|copyright) *\d{4} Association for Computational Linguistics\.?$`,
+  'iu',
+);
 
 type PdfPage = Awaited<ReturnType<Awaited<ReturnType<typeof getDocumentProxy>>['getPage']>>;
 type CoverRuns = Awaited<ReturnType<typeof readPageRuns>>;
@@ -262,8 +266,10 @@ function verifyUnstampedEdition(
       const normalized = editionKey(text);
       return (
         printedNotice.test(normalized) ||
-        ((proceedingsPagination.test(text) || aclPublicationNotice.test(text)) &&
-          containsVersionNotice(normalized))
+        (containsVersionNotice(normalized) &&
+          (proceedingsPagination.test(text) ||
+            publicationDateline.test(text) ||
+            aclPublicationNotice.test(text)))
       );
     },
   );

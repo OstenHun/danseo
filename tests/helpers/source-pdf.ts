@@ -4,19 +4,21 @@ export function pdf(
   author: string,
   edition: string | string[],
   footer: string[] = [],
-  lateFooter = '',
+  lateFooter: string | string[] = [],
 ): Buffer {
   const leadingFooter = footer.map(
     (line, index) => `1 0 0 1 20 ${55 - 12 * index} Tm (${line}) Tj `,
   );
-  const trailingFooter = lateFooter ? ` 1 0 0 1 20 18 Tm (${lateFooter}) Tj` : '';
+  const trailingFooter = [lateFooter]
+    .flat()
+    .map((line, index) => ` 1 0 0 1 20 ${18 - 12 * index} Tm (${line}) Tj`);
   const content = `BT /F 12 Tf ${leadingFooter.join('')}1 0 0 1 20 730 Tm ${[title]
     .flat()
     .map((line) => `(${line}) Tj`)
     .join(' 0 -20 Td ')} 0 -20 Td (${author}) Tj ${[edition]
     .flat()
     .map((line) => `0 -20 Td (${line}) Tj`)
-    .join(' ')}${trailingFooter} ET`;
+    .join(' ')}${trailingFooter.join('')} ET`;
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Count 1 /Kids [3 0 R] >>',
