@@ -49,7 +49,6 @@ const configValid = ajv.compile<ComparisonConfig>({
     question: { type: 'string', pattern: '\\S' },
     criteria: {
       type: 'array',
-      minItems: 1,
       maxItems: 30,
       items: {
         type: 'object',

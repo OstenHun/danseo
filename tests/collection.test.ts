@@ -48,13 +48,14 @@ function fixture(t: TestContext) {
     edition = 'Journal 2024',
     extra: string[] = [],
     kind: 'published' | 'draft' = 'published',
+    round = '1',
   ) {
     return ok(
       'collect',
       '--id',
       id,
       '--round',
-      '1',
+      round,
       '--edition',
       edition,
       '--proof',
@@ -68,16 +69,17 @@ function fixture(t: TestContext) {
   ok('init', '--question', 'A research question');
   return { dir, path, run, ok, batch, collect, copies };
 }
-const paper = (key: string): Omit<SelectedPaper, 'number' | 'round'> => ({
-  key,
-  title: 'Paper ' + key,
-  authors: 'Alice Reader',
-  edition: 'Journal 2024',
-  source: 'https://example.com/' + key,
-  year: 2024,
-  reason: 'Compare ' + key,
-  scope: 'abstract',
-});
+const paper = (key: string) =>
+  ({
+    key,
+    title: 'Paper ' + key,
+    authors: 'Alice Reader',
+    edition: 'Journal 2024',
+    source: 'https://example.com/' + key,
+    year: 2024,
+    reason: 'Compare ' + key,
+    scope: 'abstract',
+  }) satisfies Omit<SelectedPaper, 'number' | 'round'>;
 
 test('local HTTP download, reuse and later supply preserve the selected round and earlier bytes', async (t) => {
   const { dir, path, ok, run, batch, collect, copies } = fixture(t);
@@ -271,6 +273,50 @@ test('standalone repository stamps, title containing Abstract and punctuated byl
   writeFileSync(path, pdf(second.title, second.authors, 'arXiv:2305.20050v1'));
   const mismatchedRow = required(collect('2', 'arXiv:2305.20050v1', [], 'draft').rows[1]);
   assert.ok(required(mismatchedRow.failure).reason);
+});
+
+test('the collected draft must match a secondary arXiv identifier imported with a DOI', (t) => {
+  const { dir, ok, path, collect, copies } = fixture(t);
+  const input = join(dir, 'references.ris');
+  const record = [
+    'TY  - CONF',
+    'TT  - Synthetic paper',
+    'A1  - Reader, Alice',
+    'PY  - 2025',
+    'DO  - 10.99999/synthetic',
+  ];
+  for (const round of ['1', '2', '3']) {
+    const urls = [`UR  - https://example.org/published/${round}`];
+    if (round === '2') urls.push('UR  - https://arxiv.org/abs/9999.11111');
+    writeFileSync(input, [...record, ...urls, 'ER  -'].join('\n'));
+    ok('import', '--input', input);
+  }
+  for (const round of ['1', '3']) {
+    const selected = required(ok('select', '--ids', '1', '--round', round).selected[0]);
+    assert.equal(selected.source, `https://example.org/published/${round}`);
+    assert.equal(selected.edition, null);
+    const otherWork = 'arXiv:9999.22222v2';
+    writeFileSync(
+      path,
+      pdf('Synthetic paper', 'Alice Reader', otherWork + ' [cs.CL] 1 January 2025'),
+    );
+    const rejected = required(
+      collect('1', otherWork, ['--existing', path], 'draft', round).rows[0],
+    );
+    assert.deepEqual(rejected.files, []);
+    assert.match(required(rejected.failure).reason, /exact arXiv paper ID/);
+    assert.deepEqual(copies(), []);
+    const expectedWork = 'arXiv:9999.11111v2';
+    writeFileSync(
+      path,
+      pdf('Synthetic paper', 'Alice Reader', expectedWork + ' [cs.CL] 1 January 2025'),
+    );
+    const registered = required(
+      collect('1', expectedWork, ['--existing', path], 'draft', round).rows[0],
+    );
+    assert.equal(required(registered.files[0]).status, 'pending');
+    ok('unselect', '--ids', '1');
+  }
 });
 
 test('published headers and footer draft markings are checked independently of the paper title', (t) => {

@@ -32,6 +32,17 @@ Include 3–5 verified candidates when available; fewer or empty searches are va
 
 `show.searches` contains candidates per round; `selected` contains all selections. Specify the displayed `--round` when a paper has multiple sources/editions. Reselecting an already-selected number preserves its first selected edition/source/note. To change it, `unselect --ids` then select the intended round. Start by explicitly reading the [skill](../skills/danseo/SKILL.md).
 
+### Import an RIS bibliography
+
+```powershell
+node ./dist/cli.js topic import --dir $topic --input ./references.ris
+node ./dist/cli.js topic select --dir $topic --round 1 --ids 1 --edition 'Conference 2024'
+```
+
+Import up to five UTF-8 RIS records per round. The importer reads title (`T1`, `TI`, then `TT`), repeated authors (`A1` or `AU`), year (`PY` or `Y1`), DOI (`DO`), and source URL (`UR`). Use `TY` and `ER` record boundaries and indent continued lines. An arXiv address with no version identifies the work and leaves the edition unknown. Metadata imports record bibliography scope and add no source verification. Invalid or conflicting records leave the topic unchanged. Choose the number and round returned by import. For a published PDF whose edition is absent from the bibliography, use `--edition` to record the expected edition of a single candidate before collection. Collection checks the actual PDF's title, authors and edition evidence.
+
+To open a registered PDF before analysis, save `{"version":1,"question":"My research question","criteria":[]}` as `comparison.json` in the topic folder, using the exact topic question. Run `topic compare --dir $topic`, select the paper node and choose **Open registered PDF**. The loopback viewer checks the current registration and the PDF bytes when serving the file.
+
 <a id="고른-논문의-원문-모으기"></a>
 
 ## Collect selected originals

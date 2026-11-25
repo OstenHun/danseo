@@ -390,8 +390,7 @@ test('rationale words never invent dependencies and same-direction relationships
   assert.equal(edges.length, 2);
   assert.notEqual(required(edges[0]).data.bend, required(edges[1]).data.bend);
 });
-test('loopback serves fresh scoped data and exact PDF/document; denies path/host/origin/method attacks', async (t) => {
-  const f = await comparisonFixture(t);
+async function startComparison(t: TestContext, topic: string) {
   // The CLI prints the random entry URL; capture a fresh server's receipt without exposing paths.
   let url: string | undefined;
   const log = console.log;
@@ -400,16 +399,46 @@ test('loopback serves fresh scoped data and exact PDF/document; denies path/host
   };
   let second;
   try {
-    second = await serveComparison(f.topic);
+    second = await serveComparison(topic);
   } finally {
     console.log = log;
   }
   t.after(() => second.close());
   assert.ok(url);
+  return url;
+}
+
+test('a paper-only map opens registered bytes before analysis and withdraws a changed file', async (t) => {
+  const fixture = setup(t);
+  fixture.json(join(fixture.topic, 'comparison.json'), {
+    version: 1,
+    question: comparisonTopicQuestion,
+    criteria: [],
+  });
+  const url = await startComparison(t, fixture.topic);
+  const data = parseJson<Comparison>(await (await fetch(url + 'data')).text());
+  assert.equal(data.claims.length, 0);
+  assert.equal(data.criteria.length, 0);
+  const paper = required(data.papers[0]);
+  assert.equal(paper.document, undefined);
+  assert.equal(paper.source, undefined);
+  const registered = required(paper.registered_pdf);
+  const sourceUrl = url + 'file/' + paper.number + '/pdf/' + registered.sha256;
+  const response = await fetch(sourceUrl);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'application/pdf');
+  assert.equal(hash(Buffer.from(await response.arrayBuffer())), registered.sha256);
+  writeFileSync(registered.path, 'Changed after registration');
+  assert.equal((await fetch(sourceUrl)).status, 404);
+});
+
+test('loopback serves fresh scoped data and exact PDF/document; denies path/host/origin/method attacks', async (t) => {
+  const f = await comparisonFixture(t);
+  const url = await startComparison(t, f.topic);
   const root = await fetch(url);
   assert.equal(root.status, 200);
   assert.match(root.headers.get('content-security-policy') ?? '', /frame-ancestors 'none'/);
-  assert.match(await root.text(), /comparison criterion/);
+  assert.match(await root.text(), /open its registered PDF/);
   let data = parseJson<Comparison>(await (await fetch(url + 'data')).text());
   assert.equal(data.claims.length, 2);
   const parallel = await Promise.all([fetch(url + 'data'), fetch(url + 'data')]);

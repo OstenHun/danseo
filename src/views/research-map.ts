@@ -245,6 +245,10 @@
     if (data.mode !== 'research-comparison') return [];
     return [
       {
+        selector: 'node[type="paper"]',
+        style: { 'text-wrap': 'ellipsis' },
+      },
+      {
         selector: 'edge[type="relation"]',
         style: {
           'curve-style': 'unbundled-bezier',

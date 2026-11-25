@@ -45,8 +45,8 @@ function requestedFile(route: string, data: Comparison) {
     ? data.papers.find((candidate) => candidate.number === Number(match[1]))
     : undefined;
   const pdf = match?.[2] === 'pdf';
-  const path = pdf ? paper?.source?.path : paper?.document;
-  const expected = pdf ? paper?.source?.sha256 : paper?.document_sha256;
+  const path = pdf ? paper?.registered_pdf?.path : paper?.document;
+  const expected = pdf ? paper?.registered_pdf?.sha256 : paper?.document_sha256;
   return { pdf, path, expected, requested: match?.[3] };
 }
 
