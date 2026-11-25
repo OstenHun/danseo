@@ -45,6 +45,13 @@ Automatic CI runs one Ubuntu/Node 24 PR job, with no push trigger; newer commits
 
 Use Actions **Run workflow** for Ubuntu/Windows/macOS and Node 22/24/26 when needed. Manual runs always perform full checks, including documentation changes, and do not cancel other manual runs. Controls require the workflow on the default branch. Node 26 failures are recorded even though it is a pre-support probe. This does not end Node 22 support or prove every OS combination on every PR.
 
+Manual Windows and macOS runs are not needed for every PR. Run them on Node 22 and 24:
+
+- before a release or pre-release;
+- when a change can behave differently across operating systems at runtime or during installation, such as how the CLI resolves paths or file names, copies or links PDFs, handles file permissions or line endings, serves the local comparison view or installs the skill, or when dependencies or the Node version change.
+
+To reproduce a reported issue, start with the affected OS and Node version.
+
 Current CI patch floors are 22.23.4 and 24.22.1; it selects the latest available patch in each selected series and logs the actual version. [Official distribution list](https://nodejs.org/dist/index.json). No fresh release/security audit is implied by this translation.
 
 Full checks register PDFs through Unicode/space-containing paths and reopen in new processes to compare path/hash/copy counts. CI does not test native macOS app folder-permission dialogs.
@@ -54,6 +61,8 @@ Full checks register PDFs through Unicode/space-containing paths and reopen in n
 Use the current PR Checks and [PR workflow runs](https://github.com/OstenHun/danseo/actions/workflows/ci.yml?query=event%3Apull_request), alongside [distribution boundaries](OPEN_SOURCE.md). Old main runs support only their old source. Keep exact execution versions and logs in local work records or the relevant PR Checks; they are not first-use prerequisites.
 
 The current suite covers file/reference structure, raw content, project separation, errors, no-overwrite, source selection/resumption/review currentness, browser contracts and installed assets/PDFs. `npm run test:package` builds a tarball and tests an isolated consumer. Build and test tools compile with existing strict TypeScript into `build-tools/` and `build/`; installed code runs `dist/`. Browser classic scripts and third-party Cytoscape are expected generated/vendor outputs. See [development contracts](../CONTRIBUTING.md#editing-shared-test-fixtures).
+
+On 2026-11-25, manual full-check runs on `macos-latest` passed for `main` at `e9272be` with [Node 24](https://github.com/OstenHun/danseo/actions/runs/45560227887) and [Node 22](https://github.com/OstenHun/danseo/actions/runs/45560231919); the logs record the exact patches and runner image. They cover the CLI build, tests, synthetic example and installed tarball. They do not cover a person installing the skill on a Mac, Safari rendering of the comparison view or Intel Macs.
 
 Separate GitHub runner checks from all Linux distributions, native permission UX, screen readers, user comprehension and usefulness. Preserve skipped symlink branches explicitly. Local downloaded Node ZIPs, when used, are hash-checked and unpacked without replacing global runtimes.
 
