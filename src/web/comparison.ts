@@ -63,13 +63,13 @@
   }
   function link(
     label: string,
-    paper: ReadyPaper,
+    number: number,
     kind: 'pdf' | 'analysis',
+    digest: string,
     page?: number,
   ): HTMLAnchorElement {
-    const digest = kind === 'pdf' ? paper.source.sha256 : paper.document_sha256;
     const anchor = text('a', label);
-    anchor.href = `file/${paper.number}/${kind}/${digest}${page ? '#page=' + page : ''}`;
+    anchor.href = `file/${number}/${kind}/${digest}${page ? '#page=' + page : ''}`;
     anchor.target = '_blank';
     anchor.rel = 'noopener noreferrer';
     return anchor;
@@ -114,15 +114,18 @@
       links.append(
         link(
           'Open this edition PDF',
-          paper,
+          paper.number,
           'pdf',
+          paper.source.sha256,
           claim.locators.find((locator) => locator.type === 'pdf-page-range')?.start ??
             checkedPages[0],
         ),
-        link('Topic analysis document', paper, 'analysis'),
+        link('Topic analysis document', paper.number, 'analysis', paper.document_sha256),
       );
       for (const page of checkedPages)
-        links.append(link(`Checked PDF page ${page}`, paper, 'pdf', page));
+        links.append(
+          link(`Checked PDF page ${page}`, paper.number, 'pdf', paper.source.sha256, page),
+        );
       article.append(links);
       column.append(article);
     }
@@ -140,8 +143,8 @@
   }
   function emptyDetails(): void {
     element('details').replaceChildren(
-      text('h2', 'Select a comparison criterion'),
-      text('p', 'Select a paper, criterion or relation to inspect currently available evidence.'),
+      text('h2', 'Select an item on the map'),
+      text('p', 'Select a paper to open its registered PDF or inspect its evidence.'),
     );
   }
   type Relation = View['relations'][number];
@@ -207,6 +210,13 @@
     const paper = view.papers.find((item) => item.id === id);
     if (!paper) return false;
     panel.append(text('h2', paper.title));
+    if (paper.registered_pdf) {
+      const { edition, sha256 } = paper.registered_pdf;
+      const links = text('div', '', 'evidence-links');
+      links.append(link('Open registered PDF', paper.number, 'pdf', sha256));
+      panel.append(text('p', edition, 'metadata'));
+      panel.append(links);
+    }
     for (const criterion of view.criteria)
       panel.append(
         text('h3', criterion.title),

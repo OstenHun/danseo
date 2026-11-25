@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { Ajv } from 'ajv';
 import { DanseoError } from './index.js';
+import { bibliographicIdentity, parseRis } from './ris.js';
 import { exists, replaceTopicJson, workspaceLock, writableFile } from './storage.js';
 
 type Paper = {
@@ -11,12 +12,14 @@ type Paper = {
   authors: string;
   year: number;
   source: string;
-  edition: string;
+  edition: string | null;
+  doi?: string;
+  arxiv?: string;
   reason: string;
-  scope: 'abstract' | 'full-text';
+  scope: 'abstract' | 'full-text' | 'bibliography';
 };
 type Search = { query: string; papers: Paper[] };
-type Choice = { key: string; round: number; note?: string };
+type Choice = { key: string; round: number; note?: string; edition?: string };
 type Topic = { version: 1; question: string; searches: Search[]; selected: Choice[] };
 type CatalogEntry = { number: number; round: number; paper: Paper };
 export type SelectedPaper = Paper & { number: number; round: number; note?: string };
@@ -24,7 +27,8 @@ export type SelectedPaper = Paper & { number: number; round: number; note?: stri
 const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
   init --question <original question>
   search --input <JSON file containing query and papers>
-  select --ids <stable numbers, comma-separated> [--round <shown search round>] [--note <reader's reason>]
+  import --input <UTF-8 RIS file>
+  select --ids <stable numbers, comma-separated> [--round <shown search round>] [--note <reader's reason>] [--edition <expected edition for one imported paper>]
   unselect --ids <stable numbers, comma-separated>
   show
   compare [--port 0 | --json]       Current topic comparison (comparison.json)
@@ -32,6 +36,7 @@ const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
 All actions return JSON. Search uses candidates verified by the chat agent.`;
 const ajv = new Ajv();
 const nonblank = { type: 'string', pattern: '\\S' };
+const maxPapersPerRound = 5;
 const searchSchema = {
   type: 'object',
   additionalProperties: false,
@@ -40,20 +45,24 @@ const searchSchema = {
     query: nonblank,
     papers: {
       type: 'array',
-      maxItems: 5,
+      maxItems: maxPapersPerRound,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['key', 'title', 'authors', 'year', 'source', 'edition', 'reason', 'scope'],
+        if: { properties: { scope: { const: 'bibliography' } } },
+        else: { properties: { edition: nonblank } },
         properties: {
           key: nonblank,
           title: nonblank,
           authors: nonblank,
           year: { type: 'integer', minimum: 1, maximum: 9999 },
           source: { type: 'string', format: 'paper-url' },
-          edition: nonblank,
+          edition: { anyOf: [nonblank, { type: 'null' }] },
+          doi: nonblank,
+          arxiv: nonblank,
           reason: nonblank,
-          scope: { enum: ['abstract', 'full-text'] },
+          scope: { enum: ['abstract', 'full-text', 'bibliography'] },
         },
       },
     },
@@ -82,7 +91,12 @@ const validTopic = ajv.compile<Topic>({
         type: 'object',
         additionalProperties: false,
         required: ['key', 'round'],
-        properties: { key: nonblank, round: { type: 'integer', minimum: 1 }, note: nonblank },
+        properties: {
+          key: nonblank,
+          round: { type: 'integer', minimum: 1 },
+          note: nonblank,
+          edition: nonblank,
+        },
       },
     },
   },
@@ -91,7 +105,7 @@ const validTopic = ajv.compile<Topic>({
 function invalid(message: string): never {
   throw new DanseoError('TOPIC', message);
 }
-async function readJson(file: string): Promise<unknown> {
+async function readUtf8(file: string, format: 'JSON' | 'RIS') {
   let raw: Buffer;
   try {
     raw = await readFile(file);
@@ -103,10 +117,37 @@ async function readJson(file: string): Promise<unknown> {
     );
   }
   try {
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw));
+    return new TextDecoder('utf-8', { fatal: true }).decode(raw);
+  } catch {
+    return invalid(`Check that this is valid UTF-8 ${format}: ${file}`);
+  }
+}
+
+async function readJson(file: string): Promise<unknown> {
+  const text = await readUtf8(file, 'JSON');
+  try {
+    return JSON.parse(text);
   } catch {
     return invalid(`Check that this is valid UTF-8 JSON: ${file}`);
   }
+}
+
+function topicArxivIds(topic: Topic) {
+  const papers = topic.searches.flatMap((search) => search.papers);
+  const importedKeys = new Set(
+    papers.filter((paper) => paper.scope === 'bibliography').map((paper) => paper.key),
+  );
+  const ids = new Map<string, string>();
+  for (const paper of papers) {
+    if (!importedKeys.has(paper.key)) continue;
+    const id = bibliographicIdentity(paper).arxiv;
+    if (!id) continue;
+    const previous = ids.get(paper.key);
+    if (previous && previous !== id)
+      invalid('Different arXiv works are recorded under the same RIS-linked paper.');
+    ids.set(paper.key, id);
+  }
+  return ids;
 }
 
 // A number is assigned on first appearance. The selection points to the edition shown when chosen.
@@ -129,11 +170,21 @@ function overview(topic: Topic) {
     });
     return { round: index + 1, query: search.query, papers };
   });
+  const arxivIds = topicArxivIds(topic);
   const selected = topic.selected.map((choice) => {
     const paper = searches[choice.round - 1]?.papers.find((row) => row.key === choice.key);
     if (!paper)
       invalid('The selected edition is no longer connected correctly to its search record.');
-    return { ...paper, round: choice.round, note: choice.note };
+    if (choice.edition !== undefined && (paper.scope !== 'bibliography' || paper.edition !== null))
+      invalid('An expected edition can only fill an unknown imported edition.');
+    const arxiv = paper.arxiv ?? arxivIds.get(choice.key);
+    return {
+      ...paper,
+      ...(arxiv ? { arxiv } : {}),
+      edition: choice.edition ?? paper.edition,
+      round: choice.round,
+      note: choice.note,
+    };
   });
   if (new Set(selected.map((row) => row.key)).size !== selected.length)
     invalid('Duplicate selection records.');
@@ -157,9 +208,17 @@ function addChoice(
   number: number,
   round: number | undefined,
   note: string | undefined,
+  expectedEdition: string | undefined,
 ) {
-  const { key, edition, source } = entry.paper;
-  if (topic.selected.some((choice) => choice.key === key)) return;
+  const { key, edition, source, scope } = entry.paper;
+  const existing = topic.selected.find((choice) => choice.key === key);
+  if (existing) {
+    if (expectedEdition !== undefined && expectedEdition !== existing.edition)
+      invalid('Unselect the paper before setting a different expected edition.');
+    return;
+  }
+  if (expectedEdition !== undefined && (scope !== 'bibliography' || edition !== null))
+    invalid('An expected edition can only fill an unknown imported edition.');
 
   if (
     round === undefined &&
@@ -173,36 +232,50 @@ function addChoice(
       `This candidate has a different source or edition. Specify --round for the displayed candidate ${number}.`,
     );
   }
-  topic.selected.push({ key, round: round ?? entry.round, note });
+  topic.selected.push({ key, round: round ?? entry.round, note, edition: expectedEdition });
 }
 
 function updateSelection(
   topic: Topic,
   catalog: ReadonlyMap<string, CatalogEntry>,
   action: 'select' | 'unselect',
-  { ids, note, round: roundInput }: { ids?: string; note?: string; round?: string },
+  {
+    ids,
+    note,
+    round: roundInput,
+    edition,
+  }: {
+    ids?: string;
+    note?: string;
+    round?: string;
+    edition?: string;
+  },
 ) {
   if (!ids || !/^\d+(,\d+)*$/.test(ids) || (note !== undefined && !note.trim())) invalid(topicHelp);
 
   const round = selectionRound(topic, roundInput);
 
   const byNumber = new Map([...catalog.values()].map((entry) => [entry.number, entry]));
-  for (const number of new Set(ids.split(',').map(Number))) {
+  const numbers = new Set(ids.split(',').map(Number));
+  if (edition !== undefined && (!edition.trim() || numbers.size !== 1))
+    invalid('Specify a non-empty expected edition for one imported paper.');
+  for (const number of numbers) {
     const entry = byNumber.get(number);
     if (!entry) invalid(`Unregistered paper number: ${number}`);
 
     const { key } = entry.paper;
-    if (
-      round !== undefined &&
-      !topic.searches[round - 1]!.papers.some((paper) => paper.key === key)
-    ) {
+    const shown =
+      round === undefined
+        ? entry.paper
+        : topic.searches[round - 1]!.papers.find((paper) => paper.key === key);
+    if (!shown) {
       invalid(`Paper number absent from the specified round: ${number}`);
     }
     if (action === 'unselect') {
       topic.selected = topic.selected.filter((choice) => choice.key !== key);
       continue;
     }
-    addChoice(topic, entry, number, round, note);
+    addChoice(topic, { ...entry, paper: shown }, number, round, note, edition?.trim());
   }
 }
 
@@ -242,7 +315,8 @@ const collectionActions = ['sources', 'collect', 'unavailable', 'decide'];
 const optionsByTopicAction: Record<string, string[]> = {
   init: ['question'],
   search: ['input'],
-  select: ['ids', 'note', 'round'],
+  import: ['input'],
+  select: ['ids', 'note', 'round', 'edition'],
   unselect: ['ids'],
   show: [],
 };
@@ -257,6 +331,7 @@ function parseTopicOptions(args: string[]) {
       ids: { type: 'string' },
       note: { type: 'string' },
       round: { type: 'string' },
+      edition: { type: 'string' },
     },
   }).values;
 }
@@ -294,11 +369,84 @@ async function showTopic(root: string, result: ReturnType<typeof overview>['resu
   );
 }
 
-async function addSearch(topic: Topic, input: string | undefined) {
-  if (!input) invalid(topicHelp);
-  const search = await readJson(input);
+function addSearch(topic: Topic, search: unknown, action: 'search' | 'import') {
   if (!validSearch(search)) invalid(ajv.errorsText(validSearch.errors));
+  if (
+    action === 'search' &&
+    search.papers.some(
+      (paper) =>
+        paper.scope === 'bibliography' || paper.doi !== undefined || paper.arxiv !== undefined,
+    )
+  )
+    invalid('Use topic import to add an RIS bibliography and its identifiers.');
   if (!isDeepStrictEqual(topic.searches.at(-1), search)) topic.searches.push(search);
+}
+
+type BibliographicIdentity = ReturnType<typeof bibliographicIdentity>;
+
+function sameWorkIdentifier(imported: BibliographicIdentity, known: BibliographicIdentity) {
+  return (
+    (imported.doi !== undefined && imported.doi === known.doi) ||
+    (imported.arxiv !== undefined && imported.arxiv === known.arxiv)
+  );
+}
+
+function matchesImportedPaper(imported: BibliographicIdentity, known: BibliographicIdentity) {
+  return (
+    imported.key === known.key ||
+    imported.source === known.source ||
+    sameWorkIdentifier(imported, known)
+  );
+}
+
+function knownIdentifier(identities: BibliographicIdentity[], field: 'doi' | 'arxiv') {
+  const values = new Set(
+    identities.map((identity) => identity[field]).filter((value) => value !== undefined),
+  );
+  if (values.size > 1) invalid('The RIS identifiers conflict with existing topic papers.');
+  return values.values().next().value;
+}
+
+function linkImportedPaper(paper: Paper, knownPapers: BibliographicIdentity[]) {
+  const imported = bibliographicIdentity(paper);
+  const matches = new Set(
+    knownPapers.filter((known) => matchesImportedPaper(imported, known)).map((known) => known.key),
+  );
+  if (matches.size > 1) invalid('The RIS identifiers conflict with existing topic papers.');
+  const key = matches.values().next().value;
+  const history = knownPapers.filter((known) => known.key === key);
+  const sameSource = history.filter((known) => known.source === imported.source);
+  if (
+    sameSource.length &&
+    !sameSource.some((known) => known.title === imported.title) &&
+    !history.some((known) => sameWorkIdentifier(imported, known))
+  )
+    invalid('The RIS source is already registered for a different paper title.');
+  const identities = [imported, ...history];
+  const doi = knownIdentifier(identities, 'doi');
+  const arxiv = knownIdentifier(identities, 'arxiv');
+  paper.key = key ?? paper.key;
+  if (doi && !paper.doi) paper.doi = doi;
+  if (arxiv && !paper.arxiv) paper.arxiv = arxiv;
+}
+
+async function importSearch(input: string, topic: Topic) {
+  const papers = parseRis(await readUtf8(input, 'RIS'), maxPapersPerRound);
+  const knownPapers = topic.searches.flatMap((search) => search.papers.map(bibliographicIdentity));
+  for (const paper of papers) {
+    linkImportedPaper(paper, knownPapers);
+    knownPapers.push(bibliographicIdentity(paper));
+  }
+  return { query: 'Imported RIS bibliography', papers };
+}
+
+async function readSearchInput(
+  action: 'search' | 'import',
+  input: string | undefined,
+  topic: Topic,
+) {
+  if (!input) invalid(topicHelp);
+  return action === 'search' ? readJson(input) : importSearch(input, topic);
 }
 
 // Help and argument checks run synchronously when called, before the first await.
@@ -324,7 +472,8 @@ async function runTopicAction(args: string[]) {
       await showTopic(root, current.result);
       return;
     }
-    if (action === 'search') await addSearch(topic, values.input);
+    if (action === 'search' || action === 'import')
+      addSearch(topic, await readSearchInput(action, values.input, topic), action);
     if (action === 'select' || action === 'unselect') {
       updateSelection(topic, current.catalog, action, values);
     }

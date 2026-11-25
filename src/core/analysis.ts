@@ -308,6 +308,7 @@ type ComparisonPaper = {
   document?: string;
   document_sha256?: string;
   source?: Source['file'];
+  registered_pdf?: Pick<Source['file'], 'edition' | 'path' | 'sha256'>;
 };
 
 // A paper or claim left out of the comparison, with the reason.
@@ -385,6 +386,15 @@ function partitionCandidateClaims(
   return { held, included };
 }
 
+function comparisonPaper(paper: SelectedPaper, ready?: Source['file']): ComparisonPaper {
+  const entry: ComparisonPaper = { key: paper.key, number: paper.number, title: paper.title };
+  if (ready) {
+    const { edition, path, sha256 } = ready;
+    entry.registered_pdf = { edition, path, sha256 };
+  }
+  return entry;
+}
+
 export async function comparisonInput(root: string) {
   const collection = await sourceCollection(root);
   const included = [];
@@ -392,7 +402,7 @@ export async function comparisonInput(root: string) {
   const papers: ComparisonPaper[] = [];
   for (const row of collection.rows) {
     const paper = row.paper;
-    const entry: ComparisonPaper = { key: paper.key, number: paper.number, title: paper.title };
+    const entry = comparisonPaper(paper, row.ready);
     papers.push(entry);
     const documentPath = join(root, nameFor(paper.key));
     let doc: Document | undefined;

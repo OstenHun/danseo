@@ -132,7 +132,11 @@ function matchCoverArxivStamp(paper: SelectedPaper, cover: CoverRuns) {
         .replace(/\.pdf$/, '')
         .match(idPattern)?.[1]
     : undefined;
-  const selectedIds = [paper.key.match(idPattern)?.[1], urlId].filter(Boolean);
+  const selectedIds = [
+    paper.key.match(idPattern)?.[1],
+    urlId,
+    paper.arxiv?.match(idPattern)?.[1],
+  ].filter(Boolean);
   const hasSelectedIds = selectedIds.length > 0;
   const matchesSelectedIds =
     !!stamp &&
@@ -300,7 +304,12 @@ function verifyUnstampedEdition(
     footer.some(hasVersionNotice) ||
     footer.flatMap(footerPhrases).some(footerMarking) ||
     coverLines(cover).some((line) => !identity.titleBlock.includes(line) && isStatus(line.trim()));
-  if (!evidence.draft && (edition !== editionKey(paper.edition) || draft)) {
+  if (!evidence.draft && (!paper.edition || edition !== editionKey(paper.edition) || draft)) {
+    if (!paper.edition && !draft) {
+      throw Error(
+        'No expected edition was selected. Check the intended edition at the official source and copy any selection note. Use topic unselect, then topic select for the same paper and round with --edition and any saved --note. Retry collection.',
+      );
+    }
     throw Error('The edition differs from the selection. Register a substitute draft as a draft.');
   }
 }

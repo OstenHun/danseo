@@ -75,6 +75,7 @@ export type TopicState = Awaited<ReturnType<typeof selectedTopic>> & {
 export type TopicOutputs = {
   init: TopicState;
   search: TopicState;
+  import: TopicState;
   select: TopicState;
   unselect: TopicState;
   show: TopicState & { analyses: Awaited<ReturnType<typeof listAnalysisDocuments>> };

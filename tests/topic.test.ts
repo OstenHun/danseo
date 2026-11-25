@@ -74,6 +74,204 @@ test('fresh CLI invocations preserve selected edition, reason, stable numbers an
   assert.equal(ok('select', '--round', '1', '--ids', '3').selected.at(0)?.source, c.source);
 });
 
+test('RIS import adds bibliography to the topic and keeps expected editions with the selection', (t) => {
+  const { input, saveBatch, ok, run } = topicFixture(t);
+  const existing = {
+    ...paper('existing'),
+    title: 'Synthetic proceedings paper',
+    source: 'https://example.org/published',
+  };
+  saveBatch([existing]);
+  ok('search', '--input', input);
+  writeFileSync(
+    input,
+    '\uFEFF' +
+      [
+        'TY  - CONF',
+        'T1  - null',
+        'TT  - Synthetic proceedings',
+        '      paper',
+        'A1  - Reader, Alice',
+        'A1  - Writer, Beatriz',
+        'PY  - 2024',
+        'UR  - https://example.org/published',
+        'DO  - https://doi.org/10.99999/Synthetic',
+        'ER  -',
+        '',
+        'TY  - JOUR',
+        'T1  - Synthetic preprint',
+        'A1  - Reader, Alice',
+        'PY  - 2025',
+        'UR  - https://arxiv.org/abs/9999.99999',
+        'ER  -',
+      ].join('\r\n'),
+  );
+  const imported = ok('import', '--input', input);
+  const [published, draft] = required(imported.searches[1]).papers;
+  assert.deepEqual(published, {
+    ...existing,
+    number: 1,
+    title: 'Synthetic proceedings paper',
+    authors: 'Alice Reader; Beatriz Writer',
+    year: 2024,
+    edition: null,
+    doi: '10.99999/synthetic',
+    reason: 'Imported bibliography',
+    scope: 'bibliography',
+  });
+  assert.equal(draft?.arxiv, '9999.99999');
+  assert.equal(draft?.edition, null);
+  assert.equal(ok('import', '--input', input).searches.length, 2);
+  assert.equal(
+    run('select', '--ids', '1', '--round', '1', '--edition', 'Conference 2024').status,
+    2,
+  );
+  assert.equal(
+    run('select', '--ids', '1,2', '--round', '2', '--edition', 'Conference 2024').status,
+    2,
+  );
+  ok('select', '--ids', '1', '--round', '2', '--edition', 'Conference 2024');
+  assert.equal(
+    run('select', '--ids', '1', '--round', '2', '--edition', 'Another edition').status,
+    2,
+  );
+  const restored = ok('show');
+  assert.equal(restored.selected[0]?.edition, 'Conference 2024');
+  assert.equal(required(restored.searches[1]).papers[0]?.edition, null);
+  assert.equal(required(restored.searches[0]).papers[0]?.edition, existing.edition);
+});
+
+test('an incomplete RIS does not save any of its candidates', (t) => {
+  const { dir, input, run } = topicFixture(t);
+  const before = readFileSync(join(dir, 'topic.json'));
+  const record = [
+    'TY  - JOUR',
+    'TT  - Synthetic record',
+    'A1  - Reader, Alice',
+    'PY  - 2025',
+    'DO  - 10.99999/fixture',
+    'ER  -',
+  ];
+  writeFileSync(input, [...record, '', ...record.slice(0, -1)].join('\n'));
+  const result = run('import', '--input', input);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /Invalid RIS record structure/);
+  assert.deepEqual(readFileSync(join(dir, 'topic.json')), before);
+});
+
+test('RIS identifiers keep an existing number across source changes and reject conflicting records', (t) => {
+  const { dir, input, saveBatch, ok, run } = topicFixture(t);
+  const existing = { ...paper('local-a'), title: 'Synthetic identifier case' };
+  saveBatch([existing]);
+  ok('search', '--input', input);
+  ok('select', '--ids', '1', '--round', '1');
+  const ris = (doi: string, ...urls: string[]) =>
+    writeFileSync(
+      input,
+      [
+        'TY  - JOUR',
+        'T1  - Synthetic identifier case',
+        'A1  - Reader, Alice',
+        'PY  - 2025',
+        'DO  - ' + doi,
+        ...urls.map((url) => 'UR  - ' + url),
+        'ER  -',
+      ].join('\n'),
+    );
+  const doi = '10.99999/first';
+  ris(doi, existing.source, 'https://arxiv.org/abs/9999.11111');
+  assert.equal(ok('import', '--input', input).searches[1]?.papers[0]?.number, 1);
+  const differentSource = 'https://example.org/revised';
+  ris(doi, differentSource, 'https://arxiv.org/pdf/9999.11111v2');
+  const restored = ok('import', '--input', input);
+  assert.equal(restored.searches[2]?.papers[0]?.number, 1);
+  assert.equal(restored.selected[0]?.source, existing.source);
+  assert.equal(restored.selected[0]?.edition, existing.edition);
+
+  const saved = readFileSync(join(dir, 'topic.json'));
+  ris('10.99999/different', existing.source);
+  assert.match(run('import', '--input', input).stderr, /identifiers conflict/);
+  ris('', 'https://arxiv.org/abs/9999.11111', 'https://arxiv.org/pdf/9999.22222v2');
+  assert.match(run('import', '--input', input).stderr, /conflicting arXiv/);
+  ris(doi, 'https://example.org/landing https://arxiv.org/abs/9999.22222');
+  assert.match(run('import', '--input', input).stderr, /invalid HTTP/);
+  ris('', existing.source);
+  writeFileSync(input, readFileSync(input, 'utf8').replace(existing.title, 'Another paper'));
+  assert.match(run('import', '--input', input).stderr, /different paper title/);
+  assert.deepEqual(readFileSync(join(dir, 'topic.json')), saved);
+});
+
+test('RIS prefers the primary title and equates percent-encoded DOI URLs with plain DOI tags', (t) => {
+  const { input, ok } = topicFixture(t);
+  writeFileSync(
+    input,
+    [
+      'TY  - JOUR',
+      'TI  - Synthetic primary title',
+      'TT  - Synthetic translated title',
+      'AU  - Reader, Alice',
+      'PY  - 2025',
+      'DO  - 10.99999/<fixture>',
+      'UR  - https://doi.org/10.99999/%3Cfixture%3E',
+      'ER  -',
+    ].join('\n'),
+  );
+  const imported = required(ok('import', '--input', input).searches[0]?.papers[0]);
+  assert.equal(imported.title, 'Synthetic primary title');
+  assert.equal(imported.doi, '10.99999/<fixture>');
+  assert.equal(imported.source, 'https://doi.org/10.99999/%3Cfixture%3E');
+});
+
+test('the first RIS round links existing JSON candidates by their DOI and arXiv URLs', (t) => {
+  const { input, saveBatch, ok } = topicFixture(t);
+  saveBatch([
+    { ...paper('old-doi'), source: 'https://doi.org/10.99999/Stable' },
+    { ...paper('old-arxiv'), source: 'https://arxiv.org/abs/9999.11111' },
+  ]);
+  ok('search', '--input', input);
+  const record = ['TY  - JOUR', 'T1  - Synthetic record', 'A1  - Reader, Alice', 'PY  - 2025'];
+  writeFileSync(
+    input,
+    [
+      ...record,
+      'DO  - 10.99999/stable',
+      'UR  - https://example.org/publisher',
+      'ER  -',
+      ...record,
+      'UR  - https://arxiv.org/pdf/9999.11111v2.pdf',
+      'ER  -',
+    ].join('\n'),
+  );
+  const imported = required(ok('import', '--input', input).searches[1]).papers;
+  assert.deepEqual(
+    imported.map((candidate) => candidate.number),
+    [1, 2],
+  );
+  assert.equal(imported[1]?.edition, 'arXiv:9999.11111v2');
+});
+
+test('a matching identifier across a paper history permits a revised title at the same URL', (t) => {
+  const { input, saveBatch, ok } = topicFixture(t);
+  const older = { ...paper('same-paper'), title: 'Working title' };
+  saveBatch([older]);
+  ok('search', '--input', input);
+  saveBatch([{ ...older, source: 'https://doi.org/10.99999/revised', title: 'Final title' }]);
+  ok('search', '--input', input);
+  writeFileSync(
+    input,
+    [
+      'TY  - JOUR',
+      'T1  - Final title',
+      'A1  - Reader, Alice',
+      'PY  - 2025',
+      'DO  - 10.99999/revised',
+      'UR  - ' + older.source,
+      'ER  -',
+    ].join('\n'),
+  );
+  assert.equal(ok('import', '--input', input).searches[2]?.papers[0]?.number, 1);
+});
+
 test('an invalid batch, multi-select, or competing writer leaves the topic intact', (t) => {
   const { dir, input, saveBatch, ok, run } = topicFixture(t);
   saveBatch([paper('a')]);
@@ -91,6 +289,7 @@ test('an invalid batch, multi-select, or competing writer leaves the topic intac
   for (const invalid of [
     [paper('a'), paper('a')],
     [{ ...paper('b'), source: 'invalid URL' }],
+    [{ ...paper('b'), edition: null }],
     [{ ...paper('b'), source: paper('a').source }],
     ['a', 'b', 'c', 'd', 'e', 'f'].map(paper),
   ]) {

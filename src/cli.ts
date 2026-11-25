@@ -24,7 +24,7 @@ const commonWorkspaceOptions = ['workspace', 'format', 'json'];
 
 const help = `Danseo — local evidence CLI
 Usage: danseo <${Object.keys(workspaceOptionsByCommand).join('|')}> --workspace <directory> [options]
-       danseo topic <init|search|select|unselect|show|sources|collect|unavailable|decide> --dir <topic-folder> [options]
+       danseo topic <init|search|import|select|unselect|show|sources|collect|unavailable|decide> --dir <topic-folder> [options]
        danseo topic <analysis-open|analysis-save|analysis-list|comparison-input> --dir <topic-folder> [options]
        danseo topic compare --dir <topic-folder> [--port 0 | --json]
 From a source checkout, after npm run build, run from the repository root: node ./dist/cli.js --help
