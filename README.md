@@ -103,7 +103,9 @@ From the downloaded source folder, run the block for your operating system and e
 
 </details>
 
-The script prints `Installed Danseo at` followed by the skill folder path. If you already have Danseo installed, check which copy your agent loads. To update, first download the latest source. Then move the installed copy to a backup location outside the agent's skill folders and run the copy instructions again from the new source folder.
+The script prints `Installed Danseo at` followed by the skill folder path.
+You can also use the skill without installing it. Give your agent the absolute path to `skills/danseo/SKILL.md` in your cloned Danseo folder and ask it to use that skill. In this mode, the agent reads the skill files directly from your clone, and automatic skill discovery is not expected. See [Connect your own workspace](docs/CLI.en.md#connect-your-own-workspace) for details.
+If you already have Danseo installed, check which copy your agent loads. To update, first download the latest source. Then move the installed copy to a backup location outside the agent's skill folders and run the copy instructions again from the new source folder.
 
 <a id="논문-그래프-생성-요청"></a>
 
