@@ -36,7 +36,7 @@ const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
 All actions return JSON. Search uses candidates verified by the chat agent.`;
 const ajv = new Ajv();
 const nonblank = { type: 'string', pattern: '\\S' };
-const maxPapersPerRound = 5;
+const maxSearchCandidates = 5;
 const searchSchema = {
   type: 'object',
   additionalProperties: false,
@@ -45,7 +45,11 @@ const searchSchema = {
     query: nonblank,
     papers: {
       type: 'array',
-      maxItems: maxPapersPerRound,
+      // Both input and saved topics use this schema. Only bibliography rounds can be larger.
+      anyOf: [
+        { maxItems: maxSearchCandidates },
+        { items: { type: 'object', properties: { scope: { const: 'bibliography' } } } },
+      ],
       items: {
         type: 'object',
         additionalProperties: false,
@@ -431,7 +435,7 @@ function linkImportedPaper(paper: Paper, knownPapers: BibliographicIdentity[]) {
 }
 
 async function importSearch(input: string, topic: Topic) {
-  const papers = parseRis(await readUtf8(input, 'RIS'), maxPapersPerRound);
+  const papers = parseRis(await readUtf8(input, 'RIS'));
   const knownPapers = topic.searches.flatMap((search) => search.papers.map(bibliographicIdentity));
   for (const paper of papers) {
     linkImportedPaper(paper, knownPapers);

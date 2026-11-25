@@ -10,7 +10,7 @@ import { parseJson, required } from './helpers/analysis-fixture.js';
 import { runNode } from './helpers/run-node.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
-function topicFixture(t: TestContext) {
+function topicFixture(t: TestContext, question = 'research question') {
   const dir = mkdtempSync(join(tmpdir(), 'danseo-topic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   function run(action: string, ...args: string[]) {
@@ -27,7 +27,7 @@ function topicFixture(t: TestContext) {
   const input = join(dir, 'batch.json');
   const saveBatch = (papers: unknown) =>
     writeFileSync(input, JSON.stringify({ query: 'test query', papers }));
-  ok('init', '--question', 'research question');
+  ok('init', '--question', question);
   return { dir, input, saveBatch, ok, run };
 }
 function paper(key: string): Omit<SelectedPaper, 'number' | 'round'> {
@@ -139,6 +139,61 @@ test('RIS import adds bibliography to the topic and keeps expected editions with
   assert.equal(restored.selected[0]?.edition, 'Conference 2024');
   assert.equal(required(restored.searches[1]).papers[0]?.edition, null);
   assert.equal(required(restored.searches[0]).papers[0]?.edition, existing.edition);
+});
+
+test('one RIS collection keeps all candidates and restores a manual shortlist by number', (t) => {
+  const question = 'Which synthetic studies measure retrieval latency?';
+  const { input, ok } = topicFixture(t, question);
+  const shortlist = [4, 17, 29];
+  const records = Array.from({ length: 30 }, (_, index) => {
+    const number = index + 1;
+    const subject = shortlist.includes(number) ? 'Retrieval latency' : 'Index storage';
+    return [
+      'TY  - JOUR',
+      `TI  - ${subject} study ${number}`,
+      'AU  - Example Author',
+      'PY  - 2025',
+      `UR  - https://example.org/study/${number}`,
+      'ER  -',
+    ].join('\n');
+  });
+  writeFileSync(input, records.join('\n'));
+  const imported = ok('import', '--input', input);
+  assert.equal(imported.searches.length, 1);
+  const candidates = required(imported.searches[0]).papers;
+  assert.equal(candidates.length, 30);
+  assert.deepEqual(imported.selected, []);
+  const note = 'Measures retrieval latency';
+  ok('select', '--round', '1', '--ids', shortlist.join(','), '--note', note);
+  const reopened = ok('show');
+  assert.equal(reopened.question, question);
+  assert.deepEqual(reopened.searches, imported.searches);
+  assert.deepEqual(
+    reopened.selected,
+    shortlist.map((number) => ({ ...candidates[number - 1], number, round: 1, note })),
+  );
+});
+
+test('search rounds still allow five candidates and reject six on input and reopen', (t) => {
+  const { dir, input, ok, run, saveBatch } = topicFixture(t);
+  const candidates = ['a', 'b', 'c', 'd', 'e', 'f'].map(paper);
+  saveBatch(candidates.slice(0, 5));
+  assert.equal(required(ok('search', '--input', input).searches[0]).papers.length, 5);
+  const path = join(dir, 'topic.json');
+  const saved = readFileSync(path);
+  saveBatch(candidates);
+  assert.equal(run('search', '--input', input).status, 2);
+  assert.deepEqual(readFileSync(path), saved);
+  writeFileSync(
+    path,
+    JSON.stringify({
+      version: 1,
+      question: 'research question',
+      selected: [],
+      searches: [{ query: 'Imported RIS bibliography', papers: candidates }],
+    }),
+  );
+  assert.equal(run('show').status, 2);
 });
 
 test('an incomplete RIS does not save any of its candidates', (t) => {
@@ -291,7 +346,6 @@ test('an invalid batch, multi-select, or competing writer leaves the topic intac
     [{ ...paper('b'), source: 'invalid URL' }],
     [{ ...paper('b'), edition: null }],
     [{ ...paper('b'), source: paper('a').source }],
-    ['a', 'b', 'c', 'd', 'e', 'f'].map(paper),
   ]) {
     saveBatch(invalid);
     assertFailure('search', '--input', input);
