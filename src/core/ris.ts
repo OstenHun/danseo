@@ -149,7 +149,7 @@ function closeRecord(fields: Fields | undefined, value: string, line: number, re
   return candidate(fields, record);
 }
 
-export function parseRis(text: string, maxRecords: number): Candidate[] {
+export function parseRis(text: string): Candidate[] {
   const papers: Candidate[] = [];
   let fields: Fields | undefined;
   let previousTag = '';
@@ -170,8 +170,6 @@ export function parseRis(text: string, maxRecords: number): Candidate[] {
       fields = new Map();
     } else if (tag === 'ER') {
       papers.push(closeRecord(fields, value, index + 1, papers.length + 1));
-      if (papers.length > maxRecords)
-        throw new DanseoError('TOPIC', `Import at most ${maxRecords} RIS records per round.`);
       fields = undefined;
     } else {
       if (!fields) invalidStructure(index + 1);

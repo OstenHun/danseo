@@ -36,7 +36,7 @@ const topicHelp = `Usage: danseo topic <action> --dir <topic-folder>
 All actions return JSON. Search uses candidates verified by the chat agent.`;
 const ajv = new Ajv();
 const nonblank = { type: 'string', pattern: '\\S' };
-const maxPapersPerRound = 5;
+const maxSearchCandidates = 5;
 const searchSchema = {
   type: 'object',
   additionalProperties: false,
@@ -45,7 +45,11 @@ const searchSchema = {
     query: nonblank,
     papers: {
       type: 'array',
-      maxItems: maxPapersPerRound,
+      // Both input and saved topics use this schema. Only bibliography rounds can be larger.
+      anyOf: [
+        { maxItems: maxSearchCandidates },
+        { items: { type: 'object', properties: { scope: { const: 'bibliography' } } } },
+      ],
       items: {
         type: 'object',
         additionalProperties: false,
@@ -391,51 +395,86 @@ function sameWorkIdentifier(imported: BibliographicIdentity, known: Bibliographi
   );
 }
 
-function matchesImportedPaper(imported: BibliographicIdentity, known: BibliographicIdentity) {
-  return (
-    imported.key === known.key ||
-    imported.source === known.source ||
-    sameWorkIdentifier(imported, known)
-  );
+// Keep every matching key: an alias shared by two existing works must still be rejected.
+class BibliographyIndex {
+  private readonly keysByAlias = new Map<string, Set<string>>();
+  private readonly historyByKey = new Map<string, BibliographicIdentity[]>();
+
+  private aliases(identity: BibliographicIdentity) {
+    const aliases = ['source:' + identity.source];
+    if (identity.doi) aliases.push('doi:' + identity.doi);
+    if (identity.arxiv) aliases.push('arxiv:' + identity.arxiv);
+    return aliases;
+  }
+
+  add(identity: BibliographicIdentity) {
+    const history = this.historyByKey.get(identity.key);
+    if (history) history.push(identity);
+    else this.historyByKey.set(identity.key, [identity]);
+    for (const alias of this.aliases(identity)) {
+      const keys = this.keysByAlias.get(alias);
+      if (keys) keys.add(identity.key);
+      else this.keysByAlias.set(alias, new Set([identity.key]));
+    }
+  }
+
+  match(identity: BibliographicIdentity, record: number) {
+    const matches = new Set<string>();
+    if (this.historyByKey.has(identity.key)) matches.add(identity.key);
+    for (const alias of this.aliases(identity)) {
+      for (const key of this.keysByAlias.get(alias) ?? []) matches.add(key);
+    }
+    if (matches.size > 1) invalid(`RIS record ${record}: identifiers conflict across papers.`);
+    const key = matches.values().next().value ?? identity.key;
+    return { key, history: this.historyByKey.get(key) ?? [] };
+  }
 }
 
-function knownIdentifier(identities: BibliographicIdentity[], field: 'doi' | 'arxiv') {
+function knownIdentifier(
+  identities: BibliographicIdentity[],
+  field: 'doi' | 'arxiv',
+  record: number,
+) {
   const values = new Set(
     identities.map((identity) => identity[field]).filter((value) => value !== undefined),
   );
-  if (values.size > 1) invalid('The RIS identifiers conflict with existing topic papers.');
+  if (values.size > 1) invalid(`RIS record ${record}: identifiers conflict for the same paper.`);
   return values.values().next().value;
 }
 
-function linkImportedPaper(paper: Paper, knownPapers: BibliographicIdentity[]) {
+function linkImportedPaper(paper: Paper, index: BibliographyIndex, record: number) {
   const imported = bibliographicIdentity(paper);
-  const matches = new Set(
-    knownPapers.filter((known) => matchesImportedPaper(imported, known)).map((known) => known.key),
-  );
-  if (matches.size > 1) invalid('The RIS identifiers conflict with existing topic papers.');
-  const key = matches.values().next().value;
-  const history = knownPapers.filter((known) => known.key === key);
+  const { key, history } = index.match(imported, record);
   const sameSource = history.filter((known) => known.source === imported.source);
   if (
     sameSource.length &&
     !sameSource.some((known) => known.title === imported.title) &&
     !history.some((known) => sameWorkIdentifier(imported, known))
   )
-    invalid('The RIS source is already registered for a different paper title.');
+    invalid(`RIS record ${record}: the source is already registered for a different paper title.`);
   const identities = [imported, ...history];
-  const doi = knownIdentifier(identities, 'doi');
-  const arxiv = knownIdentifier(identities, 'arxiv');
-  paper.key = key ?? paper.key;
+  const doi = knownIdentifier(identities, 'doi', record);
+  const arxiv = knownIdentifier(identities, 'arxiv', record);
+  paper.key = key;
   if (doi && !paper.doi) paper.doi = doi;
   if (arxiv && !paper.arxiv) paper.arxiv = arxiv;
 }
 
 async function importSearch(input: string, topic: Topic) {
-  const papers = parseRis(await readUtf8(input, 'RIS'), maxPapersPerRound);
-  const knownPapers = topic.searches.flatMap((search) => search.papers.map(bibliographicIdentity));
-  for (const paper of papers) {
-    linkImportedPaper(paper, knownPapers);
-    knownPapers.push(bibliographicIdentity(paper));
+  const papers = parseRis(await readUtf8(input, 'RIS'));
+  const index = new BibliographyIndex();
+  for (const search of topic.searches) {
+    for (const paper of search.papers) index.add(bibliographicIdentity(paper));
+  }
+  const firstRecord = new Map<string, number>();
+  for (const [offset, paper] of papers.entries()) {
+    const record = offset + 1;
+    linkImportedPaper(paper, index, record);
+    const earlier = firstRecord.get(paper.key);
+    if (earlier !== undefined)
+      invalid(`RIS records ${earlier} and ${record} describe the same paper.`);
+    firstRecord.set(paper.key, record);
+    index.add(bibliographicIdentity(paper));
   }
   return { query: 'Imported RIS bibliography', papers };
 }
